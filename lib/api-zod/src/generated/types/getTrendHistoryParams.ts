@@ -5,7 +5,8 @@
  * THEA — Total Human Engagement Analytics API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetTrendHistoryTimeframe } from './getTrendHistoryTimeframe';
 
-export interface HealthStatus {
-  status: string;
-}
+export type GetTrendHistoryParams = {
+timeframe?: GetTrendHistoryTimeframe;
+};

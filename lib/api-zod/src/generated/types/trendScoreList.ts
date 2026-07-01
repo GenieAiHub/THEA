@@ -5,7 +5,9 @@
  * THEA — Total Human Engagement Analytics API
  * OpenAPI spec version: 0.1.0
  */
+import type { TrendScore } from './trendScore';
 
-export interface HealthStatus {
-  status: string;
+export interface TrendScoreList {
+  data?: TrendScore[];
+  timeframe?: string;
 }
