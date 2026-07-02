@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useListContent } from "@workspace/api-client-react";
+import { useListContent, useListCategories } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, ExternalLink, ChevronLeft, ChevronRight, Download, X, Filter } from "lucide-react";
+import { Search, ExternalLink, ChevronLeft, ChevronRight, Download, X, Filter, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const PLATFORMS = ["all", "twitter", "reddit", "news", "blog", "facebook", "instagram", "other"];
 const SENTIMENTS = ["all", "positive", "negative", "neutral"];
+const LANGUAGES = ["all", "en", "es", "fr", "de", "pt", "zh", "ar", "ja", "ko", "ru", "it"];
 
 function exportCSV(data: any[]) {
   const headers = ["id", "title", "platform", "body", "author", "language", "sentimentScore", "geoCountry", "sourceUrl", "collectedAt"];
@@ -35,11 +36,18 @@ export default function DataExplorerPage() {
   const [activeQuery, setActiveQuery] = useState("");
   const [platform, setPlatform] = useState("all");
   const [sentiment, setSentiment] = useState("all");
+  const [language, setLanguage] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const { toast } = useToast();
   const limit = 20;
+
+  const { data: categoriesData } = useListCategories<any>();
+  const allCategories = ["all", ...(categoriesData?.data || [])];
 
   const sentimentFilter =
     sentiment === "positive"
@@ -52,11 +60,15 @@ export default function DataExplorerPage() {
     {
       search: activeQuery || undefined,
       platform: platform !== "all" ? platform : undefined,
+      category: category !== "all" ? category : undefined,
+      language: language !== "all" ? language : undefined,
+      collectedAfter: dateFrom || undefined,
+      collectedBefore: dateTo || undefined,
       page,
       limit,
       ...sentimentFilter,
     } as any,
-    { query: { enabled: true, queryKey: ["/api/v1/content", { search: activeQuery, platform, page, limit, sentiment }] } }
+    { query: { enabled: true, queryKey: ["/api/v1/content", { search: activeQuery, platform, category, language, dateFrom, dateTo, page, limit, sentiment }] } }
   );
 
   const handleSearch = (e: React.FormEvent) => {
@@ -70,6 +82,10 @@ export default function DataExplorerPage() {
     setActiveQuery("");
     setPlatform("all");
     setSentiment("all");
+    setLanguage("all");
+    setCategory("all");
+    setDateFrom("");
+    setDateTo("");
     setPage(1);
   };
 
@@ -82,7 +98,7 @@ export default function DataExplorerPage() {
     toast({ title: `Exported ${contentData.data.length} rows as CSV` });
   };
 
-  const hasActiveFilters = activeQuery || platform !== "all" || sentiment !== "all";
+  const hasActiveFilters = activeQuery || platform !== "all" || sentiment !== "all" || language !== "all" || category !== "all" || dateFrom || dateTo;
 
   return (
     <DashboardLayout title="Data Explorer">
@@ -126,38 +142,87 @@ export default function DataExplorerPage() {
 
         {/* Filter panel */}
         {showFilters && (
-          <div className="flex flex-wrap gap-4 p-4 bg-slate-900 border border-slate-800 rounded-xl shrink-0">
-            <div className="flex items-center gap-3">
-              <Label className="text-slate-400 text-sm shrink-0">Platform</Label>
-              <Select value={platform} onValueChange={(v) => { setPlatform(v); setPage(1); }}>
-                <SelectTrigger className="w-36 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                  {PLATFORMS.map((p) => (
-                    <SelectItem key={p} value={p} className="capitalize">{p === "all" ? "All Platforms" : p}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl shrink-0 space-y-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Label className="text-slate-400 text-xs shrink-0">Platform</Label>
+                <Select value={platform} onValueChange={(v) => { setPlatform(v); setPage(1); }}>
+                  <SelectTrigger className="w-32 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    {PLATFORMS.map((p) => (
+                      <SelectItem key={p} value={p} className="capitalize">{p === "all" ? "All" : p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-slate-400 text-xs shrink-0">Sentiment</Label>
+                <Select value={sentiment} onValueChange={(v) => { setSentiment(v); setPage(1); }}>
+                  <SelectTrigger className="w-32 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    {SENTIMENTS.map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">{s === "all" ? "All" : s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-slate-400 text-xs shrink-0">Language</Label>
+                <Select value={language} onValueChange={(v) => { setLanguage(v); setPage(1); }}>
+                  <SelectTrigger className="w-24 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    {LANGUAGES.map((l) => (
+                      <SelectItem key={l} value={l} className="uppercase">{l === "all" ? "All" : l.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-slate-400 text-xs shrink-0">Category</Label>
+                <Select value={category} onValueChange={(v) => { setCategory(v); setPage(1); }}>
+                  <SelectTrigger className="w-36 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                    {allCategories.map((c: string) => (
+                      <SelectItem key={c} value={c}>{c === "all" ? "All Categories" : c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Label className="text-slate-400 text-sm shrink-0">Sentiment</Label>
-              <Select value={sentiment} onValueChange={(v) => { setSentiment(v); setPage(1); }}>
-                <SelectTrigger className="w-36 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                  {SENTIMENTS.map((s) => (
-                    <SelectItem key={s} value={s} className="capitalize">{s === "all" ? "All Sentiment" : s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <Label className="text-slate-400 text-xs shrink-0">From</Label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  className="h-8 px-2 text-sm rounded-md bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-slate-400 text-xs shrink-0">To</Label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  className="h-8 px-2 text-sm rounded-md bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={handleReset} className="text-slate-500 hover:text-slate-300 h-8">
+                  <X className="w-3.5 h-3.5 mr-1" /> Reset All
+                </Button>
+              )}
             </div>
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={handleReset} className="text-slate-500 hover:text-slate-300 h-8">
-                <X className="w-3.5 h-3.5 mr-1" /> Reset
-              </Button>
-            )}
           </div>
         )}
 

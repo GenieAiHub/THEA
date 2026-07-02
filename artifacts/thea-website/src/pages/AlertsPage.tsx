@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "wouter";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useListAlerts, useResolveAlert, getListAlertsQueryKey } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Filter, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -145,7 +146,17 @@ export default function AlertsPage() {
                         <span className="text-xs text-slate-500">{new Date(alert.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link href={`/alerts/${alert.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                          <span className="hidden sm:inline">Detail</span>
+                        </Button>
+                      </Link>
                       {alert.status === "open" ? (
                         <Button
                           size="sm"

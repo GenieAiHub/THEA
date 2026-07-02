@@ -45,7 +45,35 @@ function DownloadButton({ text, filename }: { text: string; filename: string }) 
     <Button variant="outline" size="sm" onClick={handleDownload}
       className="border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
       <Download className="w-3.5 h-3.5 mr-1.5" />
-      Download
+      .txt
+    </Button>
+  );
+}
+
+function DownloadDocxButton({ text, filename }: { text: string; filename: string }) {
+  const handleDownload = () => {
+    const htmlContent = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${filename}</title><style>body{font-family:Calibri,sans-serif;font-size:12pt;line-height:1.6;margin:2cm;}h1{font-size:16pt;}p{margin-bottom:6pt;}</style></head><body>${text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br>")
+      .replace(/^/, "<p>")
+      .replace(/$/, "</p>")
+    }</body></html>`;
+    const blob = new Blob(["\ufeff", htmlContent], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.replace(/\.txt$/, "") + ".doc";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={handleDownload}
+      className="border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+      <Download className="w-3.5 h-3.5 mr-1.5" />
+      .docx
     </Button>
   );
 }
@@ -222,6 +250,7 @@ export default function AiToolsPage() {
                       <div className="flex gap-2">
                         <CopyButton text={tpResult} />
                         <DownloadButton text={tpResult} filename={`talking-points-${tpTopic.replace(/\s+/g, "-")}.txt`} />
+                        <DownloadDocxButton text={tpResult} filename={`talking-points-${tpTopic.replace(/\s+/g, "-")}`} />
                       </div>
                     </div>
                     <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 text-slate-300 whitespace-pre-wrap text-sm leading-relaxed">
@@ -307,7 +336,8 @@ export default function AiToolsPage() {
                       </div>
                       <div className="flex gap-2">
                         <CopyButton text={dsResult} />
-                        <DownloadButton text={dsResult} filename={`statement-draft.txt`} />
+                        <DownloadButton text={dsResult} filename="statement-draft.txt" />
+                        <DownloadDocxButton text={dsResult} filename="statement-draft" />
                       </div>
                     </div>
                     <div className="p-6 bg-slate-950 rounded-lg border border-slate-800 text-slate-300 whitespace-pre-wrap font-serif text-sm leading-relaxed">

@@ -13,15 +13,19 @@ import {
   ChevronRight,
   Menu,
   Target,
-  Sword
+  Sword,
+  Bell,
+  Building2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useListAlerts } from "@workspace/api-client-react";
 
 interface SidebarItem {
   icon: React.ReactNode;
@@ -40,6 +44,23 @@ const navItems: SidebarItem[] = [
   { icon: <Sword className="w-4 h-4" />, label: "Competitors", href: "/competitors" },
   { icon: <Settings className="w-4 h-4" />, label: "Settings", href: "/settings" },
 ];
+
+function NotificationBell() {
+  const { data: alertsData } = useListAlerts<any>({ status: "open", limit: 50 });
+  const openCount = (alertsData?.data || []).length;
+  return (
+    <Link href="/alerts">
+      <div className="relative p-2 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 cursor-pointer transition-colors">
+        <Bell className="w-4 h-4 text-slate-400" />
+        {openCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+            {openCount > 99 ? "99+" : openCount}
+          </span>
+        )}
+      </div>
+    </Link>
+  );
+}
 
 export function DashboardLayout({ children, title }: { children: React.ReactNode, title?: string }) {
   const { user } = useUser();
@@ -144,6 +165,15 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
                     <span className="text-slate-200">{title}</span>
                   </div>
                 )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-400">
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span className="max-w-[120px] truncate">
+                    {user?.organizationMemberships?.[0]?.organization?.name || user?.fullName || "My Org"}
+                  </span>
+                </div>
+                <NotificationBell />
               </div>
             </header>
 

@@ -147,9 +147,19 @@ export default function TrendsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="bg-slate-800 text-slate-300 border-slate-700 text-xs">
-                        {trend.category}
-                      </Badge>
+                      {trend.category ? (
+                        <Link
+                          href={`/category/${encodeURIComponent(trend.category)}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Badge
+                            variant="outline"
+                            className="bg-slate-800 text-slate-300 border-slate-700 text-xs hover:border-blue-500/40 hover:text-blue-400 cursor-pointer transition-colors"
+                          >
+                            {trend.category} ↗
+                          </Badge>
+                        </Link>
+                      ) : null}
                       {trend.lifecycleStage && (
                         <Badge className={`text-xs ${lifecycleColor[lifecycle] || lifecycleColor.emerging}`}>
                           {trend.lifecycleStage}
