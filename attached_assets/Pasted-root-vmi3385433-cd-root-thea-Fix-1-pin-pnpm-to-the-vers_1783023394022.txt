@@ -1,0 +1,242 @@
+root@vmi3385433:~# cd /root/thea
+
+# Fix 1: pin pnpm to the version that built the lockfile (corepack was grabbing 11.9.0)
+sed -i '/"license": "MIT",/a\  "packageManager": "pnpm@10.26.1",' package.json
+python3 -m json.tool package.json >/dev/null && echo "package.json valid"
+grep -n packageManager package.json
+
+# Fix 2: explicitly acknowledge the 6 optional build scripts
+cat >> pnpm-workspace.yaml <<'YAML'
+
+ignoredBuiltDependencies:
+  - '@scarf/scarf'
+  - bufferutil
+  - core-js
+  - es5-ext
+  - msgpackr-extract
+  - utf-8-validate
+YAML
+tail -n 12 pnpm-workspace.yaml
+package.json valid
+5:  "packageManager": "pnpm@10.26.1",
+  "@expo/ngrok-bin>@expo/ngrok-bin-win32-x64": "-"
+  # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
+  "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
+  esbuild: "0.27.3"
+
+ignoredBuiltDependencies:
+  - '@scarf/scarf'
+  - bufferutil
+  - core-js
+  - es5-ext
+  - msgpackr-extract
+  - utf-8-validate
+root@vmi3385433:~/thea# docker compose -f docker-compose.yml -f docker-compose.proxy.yml build api
+[+] Building 325.3s (18/18) FINISHED
+ => [internal] load local bake definitions                                         0.0s
+ => => reading from stdin 864B                                                     0.0s
+ => [internal] load build definition from Dockerfile                               0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => resolve image config for docker-image://docker.io/docker/dockerfile:1.7        1.3s
+ => CACHED docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb  0.1s
+ => => resolve docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f281  0.1s
+ => [internal] load metadata for docker.io/library/node:24-slim                    0.8s
+ => [internal] load .dockerignore                                                  0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [internal] load build context                                                  0.1s
+ => => transferring context: 53.77kB                                               0.1s
+ => [base 1/3] FROM docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa5f5ed47  0.2s
+ => => resolve docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa5f5ed477c72d  0.1s
+ => CACHED [base 2/3] RUN corepack enable                                          0.0s
+ => CACHED [base 3/3] WORKDIR /app                                                 0.0s
+ => CACHED [deps 1/3] RUN apt-get update  && apt-get install -y --no-install-reco  0.0s
+ => [deps 2/3] COPY . .                                                            0.4s
+ => [deps 3/3] RUN pnpm install --frozen-lockfile                                 44.5s
+ => [build-api 1/1] RUN pnpm --filter @workspace/api-server run build              9.1s
+ => [api 1/2] COPY --from=build-api /app /app                                     32.6s
+ => [api 2/2] WORKDIR /app/artifacts/api-server                                    1.9s
+ => exporting to image                                                           204.8s
+ => => exporting layers                                                          132.5s
+ => => exporting manifest sha256:270dde553b707339f8981530f904b13dfec741b8825315e8  0.1s
+ => => exporting config sha256:9f56b276110f38ad89a015fa27695fef802cbd5d3c509bf33f  0.0s
+ => => exporting attestation manifest sha256:1c49e38a2ea2a95b077a7873c824cf94b146  0.1s
+ => => exporting manifest list sha256:3711678bd79500537843bb01bd594c322a854c43e51  0.1s
+ => => naming to docker.io/library/thea-api:latest                                 0.0s
+ => => unpacking to docker.io/library/thea-api:latest                             71.7s
+ => resolving provenance for metadata file                                         0.1s
+[+] build 1/2
+ ✔ Image thea-api   Built                                                         325.5s
+ ⠙ Image thea-tools Building                                                      325.5s
+root@vmi3385433:~/thea# docker compose -f docker-compose.yml -f docker-compose.proxy.yml build website admin markets
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml ps
+[+] Building 19.5s (30/35)
+ => [internal] load local bake definitions                                         0.0s
+ => => reading from stdin 2.29kB                                                   0.0s
+ => [website internal] load build definition from Dockerfile                       0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [markets] resolve image config for docker-image://docker.io/docker/dockerfile  1.5s
+ => CACHED [admin] docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d  0.2s
+ => => resolve docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f281  0.2s
+ => [markets internal] load build definition from Dockerfile                       0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [website internal] load build definition from Dockerfile                       0.1s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [admin internal] load build definition from Dockerfile                         0.1s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [admin internal] load metadata for docker.io/library/nginx:1.27-alpine         0.9s
+ => [markets internal] load metadata for docker.io/library/node:24-slim            0.9s
+ => [website internal] load .dockerignore                                          0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [markets internal] load .dockerignore                                          0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [admin internal] load .dockerignore                                            0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [markets base 1/3] FROM docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8a  0.1s
+ => => resolve docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa5f5ed477c72d  0.1s
+ => [markets web 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a  0.1s
+ => => resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03  0.1s
+ => [admin internal] load build context                                            0.4s
+ => => transferring context: 53.77kB                                               0.2s
+ => [website internal] load build context                                          0.5s
+ => => transferring context: 53.77kB                                               0.3s
+ => [markets internal] load build context                                          0.2s
+ => => transferring context: 46.05kB                                               0.1s
+ => CACHED [website base 2/3] RUN corepack enable                                  0.0s
+ => CACHED [website base 3/3] WORKDIR /app                                         0.0s
+ => CACHED [website deps 1/3] RUN apt-get update  && apt-get install -y --no-inst  0.0s
+ => CACHED [markets deps 2/3] COPY . .                                             0.0s
+ => CACHED [website deps 3/3] RUN pnpm install --frozen-lockfile                   0.0s
+ => CANCELED [markets build-web 1/1] RUN test -n "markets" || (echo "ERROR: APP   15.7s
+ => CACHED [website web 2/3] COPY deploy/nginx/default.conf.template /etc/nginx/t  0.0s
+ => CACHED [admin deps 2/3] COPY . .                                               0.0s
+ => CACHED [admin deps 3/3] RUN pnpm install --frozen-lockfile                     0.0s
+ => CANCELED [admin build-web 1/1] RUN test -n "admin-ui" || (echo "ERROR: APP b  15.3s
+ => CACHED [website deps 2/3] COPY . .                                             0.0s
+ => CACHED [website deps 3/3] RUN pnpm install --frozen-lockfile                   0.0s
+ => ERROR [website build-web 1/1] RUN test -n "thea-website" || (echo "ERROR: AP  14.6s
+------
+ > [website build-web 1/1] RUN test -n "thea-website" || (echo "ERROR: APP build-arg is required" && exit 1)  && pnpm --filter @workspace/thea-website run build:
+3.273
+3.273 > @workspace/thea-website@0.0.0 build /app/artifacts/thea-website
+3.273 > vite build --config vite.config.ts
+3.273
+4.685 vite v7.3.5 building client environment for production...
+5.123 transforming...
+12.09 src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+13.87 src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+13.88 src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+13.89 src/components/ui/progress.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+14.10 ✓ 1752 modules transformed.
+14.12 ✗ Build failed in 9.38s
+14.12 error during build:
+14.12 [vite:asset] Could not load /app/attached_assets/ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1782950524488.png (imported by src/pages/Home.tsx): ENOENT: no such file or directory, open '/app/attached_assets/ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1782950524488.png'
+14.12     at async open (node:internal/fs/promises:640:25)
+14.12     at async Object.readFile (node:internal/fs/promises:1290:14)
+14.12     at async fileToBuiltUrl (file:///app/node_modules/.pnpm/vite@7.3.5_@types+node@25.9.4_jiti@2.7.0_lightningcss@1.32.0_terser@5.48.0_tsx@4.22.4_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:8793:18)
+14.12     at async Object.handler (file:///app/node_modules/.pnpm/vite@7.3.5_@types+node@25.9.4_jiti@2.7.0_lightningcss@1.32.0_terser@5.48.0_tsx@4.22.4_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:8687:17)
+14.12     at async PluginDriver.hookFirstAndGetPlugin (file:///app/node_modules/.pnpm/rollup@4.62.2/node_modules/rollup/dist/es/shared/node-entry.js:22908:28)
+14.12     at async file:///app/node_modules/.pnpm/rollup@4.62.2/node_modules/rollup/dist/es/shared/node-entry.js:21894:33
+14.12     at async Queue.work (file:///app/node_modules/.pnpm/rollup@4.62.2/node_modules/rollup/dist/es/shared/node-entry.js:23136:32)
+14.23 /app/artifacts/thea-website:
+14.23  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/thea-website@0.0.0 build: `vite build --config vite.config.ts`
+14.23 Exit status 1
+------
+[+] build 0/5
+ ⠙ Image thea-markets Building                                                     19.7s
+ ⠙ Image thea-website Building                                                     19.7s
+ ⠙ Image thea-admin   Building                                                     19.7s
+ ⠙ Image thea-tools   Building                                                     19.7s
+ ⠙ Image thea-api     Building                                                     19.7s
+target website: failed to solve: process "/bin/sh -c test -n \"$APP\" || (echo \"ERROR: APP build-arg is required\" && exit 1)  && pnpm --filter @workspace/${APP} run build" did not complete successfully: exit code: 1
+
+[+] up 1/4
+[+] up 4/4... pull access denied for thea-tools, repository does not exist or may requir
+ ! Image t... pull access denied for thea-tools, repository does not exist or may require 'docker login' 1.2s                                                               1.2s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may require 'docker login' 1.2s                                                             1.2s
+ ! Image t... pull access denied for thea-admin, repository does not exist or may require 'docker login' 1.2s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+[+] Building 13.6s (34/41)
+ => [internal] load local bake definitions                                         0.0s
+ => => reading from stdin 2.31kB                                                   0.0s
+ => [admin internal] load build definition from Dockerfile                         0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [website] resolve image config for docker-image://docker.io/docker/dockerfile  0.3s
+ => CACHED [website] docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df6  0.1s
+ => => resolve docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f281  0.1s
+ => [website internal] load build definition from Dockerfile                       0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [migrate internal] load build definition from Dockerfile                       0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [markets internal] load build definition from Dockerfile                       0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [admin internal] load build definition from Dockerfile                         0.0s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [website internal] load metadata for docker.io/library/node:24-slim            0.3s
+ => [admin internal] load metadata for docker.io/library/nginx:1.27-alpine         0.3s
+ => [migrate internal] load .dockerignore                                          0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [admin internal] load .dockerignore                                            0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [website internal] load .dockerignore                                          0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [markets internal] load .dockerignore                                          0.0s
+ => => transferring context: 254B                                                  0.0s
+ => [website base 1/3] FROM docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8a  0.1s
+ => => resolve docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa5f5ed477c72d  0.1s
+ => [migrate internal] load build context                                          0.3s
+ => => transferring context: 46.05kB                                               0.2s
+ => [markets web 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a  0.3s
+ => => resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03  0.3s
+ => [admin internal] load build context                                            0.3s
+ => => transferring context: 46.05kB                                               0.2s
+ => [markets internal] load build context                                          0.3s
+ => => transferring context: 46.05kB                                               0.2s
+ => [website internal] load build context                                          0.2s
+ => => transferring context: 53.77kB                                               0.2s
+ => CACHED [website base 2/3] RUN corepack enable                                  0.0s
+ => CACHED [website base 3/3] WORKDIR /app                                         0.0s
+ => CACHED [website deps 1/3] RUN apt-get update  && apt-get install -y --no-inst  0.0s
+ => CACHED [admin deps 2/3] COPY . .                                               0.0s
+ => CACHED [website deps 3/3] RUN pnpm install --frozen-lockfile                   0.0s
+ => CANCELED [admin build-web 1/1] RUN test -n "admin-ui" || (echo "ERROR: APP b  11.3s
+ => CACHED [website web 2/3] COPY deploy/nginx/default.conf.template /etc/nginx/t  0.0s
+ => CACHED [markets deps 2/3] COPY . .                                             0.0s
+ => CACHED [markets deps 3/3] RUN pnpm install --frozen-lockfile                   0.0s
+ => CANCELED [markets build-web 1/1] RUN test -n "markets" || (echo "ERROR: APP   11.4s
+ => CANCELED [migrate] exporting to image                                         11.2s
+ => => exporting layers                                                           11.2s
+ => CACHED [website deps 2/3] COPY . .                                             0.0s
+ => CACHED [website deps 3/3] RUN pnpm install --frozen-lockfile                   0.0s
+ => ERROR [website build-web 1/1] RUN test -n "thea-website" || (echo "ERROR: AP  10.0s
+------
+ > [website build-web 1/1] RUN test -n "thea-website" || (echo "ERROR: APP build-arg is required" && exit 1)  && pnpm --filter @workspace/thea-website run build:
+1.931
+1.931 > @workspace/thea-website@0.0.0 build /app/artifacts/thea-website
+1.931 > vite build --config vite.config.ts
+1.931
+2.805 vite v7.3.5 building client environment for production...
+3.087 transforming...
+9.359 src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+9.496 ✓ 1743 modules transformed.
+9.496 ✗ Build failed in 6.57s
+9.496 error during build:
+9.496 [vite:asset] Could not load /app/attached_assets/generated_images/hero_earth.png (imported by src/pages/Home.tsx): ENOENT: no such file or directory, open '/app/attached_assets/generated_images/hero_earth.png'
+9.496     at async open (node:internal/fs/promises:640:25)
+9.496     at async Object.readFile (node:internal/fs/promises:1290:14)
+9.496     at async fileToBuiltUrl (file:///app/node_modules/.pnpm/vite@7.3.5_@types+node@25.9.4_jiti@2.7.0_lightningcss@1.32.0_terser@5.48.0_tsx@4.22.4_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:8793:18)
+9.496     at async Object.handler (file:///app/node_modules/.pnpm/vite@7.3.5_@types+node@25.9.4_jiti@2.7.0_lightningcss@1.32.0_terser@5.48.0_tsx@4.22.4_yaml@2.9.0/node_modules/vite/dist/node/chunks/config.js:8687:17)
+9.496     at async PluginDriver.hookFirstAndGetPlugin (file:///app/node_modules/.pnpm/rollup@4.62.2/node_modules/rollup/dist/es/shared/node-entry.js:22908:28)
+9.496     at async file:///app/node_modules/.pnpm/rollup@4.62.2/node_modules/rollup/dist/es/shared/node-entry.js:21894:33
+9.496     at async Queue.work (file:///app/node_modules/.pnpm/rollup@4.62.2/node_modules/rollup/dist/es/shared/node-entry.js:23136:32)
+[+] up 0/5/artifacts/thea-website:
+ ⠹ Image thea-tools   Building                                                     15.1s
+ ⠸ Image thea-markets Building                                                     15.1s
+ ⠸ Image thea-admin   Building                                                     15.1s
+ ⠸ Image thea-website Building                                                     15.1s
+ ⠙ Image thea-api     Building                                                     13.7s
+target website: failed to solve: process "/bin/sh -c test -n \"$APP\" || (echo \"ERROR: APP build-arg is required\" && exit 1)  && pnpm --filter @workspace/${APP} run build" did not complete successfully: exit code: 1
+
+NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS
+root@vmi3385433:~/thea# docker compose -f docker-compose.yml -f docker-compose.proxy.yml logs migrate api --tail=100
+root@vmi3385433:~/thea#

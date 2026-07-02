@@ -10,7 +10,9 @@
 **/crawlee_storage
 .local
 .agents
-attached_assets
+# attached_assets is intentionally NOT ignored: the web apps import images from
+# it via the Vite "@assets" alias. Only drop the terminal-paste .txt logs.
+attached_assets/*.txt
 **/*.log
 .env
 .env.*
