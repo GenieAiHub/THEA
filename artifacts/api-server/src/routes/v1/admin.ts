@@ -1,9 +1,37 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { organizationsTable, subscriptionsTable, collectionRunsTable, llmUsageLogsTable } from "@workspace/db/schema";
 import { desc, count } from "drizzle-orm";
 
 const router = Router();
+
+/**
+ * Temporary internal-only guard for admin routes (Phase 1 stopgap).
+ * Set ADMIN_INTERNAL_TOKEN in the environment to require it as a Bearer token.
+ * Auth is fully replaced in Phase 4 (JWT / Clerk RBAC).
+ */
+const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
+
+function requireAdminToken(req: Request, res: Response, next: NextFunction): void {
+  if (!ADMIN_TOKEN) {
+    // No token configured — only allow access from loopback addresses
+    const ip = req.ip ?? "";
+    if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") {
+      next();
+      return;
+    }
+    res.status(403).json({ error: "Admin endpoints are not accessible from external networks before Phase 4 auth" });
+    return;
+  }
+  const provided = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (provided !== ADMIN_TOKEN) {
+    res.status(401).json({ error: "Invalid or missing admin token" });
+    return;
+  }
+  next();
+}
+
+router.use(requireAdminToken);
 
 router.get("/orgs", async (_req, res) => {
   const orgs = await db.select().from(organizationsTable).orderBy(desc(organizationsTable.createdAt));
