@@ -7,6 +7,7 @@ import { normalizeBody, normalizeTitle } from "./normalizer";
 import type { NormalizedItem } from "./types";
 import { logger } from "../logger";
 import { getElasticsearch, CONTENT_ITEMS_INDEX } from "../elasticsearch";
+import { getQueues } from "../queues";
 
 interface IngestionStats {
   fetched: number;
@@ -19,6 +20,7 @@ export async function ingestItems(
   orgId = PLATFORM_ORG_ID
 ): Promise<IngestionStats> {
   const stats: IngestionStats = { fetched: items.length, deduplicated: 0, stored: 0 };
+  const newItemIds: string[] = [];
 
   for (const item of items) {
     try {
@@ -61,6 +63,7 @@ export async function ingestItems(
 
       if (inserted) {
         stats.stored++;
+        newItemIds.push(inserted.id);
         await markSeen(contentHash, orgId, inserted.id);
         await indexInElasticsearch(inserted.id, { ...item, body, language, orgId, contentHash });
       }
@@ -69,7 +72,26 @@ export async function ingestItems(
     }
   }
 
+  if (newItemIds.length > 0) {
+    enqueueLlmProcessing(newItemIds).catch((err) =>
+      logger.warn({ err }, "Failed to enqueue LLM processing — items stored without LLM enrichment")
+    );
+  }
+
   return stats;
+}
+
+async function enqueueLlmProcessing(itemIds: string[]): Promise<void> {
+  const { llmProcessing } = getQueues();
+  const CHUNK_SIZE = 20;
+  for (let i = 0; i < itemIds.length; i += CHUNK_SIZE) {
+    const chunk = itemIds.slice(i, i + CHUNK_SIZE);
+    await llmProcessing.add(
+      "classify-after-ingest",
+      { operation: "classify_and_embed" as const, itemIds: chunk },
+      { attempts: 3, backoff: { type: "exponential", delay: 15000 }, priority: 10 }
+    );
+  }
 }
 
 async function indexInElasticsearch(

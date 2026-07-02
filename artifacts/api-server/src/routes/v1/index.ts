@@ -13,6 +13,7 @@ import adminRouter from "./admin";
 import adminConfigsRouter from "./admin_configs";
 import marketsRouter from "./markets";
 import adminMarketsRouter from "./admin_markets";
+import entitiesRouter from "./entities";
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/markets", marketsRouter);
 router.use("/admin", adminMarketsRouter);
 router.use("/admin", adminRouter);
 router.use("/admin/configs", adminConfigsRouter);
+router.use("/entities", entitiesRouter);
 
 export default router;
