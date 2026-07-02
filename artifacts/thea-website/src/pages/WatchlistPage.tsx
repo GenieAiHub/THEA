@@ -4,6 +4,7 @@ import {
   useListWatchlistKeywords,
   useCreateWatchlistKeyword,
   useDeleteWatchlistKeyword,
+  useUpdateWatchlistKeyword,
   getListWatchlistKeywordsQueryKey,
   useListContent,
   useListAlerts,
@@ -17,8 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  Trash2, Plus, Loader2, Eye, TrendingUp, ShieldAlert, ExternalLink,
+  Trash2, Plus, Loader2, Eye, TrendingUp, ShieldAlert, ExternalLink, Pencil, Check, X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,16 +29,27 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
+type KwType = "keyword" | "brand" | "person" | "competitor";
+
+interface EditState {
+  id: string;
+  type: KwType;
+  category: string;
+  notes: string;
+}
+
 export default function WatchlistPage() {
   const { data: keywordsData, isLoading } = useListWatchlistKeywords<any>();
   const createKeyword = useCreateWatchlistKeyword();
   const deleteKeyword = useDeleteWatchlistKeyword();
+  const updateKeyword = useUpdateWatchlistKeyword();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [keyword, setKeyword] = useState("");
-  const [type, setType] = useState<"keyword" | "brand" | "person" | "competitor">("keyword");
+  const [type, setType] = useState<KwType>("keyword");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editState, setEditState] = useState<EditState | null>(null);
 
   const keywords = (keywordsData?.data || []) as any[];
   const selected = keywords.find((k) => k.id === selectedId);
@@ -96,10 +110,43 @@ export default function WatchlistPage() {
     try {
       await deleteKeyword.mutateAsync({ id });
       if (selectedId === id) setSelectedId(null);
+      if (editState?.id === id) setEditState(null);
       queryClient.invalidateQueries({ queryKey: getListWatchlistKeywordsQueryKey() });
       toast({ title: "Keyword removed" });
     } catch {
       toast({ title: "Failed to remove keyword", variant: "destructive" });
+    }
+  };
+
+  const startEdit = (item: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditState({
+      id: item.id,
+      type: item.type || "keyword",
+      category: item.category || "",
+      notes: item.notes || "",
+    });
+  };
+
+  const cancelEdit = () => setEditState(null);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editState) return;
+    try {
+      await updateKeyword.mutateAsync({
+        id: editState.id,
+        data: {
+          type: editState.type,
+          category: editState.category || undefined,
+          notes: editState.notes || undefined,
+        },
+      });
+      queryClient.invalidateQueries({ queryKey: getListWatchlistKeywordsQueryKey() });
+      toast({ title: "Keyword updated" });
+      setEditState(null);
+    } catch {
+      toast({ title: "Failed to update keyword", variant: "destructive" });
     }
   };
 
@@ -154,30 +201,97 @@ export default function WatchlistPage() {
                 ) : keywords.length > 0 ? (
                   <div className="space-y-2">
                     {keywords.map((item: any) => (
-                      <div
-                        key={item.id}
-                        onClick={() => setSelectedId(item.id === selectedId ? null : item.id)}
-                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                          selectedId === item.id
-                            ? "bg-blue-600/10 border-blue-600/40"
-                            : "bg-slate-950 border-slate-800 hover:border-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Eye className={`w-3.5 h-3.5 shrink-0 ${selectedId === item.id ? "text-blue-400" : "text-slate-600"}`} />
-                          <div className="min-w-0">
-                            <p className={`font-medium text-sm truncate ${selectedId === item.id ? "text-blue-300" : "text-slate-200"}`}>{item.keyword}</p>
-                            <p className="text-xs text-slate-500 capitalize">{item.type}</p>
+                      <div key={item.id} className="flex flex-col rounded-lg border overflow-hidden">
+                        <div
+                          onClick={() => { setSelectedId(item.id === selectedId ? null : item.id); }}
+                          className={`flex items-center justify-between p-3 cursor-pointer transition-all ${
+                            selectedId === item.id
+                              ? "bg-blue-600/10 border-b border-blue-600/20"
+                              : "bg-slate-950 hover:bg-slate-900"
+                          } border-slate-800`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Eye className={`w-3.5 h-3.5 shrink-0 ${selectedId === item.id ? "text-blue-400" : "text-slate-600"}`} />
+                            <div className="min-w-0">
+                              <p className={`font-medium text-sm truncate ${selectedId === item.id ? "text-blue-300" : "text-slate-200"}`}>{item.keyword}</p>
+                              <p className="text-xs text-slate-500 capitalize">{item.type}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-7 h-7 text-slate-600 hover:text-blue-400 hover:bg-blue-400/10"
+                              title="Edit"
+                              onClick={(e) => startEdit(item, e)}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-7 h-7 text-slate-600 hover:text-red-400 hover:bg-red-400/10"
+                              title="Delete"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                            >
+                              {deleteKeyword.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                            </Button>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="w-7 h-7 shrink-0 text-slate-600 hover:text-red-400 hover:bg-red-400/10"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                        >
-                          {deleteKeyword.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                        </Button>
+
+                        {/* Inline edit panel */}
+                        {editState?.id === item.id && (
+                          <form
+                            onSubmit={handleUpdate}
+                            className="bg-slate-900 border-t border-slate-700 p-3 flex flex-col gap-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Edit Keyword</p>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-slate-500">Type</Label>
+                              <Select value={editState!.type} onValueChange={(v: any) => setEditState((s) => s ? { ...s, type: v } : s)}>
+                                <SelectTrigger className="h-8 bg-slate-950 border-slate-700 text-slate-200 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                                  <SelectItem value="keyword">Keyword</SelectItem>
+                                  <SelectItem value="brand">Brand</SelectItem>
+                                  <SelectItem value="person">Person</SelectItem>
+                                  <SelectItem value="competitor">Competitor</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-slate-500">Category</Label>
+                              <Input
+                                value={editState!.category}
+                                onChange={(e) => setEditState((s) => s ? { ...s, category: e.target.value } : s)}
+                                placeholder="e.g. politics"
+                                className="h-8 bg-slate-950 border-slate-700 text-slate-200 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-slate-500">Notes</Label>
+                              <Textarea
+                                value={editState!.notes}
+                                onChange={(e) => setEditState((s) => s ? { ...s, notes: e.target.value } : s)}
+                                placeholder="Optional notes..."
+                                rows={2}
+                                className="bg-slate-950 border-slate-700 text-slate-200 text-sm resize-none"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button type="submit" size="sm" className="flex-1 bg-blue-600 hover:bg-blue-500 h-8 text-xs" disabled={updateKeyword.isPending}>
+                                {updateKeyword.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : <Check className="w-3 h-3 mr-1.5" />}
+                                Save
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" className="h-8 text-xs border-slate-700 text-slate-400 hover:bg-slate-800" onClick={cancelEdit}>
+                                <X className="w-3 h-3 mr-1.5" />
+                                Cancel
+                              </Button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -198,6 +312,9 @@ export default function WatchlistPage() {
                     <p className="text-sm text-slate-500 capitalize mt-0.5">
                       {selected.type} · Added {selected.createdAt ? new Date(selected.createdAt).toLocaleDateString() : "recently"}
                     </p>
+                    {selected.category && (
+                      <p className="text-xs text-slate-600 mt-0.5">Category: {selected.category}</p>
+                    )}
                   </div>
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Active</Badge>
                 </div>

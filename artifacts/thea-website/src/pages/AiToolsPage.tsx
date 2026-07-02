@@ -90,7 +90,7 @@ function DownloadDocxButton({ text, filename }: { text: string; filename: string
     <Button variant="outline" size="sm" onClick={handleDownload}
       className="border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
       <Download className="w-3.5 h-3.5 mr-1.5" />
-      .docx
+      .doc
     </Button>
   );
 }

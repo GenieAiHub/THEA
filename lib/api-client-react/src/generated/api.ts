@@ -1102,17 +1102,24 @@ export const getUpdateWatchlistKeywordUrl = (id: string,) => {
   return `/api/v1/watchlist/${id}`
 }
 
+export type UpdateWatchlistKeywordBody = {
+  type?: 'keyword' | 'brand' | 'person' | 'competitor';
+  category?: string;
+  notes?: string;
+  isActive?: boolean;
+};
+
 /**
- * @summary Update a watchlist keyword
+ * @summary Update a watchlist keyword (type, category, notes, active status)
  */
-export const updateWatchlistKeyword = async (id: string, options?: RequestInit): Promise<void> => {
+export const updateWatchlistKeyword = async (id: string, updateWatchlistKeywordBody: UpdateWatchlistKeywordBody, options?: RequestInit): Promise<void> => {
 
   return customFetch<void>(getUpdateWatchlistKeywordUrl(id),
   {
     ...options,
-    method: 'PATCH'
-
-
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateWatchlistKeywordBody),
   }
 );}
 
@@ -1120,8 +1127,8 @@ export const updateWatchlistKeyword = async (id: string, options?: RequestInit):
 
 
 export const getUpdateWatchlistKeywordMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchlistKeyword>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateWatchlistKeyword>>, TError,{id: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchlistKeyword>>, TError,{id: string; data: UpdateWatchlistKeywordBody}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWatchlistKeyword>>, TError,{id: string; data: UpdateWatchlistKeywordBody}, TContext> => {
 
 const mutationKey = ['updateWatchlistKeyword'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -1133,13 +1140,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWatchlistKeyword>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWatchlistKeyword>>, {id: string; data: UpdateWatchlistKeywordBody}> = (props) => {
+          const {id, data} = props ?? {};
 
-          return  updateWatchlistKeyword(id,requestOptions)
+          return  updateWatchlistKeyword(id, data, requestOptions)
         }
-
-
 
 
 
@@ -1151,19 +1156,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateWatchlistKeywordMutationError = ErrorType<unknown>
 
     /**
- * @summary Update a watchlist keyword
+ * @summary Update a watchlist keyword (type, category, notes, active status)
  */
 export const useUpdateWatchlistKeyword = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchlistKeyword>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchlistKeyword>>, TError,{id: string; data: UpdateWatchlistKeywordBody}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateWatchlistKeyword>>,
         TError,
-        {id: string},
+        {id: string; data: UpdateWatchlistKeywordBody},
         TContext
       > => {
       return useMutation(getUpdateWatchlistKeywordMutationOptions(options));
     }
-
 export const getDeleteWatchlistKeywordUrl = (id: string,) => {
 
 
@@ -1463,6 +1467,70 @@ export const useResolveAlert = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getResolveAlertMutationOptions(options));
+    }
+
+export const getDismissAlertUrl = (id: string,) => {
+  return `/api/v1/alerts/${id}/dismiss`
+}
+
+/**
+ * @summary Dismiss an alert without escalation
+ */
+export const dismissAlert = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDismissAlertUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getDismissAlertMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissAlert>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissAlert>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['dismissAlert'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissAlert>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissAlert(id,requestOptions)
+        }
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissAlertMutationResult = NonNullable<Awaited<ReturnType<typeof dismissAlert>>>
+
+    export type DismissAlertMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Dismiss an alert without escalation
+ */
+export const useDismissAlert = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissAlert>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof dismissAlert>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDismissAlertMutationOptions(options));
     }
 
 export const getListCrawlerSourcesUrl = () => {

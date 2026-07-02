@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useListAlerts, useResolveAlert, getListAlertsQueryKey } from "@workspace/api-client-react";
+import { useListAlerts, useResolveAlert, useDismissAlert, getListAlertsQueryKey } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,6 +36,7 @@ export default function AlertsPage() {
     limit: 100,
   });
   const resolveAlert = useResolveAlert();
+  const dismissAlertMutation = useDismissAlert();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -57,8 +58,7 @@ export default function AlertsPage() {
     e.stopPropagation();
     setDismissingId(id);
     try {
-      const res = await fetch(`/api/v1/alerts/${id}/dismiss`, { method: "PATCH", credentials: "include" });
-      if (!res.ok) throw new Error("dismiss failed");
+      await dismissAlertMutation.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() });
       toast({ title: "Alert dismissed" });
     } catch {

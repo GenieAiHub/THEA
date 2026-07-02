@@ -251,15 +251,23 @@ paths:
     patch:
       operationId: updateWatchlistKeyword
       tags: [watchlist]
-      summary: Update a watchlist keyword
+      summary: Update a watchlist keyword (type, category, notes, active status)
       parameters:
         - name: id
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWatchlistKeyword"
       responses:
         "200":
           description: Updated
+        "404":
+          description: Not found
     delete:
       operationId: deleteWatchlistKeyword
       tags: [watchlist]
@@ -305,6 +313,14 @@ paths:
           description: Alert detail
         "404":
           description: Not found
+  /v1/alerts/stream:
+    get:
+      operationId: streamAlerts
+      tags: [alerts]
+      summary: Server-Sent Events stream of new critical/high alerts
+      responses:
+        "200":
+          description: SSE stream — content-type text/event-stream
   /v1/alerts/{id}/resolve:
     patch:
       operationId: resolveAlert
@@ -318,6 +334,21 @@ paths:
       responses:
         "200":
           description: Resolved
+  /v1/alerts/{id}/dismiss:
+    patch:
+      operationId: dismissAlert
+      tags: [alerts]
+      summary: Dismiss an alert without escalation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Dismissed
+        "404":
+          description: Not found
   /v1/crawler/sources:
     get:
       operationId: listCrawlerSources
@@ -1310,6 +1341,13 @@ components:
         type: { type: string, enum: [keyword, brand, person, competitor] }
         category: { type: string }
         notes: { type: string }
+    UpdateWatchlistKeyword:
+      type: object
+      properties:
+        type: { type: string, enum: [keyword, brand, person, competitor] }
+        category: { type: string }
+        notes: { type: string }
+        isActive: { type: boolean }
     CreateCrawlerSource:
       type: object
       required: [name, url, category]
