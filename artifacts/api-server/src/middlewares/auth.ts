@@ -1,7 +1,8 @@
 import { type Request, type Response, type NextFunction } from "express";
+import { createHash } from "node:crypto";
 import { db } from "@workspace/db";
-import { usersTable, organizationsTable, subscriptionsTable, sessionsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { usersTable, organizationsTable, subscriptionsTable, sessionsTable, apiKeysTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 import { TIER_FEATURES, type Tier } from "./featureGate";
 import { logger } from "../lib/logger";
 import type { Organization, User, Subscription } from "@workspace/db/schema";
@@ -122,7 +123,56 @@ export async function resolveOrgContext(user: User): Promise<TheaRequestContext 
   return { user, org, subscription, tier, featureFlags: TIER_FEATURES[tier] ?? TIER_FEATURES.starter };
 }
 
+/**
+ * Resolve org context from a THEA API key (Bearer token auth).
+ * Returns null if the key is invalid, inactive, or expired.
+ */
+async function resolveApiKeyContext(rawKey: string): Promise<TheaRequestContext | null> {
+  const keyHash = createHash("sha256").update(rawKey).digest("hex");
+  const keyRows = await db
+    .select()
+    .from(apiKeysTable)
+    .where(and(eq(apiKeysTable.keyHash, keyHash), eq(apiKeysTable.isActive, true)))
+    .limit(1);
+
+  const key = keyRows[0];
+  if (!key) return null;
+  if (key.expiresAt && key.expiresAt < new Date()) return null;
+
+  // Update lastUsedAt asynchronously (non-blocking)
+  db.update(apiKeysTable).set({ lastUsedAt: new Date() }).where(eq(apiKeysTable.id, key.id)).catch(() => undefined);
+
+  const userRows = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.orgId, key.orgId), eq(usersTable.role, "owner")))
+    .limit(1);
+  if (!userRows[0]) return null;
+
+  return resolveOrgContext(userRows[0]);
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  // API key auth: Authorization: Bearer thea_<key>
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer thea_")) {
+    const rawKey = authHeader.slice(7);
+    resolveApiKeyContext(rawKey)
+      .then((context) => {
+        if (!context) {
+          res.status(401).json({ error: "Invalid or expired API key" });
+          return;
+        }
+        req.thea = context;
+        next();
+      })
+      .catch((err) => {
+        logger.error({ err }, "requireAuth: API key resolution error");
+        next(err);
+      });
+    return;
+  }
+
   const token = readSessionCookie(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });

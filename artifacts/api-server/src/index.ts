@@ -35,6 +35,9 @@ import { startLlmProcessingWorker, startMiroFishWorker, scheduleAnalysis } from 
 import { startAlertDispatchWorker } from "./lib/alert-dispatch-worker";
 import { startIntelligenceWorker } from "./lib/intelligence/worker";
 import { scheduleIntelligenceJobs } from "./lib/intelligence/scheduler";
+import { startEmailDeliveryWorker } from "./lib/emailDeliveryWorker";
+import { scheduleDigests } from "./lib/digestScheduler";
+import { startTelegramBot } from "./lib/telegramBot";
 import { logger as bootLogger } from "./lib/logger";
 
 function startMarketGenerationWorker(): void {
@@ -123,6 +126,19 @@ app.listen(port, async (err) => {
       })
       .catch((err) =>
         logger.warn({ err }, "Intelligence worker bootstrap failed — will retry on next startup")
+      ),
+    Promise.resolve()
+      .then(() => {
+        startEmailDeliveryWorker();
+        return scheduleDigests();
+      })
+      .catch((err) =>
+        logger.warn({ err }, "Email delivery worker / digest scheduler bootstrap failed — will retry on next startup")
+      ),
+    Promise.resolve()
+      .then(() => { startTelegramBot(); })
+      .catch((err) =>
+        logger.warn({ err }, "Telegram bot bootstrap failed — will retry on next startup")
       ),
   ]);
 });

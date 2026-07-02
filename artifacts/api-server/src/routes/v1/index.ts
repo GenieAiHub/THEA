@@ -20,6 +20,7 @@ import onboardingRouter from "./onboarding";
 import settingsRouter from "./settings";
 import geoRouter from "./geo";
 import campaignsRouter from "./campaigns";
+import apiKeysRouter from "./api-keys";
 
 const router = Router();
 
@@ -44,5 +45,6 @@ router.use("/onboarding", onboardingRouter);
 router.use("/settings", settingsRouter);
 router.use("/geo", geoRouter);
 router.use("/campaigns", campaignsRouter);
+router.use("/api-keys", apiKeysRouter);
 
 export default router;

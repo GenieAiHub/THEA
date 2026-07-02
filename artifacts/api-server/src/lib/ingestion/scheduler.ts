@@ -101,9 +101,9 @@ async function scheduleSearchKeywords(): Promise<void> {
         `search-keyword-${slug}-${orgSlug}`,
         { every: SEARCH_INTERVAL_MS },
         {
-          name: "duckduckgo",
+          name: "brave",
           data: {
-            sourceType: "duckduckgo",
+            sourceType: "brave",
             keyword,
             category: category ?? "general",
             orgId,

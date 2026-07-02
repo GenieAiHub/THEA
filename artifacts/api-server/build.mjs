@@ -112,6 +112,8 @@ async function buildAll() {
       "trigram-utils",
       "n-gram",
       "telegram",
+      "pdfkit",
+      "pptxgenjs",
     ],
     sourcemap: "linked",
     plugins: [

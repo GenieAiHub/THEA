@@ -1,9 +1,11 @@
 import { createWorker } from "./queues";
 import { db } from "@workspace/db";
-import { alertsTable, organizationsTable, usersTable } from "@workspace/db/schema";
+import { alertsTable, organizationsTable, usersTable, emailPreferencesTable } from "@workspace/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getQueues } from "./queues";
 import { detectSpikesForOrg } from "./spikeDetector";
+import { dispatchWebhookEvent } from "./webhookDispatcher";
+import { sendTelegramMessage } from "./telegramBot";
 import { logger } from "./logger";
 
 interface AlertDispatchJobData {
@@ -23,7 +25,12 @@ interface SpikeAnalysisJobData {
  * Alert dispatch worker — handles two job types on the alert-dispatch queue:
  *
  * 1. "spike-analysis"  → run spike detection for a single org (called by scheduler)
- * 2. "alert-dispatch"  → deliver an existing alert to org members via email
+ * 2. "alert-dispatch"  → deliver an existing alert to org members via:
+ *    - Email (Resend)
+ *    - Slack incoming webhook
+ *    - Microsoft Teams incoming webhook
+ *    - Telegram bot
+ *    - Registered THEA webhooks (HMAC-signed)
  */
 export function startAlertDispatchWorker(): void {
   createWorker<AlertDispatchJobData | SpikeAnalysisJobData>("alert-dispatch", async (job) => {
@@ -35,74 +42,63 @@ export function startAlertDispatchWorker(): void {
       return;
     }
 
-    // alert-dispatch: deliver the alert via email
     const { alertId, orgId, keyword, severity, spikeRatio, crisisProbability } = job.data as AlertDispatchJobData;
     if (!alertId) {
       logger.warn({ jobId: job.id }, "alert-dispatch job missing alertId — skipping");
       return;
     }
 
-    // Mark alert as dispatched
     await db
       .update(alertsTable)
       .set({ status: "dispatched" })
       .where(and(eq(alertsTable.id, alertId), eq(alertsTable.orgId, orgId)));
 
-    // Queue email delivery to org admins/owners
     try {
-      const orgMembers = await db
-        .select({
-          email: usersTable.email,
-          name: usersTable.name,
-          role: usersTable.role,
-        })
-        .from(usersTable)
-        .where(
-          and(
-            eq(usersTable.orgId, orgId),
-            inArray(usersTable.role, ["owner", "admin"]),
-          ),
-        );
-
-      const recipients = orgMembers;
-
-      if (!recipients.length) {
-        logger.info({ orgId, alertId }, "No active admin/owner recipients for alert email");
-        return;
-      }
-
-      const org = await db
-        .select({ name: organizationsTable.name, notificationConfig: organizationsTable.notificationConfig })
-        .from(organizationsTable)
-        .where(eq(organizationsTable.id, orgId))
-        .then((rows) => rows[0]);
+      const [orgMembers, org, emailPref] = await Promise.all([
+        db
+          .select({ email: usersTable.email, name: usersTable.name, role: usersTable.role })
+          .from(usersTable)
+          .where(and(eq(usersTable.orgId, orgId), inArray(usersTable.role, ["owner", "admin"]))),
+        db
+          .select({ name: organizationsTable.name, notificationConfig: organizationsTable.notificationConfig })
+          .from(organizationsTable)
+          .where(eq(organizationsTable.id, orgId))
+          .then((rows) => rows[0]),
+        db
+          .select()
+          .from(emailPreferencesTable)
+          .where(eq(emailPreferencesTable.orgId, orgId))
+          .then((rows) => rows[0] ?? null),
+      ]);
 
       const severityEmoji = severity === "critical" ? "🚨" : severity === "high" ? "⚠️" : "📊";
+      const alertUrl = `${process.env["APP_URL"] ?? "https://app.thea.ai"}/alerts/${alertId}`;
 
-      await getQueues().emailDelivery.add(
-        "alert-email",
-        {
-          to: recipients.map((r) => ({ email: r.email, name: r.name ?? r.email })),
-          subject: `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: Spike on "${keyword}"`,
-          template: "spike-alert",
-          data: {
-            orgName: org?.name ?? "Your Organisation",
-            keyword,
-            severity,
-            spikeRatio: spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A",
-            crisisProbability: crisisProbability ? `${crisisProbability}%` : "N/A",
-            dashboardUrl: `${process.env["APP_URL"] ?? "https://app.thea.ai"}/alerts/${alertId}`,
+      // ── Email delivery ─────────────────────────────────────────────────────
+      if (orgMembers.length > 0) {
+        await getQueues().emailDelivery.add(
+          "alert-email",
+          {
+            to: orgMembers.map((r) => ({ email: r.email, name: r.name ?? r.email })),
+            subject: `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: Spike on "${keyword}"`,
+            template: "spike-alert",
+            data: {
+              orgName: org?.name ?? "Your Organisation",
+              keyword,
+              severity,
+              spikeRatio: spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A",
+              crisisProbability: crisisProbability ? `${crisisProbability}%` : "N/A",
+              dashboardUrl: alertUrl,
+            },
           },
-        },
-        { priority: severity === "critical" ? 1 : 3 },
-      );
+          { priority: severity === "critical" ? 1 : 3 },
+        );
+        logger.info({ alertId, orgId, keyword, severity, recipients: orgMembers.length }, "Alert email queued");
+      }
 
-      logger.info({ alertId, orgId, keyword, severity, recipients: recipients.length }, "Alert email queued");
-
-      // ── Slack delivery ────────────────────────────────────────────────────────
+      // ── Slack delivery ─────────────────────────────────────────────────────
       const notifConfig = org?.notificationConfig ?? {};
       if (notifConfig.slackEnabled && notifConfig.slackWebhookUrl) {
-        // SSRF guard: only allow Slack's own incoming-webhook host
         const allowedSlackHost = "hooks.slack.com";
         let slackUrlSafe = false;
         try {
@@ -111,12 +107,11 @@ export function startAlertDispatchWorker(): void {
         } catch { /* invalid URL */ }
 
         if (!slackUrlSafe) {
-          logger.warn({ alertId, orgId }, "Slack webhook URL failed allowlist check — skipping delivery");
+          logger.warn({ alertId, orgId }, "Slack webhook URL failed allowlist check — skipping");
         } else {
           try {
-            const severityEmoji2 = severity === "critical" ? "🚨" : severity === "high" ? "⚠️" : "📊";
             const body = JSON.stringify({
-              text: `${severityEmoji2} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
+              text: `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
               attachments: [
                 {
                   color: severity === "critical" ? "#e53e3e" : severity === "high" ? "#dd6b20" : "#3182ce",
@@ -129,20 +124,77 @@ export function startAlertDispatchWorker(): void {
                 },
               ],
             });
-            await fetch(notifConfig.slackWebhookUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body,
-              signal: AbortSignal.timeout(5000),
-            });
+            await fetch(notifConfig.slackWebhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body, signal: AbortSignal.timeout(5000) });
             logger.info({ alertId, orgId }, "Slack alert delivered");
-          } catch (slackErr) {
-            logger.warn({ err: slackErr, alertId, orgId }, "Slack delivery failed — email already queued");
+          } catch (err) {
+            logger.warn({ err, alertId, orgId }, "Slack delivery failed");
           }
         }
       }
+
+      // ── Microsoft Teams delivery ────────────────────────────────────────────
+      const teamsUrl = emailPref?.teamsWebhookUrl;
+      if (teamsUrl) {
+        let teamsUrlSafe = false;
+        try {
+          const parsed = new URL(teamsUrl);
+          teamsUrlSafe = parsed.protocol === "https:" && parsed.hostname.endsWith(".webhook.office.com");
+        } catch { /* invalid URL */ }
+
+        if (!teamsUrlSafe) {
+          logger.warn({ alertId, orgId }, "Teams webhook URL failed allowlist check — skipping");
+        } else {
+          try {
+            const teamsCard = JSON.stringify({
+              "@type": "MessageCard",
+              "@context": "http://schema.org/extensions",
+              themeColor: severity === "critical" ? "e53e3e" : severity === "high" ? "dd6b20" : "3182ce",
+              summary: `THEA Alert: spike on "${keyword}"`,
+              sections: [
+                {
+                  activityTitle: `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]`,
+                  activitySubtitle: org?.name ?? orgId,
+                  facts: [
+                    { name: "Keyword", value: keyword ?? "N/A" },
+                    { name: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
+                    { name: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A" },
+                    { name: "Severity", value: (severity ?? "medium").toUpperCase() },
+                  ],
+                },
+              ],
+              potentialAction: [{ "@type": "OpenUri", name: "View in Dashboard", targets: [{ os: "default", uri: alertUrl }] }],
+            });
+            await fetch(teamsUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: teamsCard, signal: AbortSignal.timeout(5000) });
+            logger.info({ alertId, orgId }, "Teams alert delivered");
+          } catch (err) {
+            logger.warn({ err, alertId, orgId }, "Teams delivery failed");
+          }
+        }
+      }
+
+      // ── Telegram delivery ───────────────────────────────────────────────────
+      const telegramChatId = emailPref?.telegramChatId;
+      if (telegramChatId) {
+        const message = [
+          `${severityEmoji} *THEA Alert* \\[${(severity ?? "medium").toUpperCase()}\\]`,
+          `Keyword: *${keyword ?? "N/A"}*`,
+          `Spike ratio: ${spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A"} | Crisis: ${crisisProbability ? crisisProbability + "%" : "N/A"}`,
+          `[View in Dashboard](${alertUrl})`,
+        ].join("\n");
+        await sendTelegramMessage(telegramChatId, message);
+        logger.info({ alertId, orgId, telegramChatId }, "Telegram alert delivered");
+      }
+
+      // ── Registered webhooks (HMAC-signed) ──────────────────────────────────
+      dispatchWebhookEvent(orgId, "alert.spike", {
+        alertId,
+        keyword,
+        severity,
+        spikeRatio,
+        crisisProbability,
+      }).catch((err) => logger.warn({ err, alertId, orgId }, "Webhook dispatch failed (non-blocking)"));
     } catch (err) {
-      logger.warn({ err, alertId, orgId }, "Failed to queue alert email — alert still marked dispatched");
+      logger.warn({ err, alertId, orgId }, "Failed to queue alert notifications — alert still marked dispatched");
     }
   });
 }

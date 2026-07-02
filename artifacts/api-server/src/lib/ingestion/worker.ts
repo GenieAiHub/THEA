@@ -14,7 +14,7 @@ import { collectTwitter } from "./collectors/twitter";
 import { collectReddit } from "./collectors/reddit";
 import { collectYouTube } from "./collectors/youtube";
 import { collectSerp } from "./collectors/serp";
-import { collectDuckDuckGo } from "./collectors/duckduckgo";
+import { collectBrave } from "./collectors/brave";
 import { crawlUrls } from "./collectors/web-crawler";
 import { collectTelegram, collectTelegramAllCategories } from "./collectors/telegram";
 import { collectTikTok } from "./collectors/tiktok";
@@ -147,9 +147,11 @@ export function startContentIngestionWorker(): void {
           break;
         }
 
+        case "brave":
         case "duckduckgo": {
-          const items = await collectDuckDuckGo(keyword ?? category ?? "news", category ?? "general");
-          // Pass orgId so org-scoped search jobs attribute content to the correct org
+          const braveApiKey = getEnv("BRAVE_API_KEY");
+          if (!braveApiKey) { logger.warn("BRAVE_API_KEY not set — skipping Brave Search collection"); break; }
+          const items = await collectBrave(keyword ?? category ?? "news", category ?? "general", braveApiKey);
           stats = await ingestItems(items, orgId);
           break;
         }
@@ -191,8 +193,9 @@ export function startContentIngestionWorker(): void {
         case "watchlist-scan": {
           if (!orgId) { logger.warn("watchlist-scan job missing orgId — skipping"); break; }
 
-          // DuckDuckGo is the default keyless search engine, so watchlist-scan
-          // always runs; Bing News and SerpAPI are optional enhancers.
+          // Brave Search is the default web search engine (set BRAVE_API_KEY).
+          // Bing News and SerpAPI are optional additional sources.
+          const braveKey = getEnv("BRAVE_API_KEY");
           const bingKey = getEnv("BING_NEWS_API_KEY");
           const serpKey = getEnv("SERP_API_KEY");
 
@@ -226,8 +229,8 @@ export function startContentIngestionWorker(): void {
             const cat = kw.category ?? "general";
             const metaTag = { orgId, watchlistKeywordId: kw.id };
 
-            // Source 1: DuckDuckGo (default keyless search engine)
-            await collectDuckDuckGo(kw.keyword, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
+            // Source 1: Brave Search (default web search engine)
+            if (braveKey) await collectBrave(kw.keyword, cat, braveKey).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
             // Source 2: Bing News (optional, keyword-targeted)
             if (bingKey) await collectBingNews(kw.keyword, bingKey, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
             // Source 3: SerpAPI (optional, keyword-targeted organic search)

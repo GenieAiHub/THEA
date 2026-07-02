@@ -2,6 +2,10 @@ import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import swaggerUi from "swagger-ui-express";
+import { load as yamlLoad } from "js-yaml";
 import { logger } from "./lib/logger";
 import { requestIdMiddleware } from "./middlewares/requestId";
 import { defaultRateLimiter } from "./middlewares/rateLimiter";
@@ -9,6 +13,14 @@ import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 import v1Router from "./routes/v1";
 import healthRouter from "./routes/health";
 import { handleStripeWebhook } from "./routes/webhooks/stripe";
+
+let openApiSpec: Record<string, unknown> = {};
+try {
+  const specPath = join(__dirname, "../../../lib/api-spec/openapi.yaml");
+  openApiSpec = yamlLoad(readFileSync(specPath, "utf8")) as Record<string, unknown>;
+} catch {
+  logger.warn("OpenAPI spec not found — Swagger UI will show empty spec");
+}
 
 const app: Express = express();
 
@@ -64,6 +76,15 @@ app.use(defaultRateLimiter);
 
 app.use("/api", healthRouter);
 app.use("/api/v1", v1Router);
+
+app.use(
+  "/api/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    customSiteTitle: "THEA API Documentation",
+    swaggerOptions: { persistAuthorization: true },
+  }),
+);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
