@@ -5,23 +5,96 @@ import { eq, and } from "drizzle-orm";
 import { getRedis } from "../redis";
 import { logger } from "../logger";
 
-const REDIS_DEDUP_TTL = 7 * 24 * 60 * 60;
-const REDIS_KEY_PREFIX = "dedup:hash:";
+// ─── Content hash ─────────────────────────────────────────────────────────────
 
 export function computeHash(body: string): string {
   return createHash("sha256").update(body.trim()).digest("hex");
 }
 
-export async function isDuplicate(contentHash: string, orgId: string): Promise<false | string> {
-  const redisKey = `${REDIS_KEY_PREFIX}${orgId}:${contentHash}`;
+// ─── Redis Bloom filter (fast path) ──────────────────────────────────────────
+// Implemented with GETBIT/SETBIT on a shared Redis bit array.
+// No RedisBloom module required — works with vanilla Redis.
+// Capacity: 8M bits → ~500K items at <1% false-positive rate (k=7 hashes).
 
+const BLOOM_BITS = 8_000_000;
+const BLOOM_HASH_COUNT = 7;
+const BLOOM_KEY = "bloom:content-dedup:v1";
+const BLOOM_TTL_SEC = 30 * 24 * 3600;
+
+function bloomPositions(hash: string): number[] {
+  const positions: number[] = [];
+  for (let i = 0; i < BLOOM_HASH_COUNT; i++) {
+    const buf = createHash("sha256").update(`${hash}:${i}`).digest();
+    const pos = buf.readUInt32BE(0) % BLOOM_BITS;
+    positions.push(pos);
+  }
+  return positions;
+}
+
+async function bloomContains(hash: string): Promise<boolean> {
   try {
     const redis = getRedis();
-    const cached = await redis.get(redisKey);
-    if (cached) return cached;
-  } catch (err) {
-    logger.warn({ err }, "Redis dedup check failed — falling back to DB");
+    const positions = bloomPositions(hash);
+    const pipeline = redis.pipeline();
+    for (const pos of positions) {
+      pipeline.getbit(BLOOM_KEY, pos);
+    }
+    const results = await pipeline.exec();
+    if (!results) return false;
+    return results.every(([err, val]) => !err && val === 1);
+  } catch {
+    return false;
   }
+}
+
+async function bloomAdd(hash: string): Promise<void> {
+  try {
+    const redis = getRedis();
+    const positions = bloomPositions(hash);
+    const pipeline = redis.pipeline();
+    for (const pos of positions) {
+      pipeline.setbit(BLOOM_KEY, pos, 1);
+    }
+    pipeline.expire(BLOOM_KEY, BLOOM_TTL_SEC);
+    await pipeline.exec();
+  } catch {
+  }
+}
+
+// ─── Redis exact-match cache (medium path) ────────────────────────────────────
+
+const REDIS_DEDUP_TTL = 7 * 24 * 60 * 60;
+const REDIS_KEY_PREFIX = "dedup:hash:";
+
+async function cacheGet(contentHash: string, orgId: string): Promise<string | null> {
+  try {
+    const redis = getRedis();
+    return await redis.get(`${REDIS_KEY_PREFIX}${orgId}:${contentHash}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheHash(contentHash: string, orgId: string, itemId: string): Promise<void> {
+  try {
+    const redis = getRedis();
+    await redis.setex(`${REDIS_KEY_PREFIX}${orgId}:${contentHash}`, REDIS_DEDUP_TTL, itemId);
+  } catch {
+  }
+}
+
+// ─── Main dedup check ────────────────────────────────────────────────────────
+// Fast path:  Bloom filter (probabilistic, no DB) — miss = definitely new
+// Medium path: Redis exact-match key — hit = confirmed duplicate (with id)
+// Slow path:  DB authoritative query — only reached on Bloom filter false-positive
+// After insert, call markSeen() to populate both Bloom filter and Redis cache.
+
+export async function isDuplicate(contentHash: string, orgId: string): Promise<false | string> {
+  const bloomHit = await bloomContains(contentHash);
+  if (!bloomHit) return false;
+
+  const cached = await cacheGet(contentHash, orgId);
+  if (cached) return cached;
 
   try {
     const existing = await db
@@ -36,8 +109,9 @@ export async function isDuplicate(contentHash: string, orgId: string): Promise<f
       .limit(1);
 
     if (existing.length > 0) {
-      await cacheHash(contentHash, orgId, existing[0]!.id);
-      return existing[0]!.id;
+      const existingId = existing[0]!.id;
+      await cacheHash(contentHash, orgId, existingId);
+      return existingId;
     }
   } catch (err) {
     logger.warn({ err }, "DB dedup check failed");
@@ -46,14 +120,12 @@ export async function isDuplicate(contentHash: string, orgId: string): Promise<f
   return false;
 }
 
-export async function cacheHash(contentHash: string, orgId: string, itemId: string): Promise<void> {
-  try {
-    const redis = getRedis();
-    const redisKey = `${REDIS_KEY_PREFIX}${orgId}:${contentHash}`;
-    await redis.setex(redisKey, REDIS_DEDUP_TTL, itemId);
-  } catch {
-  }
+export async function markSeen(contentHash: string, orgId: string, itemId: string): Promise<void> {
+  await bloomAdd(contentHash);
+  await cacheHash(contentHash, orgId, itemId);
 }
+
+// ─── Source URL append on duplicate ──────────────────────────────────────────
 
 export async function addSourceUrlToExisting(itemId: string, newSourceUrl: string): Promise<void> {
   try {

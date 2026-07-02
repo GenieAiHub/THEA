@@ -107,6 +107,11 @@ async function buildAll() {
       "fingerprint-generator",
       "fingerprint-injector",
       "header-generator",
+      "franc",
+      "franc-min",
+      "trigram-utils",
+      "n-gram",
+      "telegram",
     ],
     sourcemap: "linked",
     plugins: [

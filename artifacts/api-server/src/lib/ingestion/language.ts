@@ -1,43 +1,21 @@
-const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\u{20000}-\u{2a6df}]/u;
-const HIRAGANA_RE = /[\u3041-\u3096]/;
-const KATAKANA_RE = /[\u30a1-\u30fa]/;
-const HANGUL_RE = /[\uac00-\ud7af\u1100-\u11ff]/;
-const ARABIC_RE = /[\u0600-\u06ff\u0750-\u077f]/;
-const DEVANAGARI_RE = /[\u0900-\u097f]/;
-const CYRILLIC_RE = /[\u0400-\u04ff]/;
-const THAI_RE = /[\u0e00-\u0e7f]/;
-const TAMIL_RE = /[\u0b80-\u0bff]/;
-const MALAYALAM_RE = /[\u0d00-\u0d7f]/;
-const BENGALI_RE = /[\u0980-\u09ff]/;
-const GREEK_RE = /[\u0370-\u03ff]/;
-const HEBREW_RE = /[\u0590-\u05ff]/;
+import { franc } from "franc";
+
+const FRANC_TO_ISO2: Record<string, string> = {
+  eng: "en", zho: "zh", cmn: "zh", yue: "zh", jpn: "ja", kor: "ko",
+  tha: "th", ara: "ar", heb: "he", rus: "ru", hin: "hi", tam: "ta",
+  mal: "ml", ben: "bn", ell: "el", msa: "ms", zsm: "ms", ind: "id",
+  deu: "de", fra: "fr", spa: "es", por: "pt", ita: "it", nld: "nl",
+  pol: "pl", ukr: "uk", vie: "vi", tur: "tr", swe: "sv", nor: "no",
+  dan: "da", fin: "fi", ces: "cs", slk: "sk", ron: "ro", hrv: "hr",
+  bul: "bg", hun: "hu", afr: "af", swh: "sw", amh: "am", hau: "ha",
+  yor: "yo", ibo: "ig", fas: "fa", urd: "ur", pnb: "pa", guj: "gu",
+  mar: "mr", kan: "kn", tel: "te", sin: "si", mya: "my", khm: "km",
+  lao: "lo", nep: "ne", som: "so", cat: "ca",
+};
 
 export function detectLanguage(text: string): string {
-  if (!text || text.length < 5) return "en";
-  const sample = text.slice(0, 500);
-
-  if (THAI_RE.test(sample)) return "th";
-  if (ARABIC_RE.test(sample)) return "ar";
-  if (HEBREW_RE.test(sample)) return "he";
-  if (CYRILLIC_RE.test(sample)) return "ru";
-  if (DEVANAGARI_RE.test(sample)) return "hi";
-  if (TAMIL_RE.test(sample)) return "ta";
-  if (MALAYALAM_RE.test(sample)) return "ml";
-  if (BENGALI_RE.test(sample)) return "bn";
-  if (GREEK_RE.test(sample)) return "el";
-  if (HANGUL_RE.test(sample)) return "ko";
-  if (HIRAGANA_RE.test(sample) || KATAKANA_RE.test(sample)) return "ja";
-
-  const cjkCount = (sample.match(CJK_RE) || []).length;
-  if (cjkCount > 10) return "zh";
-
-  const asciiCount = (sample.match(/[a-zA-Z]/g) || []).length;
-  if (asciiCount > sample.length * 0.5) {
-    const ms = /\b(yang|dan|untuk|dengan|adalah|dari|ini|tidak|ada|di)\b/gi;
-    const id = /\b(dan|yang|untuk|dengan|adalah|dari|ini|tidak|ada|juga)\b/gi;
-    if ((sample.match(ms) || []).length > 3) return "ms";
-    if ((sample.match(id) || []).length > 3) return "id";
-  }
-
-  return "en";
+  if (!text || text.length < 20) return "en";
+  const code = franc(text.slice(0, 1000), { minLength: 10 });
+  if (code === "und") return "en";
+  return FRANC_TO_ISO2[code] ?? code.slice(0, 2);
 }

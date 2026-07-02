@@ -1,21 +1,43 @@
 import { getQueues } from "../queues";
-import { CATEGORIES } from "./sources-config";
+import { db } from "@workspace/db";
+import { crawlerSourcesTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
+import { PRECONFIGURED_SOURCES } from "./sources-config";
 import { logger } from "../logger";
 
-const RSS_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-const GDELT_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-const TELEGRAM_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
-const SOCIAL_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
-const NEWS_API_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
-const TIKTOK_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const RSS_INTERVAL_MS = 15 * 60 * 1000;
+const GDELT_INTERVAL_MS = 15 * 60 * 1000;
+const TELEGRAM_INTERVAL_MS = 30 * 60 * 1000;
+const SOCIAL_INTERVAL_MS = 60 * 60 * 1000;
+const NEWS_API_INTERVAL_MS = 60 * 60 * 1000;
+const TIKTOK_INTERVAL_MS = 2 * 60 * 60 * 1000;
+
+async function getActiveCategories(): Promise<string[]> {
+  try {
+    const rows = await db
+      .selectDistinct({ category: crawlerSourcesTable.category })
+      .from(crawlerSourcesTable)
+      .where(eq(crawlerSourcesTable.isActive, true));
+
+    if (rows.length > 0) {
+      return rows.map((r) => r.category).filter(Boolean) as string[];
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not read active categories from DB — using preconfigured list");
+  }
+  return [...new Set(PRECONFIGURED_SOURCES.map((s) => s.category))];
+}
 
 export async function scheduleIngestion(): Promise<void> {
   const { contentIngestion } = getQueues();
+  const allCategories = await getActiveCategories();
+
+  logger.info({ categoryCount: allCategories.length }, "Scheduling ingestion across active categories");
 
   try {
     await contentIngestion.upsertJobScheduler(
       "rss-all-sources",
-      { every: RSS_REFRESH_INTERVAL_MS },
+      { every: RSS_INTERVAL_MS },
       {
         name: "rss-all",
         data: { sourceType: "rss-all" },
@@ -25,7 +47,7 @@ export async function scheduleIngestion(): Promise<void> {
 
     await contentIngestion.upsertJobScheduler(
       "gdelt-all-categories",
-      { every: GDELT_REFRESH_INTERVAL_MS },
+      { every: GDELT_INTERVAL_MS },
       {
         name: "gdelt",
         data: { sourceType: "gdelt" },
@@ -35,33 +57,37 @@ export async function scheduleIngestion(): Promise<void> {
 
     await contentIngestion.upsertJobScheduler(
       "telegram-all-channels",
-      { every: TELEGRAM_REFRESH_INTERVAL_MS },
+      { every: TELEGRAM_INTERVAL_MS },
       {
         name: "telegram",
         data: { sourceType: "telegram" },
-        opts: { attempts: 2 },
+        opts: { attempts: 2, backoff: { type: "fixed", delay: 5000 } },
       }
     );
 
-    const socialSources = ["twitter", "reddit", "youtube"];
-    for (const sourceType of socialSources) {
-      for (const category of CATEGORIES.slice(0, 5)) {
+    const socialSources: Array<{ type: string; backoffDelay: number }> = [
+      { type: "twitter", backoffDelay: 60000 },
+      { type: "reddit", backoffDelay: 30000 },
+      { type: "youtube", backoffDelay: 30000 },
+    ];
+    for (const { type, backoffDelay } of socialSources) {
+      for (const category of allCategories) {
         await contentIngestion.upsertJobScheduler(
-          `${sourceType}-${category}`,
-          { every: SOCIAL_REFRESH_INTERVAL_MS },
+          `${type}-${category}`,
+          { every: SOCIAL_INTERVAL_MS },
           {
-            name: sourceType,
-            data: { sourceType, category },
-            opts: { attempts: 2 },
+            name: type,
+            data: { sourceType: type, category },
+            opts: { attempts: 3, backoff: { type: "exponential", delay: backoffDelay } },
           }
         );
       }
     }
 
-    for (const category of ["politics", "technology", "business", "society"]) {
+    for (const category of allCategories) {
       await contentIngestion.upsertJobScheduler(
         `tiktok-${category}`,
-        { every: TIKTOK_REFRESH_INTERVAL_MS },
+        { every: TIKTOK_INTERVAL_MS },
         {
           name: "tiktok",
           data: { sourceType: "tiktok", category },
@@ -70,22 +96,26 @@ export async function scheduleIngestion(): Promise<void> {
       );
     }
 
-    const newsApiSources = ["newsapi", "mediastack", "bing-news"];
-    for (const sourceType of newsApiSources) {
-      for (const category of ["politics", "technology", "business", "society", "sports", "health"]) {
+    const newsApiSources: Array<{ type: string; backoffDelay: number }> = [
+      { type: "newsapi", backoffDelay: 120000 },
+      { type: "mediastack", backoffDelay: 60000 },
+      { type: "bing-news", backoffDelay: 60000 },
+    ];
+    for (const { type, backoffDelay } of newsApiSources) {
+      for (const category of allCategories) {
         await contentIngestion.upsertJobScheduler(
-          `${sourceType}-${category}`,
-          { every: NEWS_API_REFRESH_INTERVAL_MS },
+          `${type}-${category}`,
+          { every: NEWS_API_INTERVAL_MS },
           {
-            name: sourceType,
-            data: { sourceType, category },
-            opts: { attempts: 2 },
+            name: type,
+            data: { sourceType: type, category },
+            opts: { attempts: 2, backoff: { type: "exponential", delay: backoffDelay } },
           }
         );
       }
     }
 
-    logger.info("Content ingestion schedulers registered");
+    logger.info({ scheduledCategories: allCategories.length }, "Content ingestion schedulers registered");
   } catch (err) {
     logger.warn({ err }, "Failed to register some ingestion schedulers — will retry on next startup");
   }
@@ -101,7 +131,7 @@ export async function triggerImmediateCollection(
   await contentIngestion.add(
     sourceType,
     { sourceType, category, keyword, urls },
-    { priority: 1, attempts: 2 }
+    { priority: 1, attempts: 2, backoff: { type: "exponential", delay: 5000 } }
   );
   logger.info({ sourceType, category, keyword }, "Triggered immediate collection job");
 }
