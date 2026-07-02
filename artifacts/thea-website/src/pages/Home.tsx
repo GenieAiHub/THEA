@@ -11,6 +11,7 @@ import { AreaChart, Area, ResponsiveContainer, LineChart as RechartsLineChart, L
 
 // @ts-ignore
 import logo from "@assets/ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1782950524488.png";
+import { MARKETS_URL } from "@/lib/urls";
 // @ts-ignore
 import heroEarth from "@assets/generated_images/hero_earth.png";
 // @ts-ignore
@@ -550,7 +551,7 @@ const MarketsPromo = () => {
             The pulse of public opinion. Live prediction polls auto-generated from the trends THEA detects across the world's media — vote free, no stakes, pure signal.
           </p>
           <Button size="lg" className="bg-white text-black hover:bg-white/90 px-8" asChild>
-            <a href="/markets/" data-testid="link-markets-promo">
+            <a href={MARKETS_URL} data-testid="link-markets-promo">
               Explore THEA Markets <ChevronRight className="w-4 h-4 ml-2" />
             </a>
           </Button>

@@ -55,7 +55,7 @@ export default function OnboardingPage() {
       <div className="w-full max-w-xl z-10">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src={`${import.meta.env.BASE_URL || ""}/logo.svg`} alt="THEA" className="w-12 h-12" />
+          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="THEA" className="w-12 h-12" />
         </div>
 
         {/* Step indicator */}

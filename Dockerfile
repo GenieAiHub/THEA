@@ -51,9 +51,12 @@ RUN pnpm --filter @workspace/api-server run build
 FROM deps AS build-web
 ARG APP
 ARG BASE_PATH=/
+ARG VITE_MARKETS_URL=
 # vite.config.ts validates PORT even for `build`; the value is irrelevant here.
+# VITE_MARKETS_URL is baked into the website bundle (cross-subdomain link).
 ENV PORT=8080 \
     BASE_PATH=${BASE_PATH} \
+    VITE_MARKETS_URL=${VITE_MARKETS_URL} \
     NODE_ENV=production
 RUN test -n "$APP" || (echo "ERROR: APP build-arg is required" && exit 1) \
  && pnpm --filter @workspace/${APP} run build

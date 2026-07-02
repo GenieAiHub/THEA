@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { MARKETS_URL } from "@/lib/urls";
 
 export function PublicNavbar() {
   return (
@@ -9,7 +10,7 @@ export function PublicNavbar() {
         <a href="/#how-it-works" className="hover:text-white transition-colors">How it Works</a>
         <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
         <a
-          href="/markets/"
+          href={MARKETS_URL}
           className="relative flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors font-semibold"
           data-testid="link-markets-nav"
         >

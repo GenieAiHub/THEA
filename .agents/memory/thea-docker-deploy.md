@@ -60,3 +60,20 @@ is safe only on a clean DB (it decrypts nothing pre-existing), which a first dep
 The web apps import images via the Vite `@assets` alias (-> ../../attached_assets),
 which IS git-tracked. Ignoring the whole dir in .dockerignore makes `vite build` fail
 with ENOENT on the imported image. Ignore only `attached_assets/*.txt` (paste logs).
+
+## dev path-based routing vs prod subdomains breaks cross-artifact links
+In the Replit dev env the artifacts share one origin under path prefixes
+(website `/`, markets `/markets`), but in prod each is its own subdomain
+(thea.quest, markets.thea.quest). A hardcoded `href="/markets/"` works in dev and
+404s/SPA-falls-back in prod.
+**Rule:** cross-artifact links must be build-time configurable. Add a `VITE_*` build
+arg (Vite's loadEnv reads VITE_-prefixed vars from process.env at build), plumb it
+through the build-web stage `ENV`, set it per web service in docker-compose args
+(e.g. `VITE_MARKETS_URL: https://markets.thea.quest`), and default to the dev path
+in code (`import.meta.env.VITE_MARKETS_URL || "/markets/"`).
+
+## import.meta.env.BASE_URL always ends with a slash
+`${import.meta.env.BASE_URL || ""}/logo.svg` yields `//logo.svg` in prod (BASE_URL
+is `/`), a protocol-relative URL the browser resolves against a host named `logo.svg`
+-> broken asset. **Rule:** strip the trailing slash before appending:
+`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`.
