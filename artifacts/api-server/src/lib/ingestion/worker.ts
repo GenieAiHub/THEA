@@ -21,6 +21,7 @@ import { PRECONFIGURED_SOURCES, getSourcesByCategory } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
 import { watchlistKeywordsTable } from "@workspace/db/schema";
+import { persistGeoSignals } from "../geoSignals";
 
 function getEnv(key: string): string {
   return process.env[key] ?? "";
@@ -149,7 +150,8 @@ export function startContentIngestionWorker(): void {
           const apiKey = getEnv("SERP_API_KEY");
           if (!apiKey) { logger.warn("SERP_API_KEY not set — skipping SerpAPI collection"); break; }
           const items = await collectSerp(keyword ?? category ?? "news", apiKey, category ?? "general");
-          stats = await ingestItems(items);
+          // Pass orgId so org-scoped SERP jobs attribute content to the correct org
+          stats = await ingestItems(items, orgId);
           break;
         }
 
@@ -197,29 +199,56 @@ export function startContentIngestionWorker(): void {
             .from(watchlistKeywordsTable)
             .where(and(eq(watchlistKeywordsTable.orgId, orgId), eq(watchlistKeywordsTable.isActive, true)));
 
+          const newsApiKey = getEnv("NEWS_API_KEY");
+          const twitterKey = getEnv("TWITTER_BEARER_TOKEN");
+          const redditSecret = getEnv("REDDIT_CLIENT_SECRET");
+          const redditId = getEnv("REDDIT_CLIENT_ID");
+
           let totalFetched = 0, totalDeduplicated = 0, totalStored = 0;
+          const keywordSet = new Set<string>();
+
+          // Helper: ingest a batch of items tagged with keyword metadata
+          const collectTagged = async (items: Awaited<ReturnType<typeof collectBingNews>>, metaTag: Record<string, string>) => {
+            const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, ...metaTag } }));
+            const s = await ingestItems(tagged, orgId);
+            totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
+          };
+
+          // Keyword-targeted sources (Bing News + SerpAPI support keyword queries)
           for (const kw of orgKeywords) {
+            keywordSet.add(kw.keyword);
             const cat = kw.category ?? "general";
-            // Tag raw metadata with orgId and watchlistKeywordId for downstream analysis
             const metaTag = { orgId, watchlistKeywordId: kw.id };
 
-            // Primary source: Bing News
-            if (bingKey) {
-              const items = await collectBingNews(kw.keyword, bingKey, cat);
-              const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, ...metaTag } }));
-              const s = await ingestItems(tagged, orgId);
-              totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
-            }
+            // Source 1: Bing News (keyword-targeted)
+            if (bingKey) await collectBingNews(kw.keyword, bingKey, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
+            // Source 2: SerpAPI (keyword-targeted organic search)
+            if (serpKey) await collectSerp(kw.keyword, serpKey, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
+          }
 
-            // Secondary source: SerpAPI (organic search results)
-            if (serpKey) {
-              const items = await collectSerp(kw.keyword, serpKey, cat);
-              const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, ...metaTag } }));
-              const s = await ingestItems(tagged, orgId);
-              totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
-            }
+          // Category-wide broad sweeps — de-duplicate unique categories across all keywords
+          // These feed into the ILIKE-based spike detector for keyword mention discovery
+          const categories = [...new Set(orgKeywords.map((kw) => kw.category ?? "general"))];
+          for (const cat of categories) {
+            const catMetaTag = { orgId };
+            // Source 3: GDELT (free, no key required, category-based)
+            await collectGdelt(cat).then((items) => collectTagged(items, catMetaTag)).catch(() => undefined);
+            // Source 4: NewsAPI (category-based)
+            if (newsApiKey) await collectNewsApi(cat, newsApiKey).then((items) => collectTagged(items, catMetaTag)).catch(() => undefined);
+            // Source 5: Reddit (category-based subreddit sweep)
+            if (redditId && redditSecret) await collectReddit(cat, redditId, redditSecret).then((items) => collectTagged(items, catMetaTag)).catch(() => undefined);
+            // Source 6: Twitter / X (category-based)
+            if (twitterKey) await collectTwitter(cat, twitterKey).then((items) => collectTagged(items, catMetaTag)).catch(() => undefined);
           }
           stats = { fetched: totalFetched, deduplicated: totalDeduplicated, stored: totalStored };
+
+          // Persist hourly geo signals for each tracked keyword (non-blocking)
+          const windowAt = new Date();
+          for (const kw of [...keywordSet]) {
+            persistGeoSignals(orgId, kw, windowAt).catch((err) =>
+              logger.warn({ err, orgId, keyword: kw }, "Geo persistence failed after watchlist-scan"),
+            );
+          }
           break;
         }
 

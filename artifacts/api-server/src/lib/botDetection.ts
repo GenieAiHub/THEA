@@ -14,19 +14,45 @@ export interface BotDetectionResult {
 
 const BOT_RISK_THRESHOLD = 0.7;
 const COORDINATION_WINDOW_MINUTES = 30;
-const BURST_ACCOUNT_THRESHOLD = 5;   // 5+ different accounts = coordinated burst signal
-const REPEAT_POST_THRESHOLD = 3;     // 3+ posts from same account in window = suspect
+const BURST_ACCOUNT_THRESHOLD = 5;
+const REPEAT_POST_THRESHOLD = 3;
+const TEXT_SIMILARITY_THRESHOLD = 0.7; // Jaccard similarity for coordinated text
+const MIN_TOKENS = 5;                  // ignore very short posts for similarity
+
+/**
+ * Tokenise text into a Set of lowercase word tokens (strips punctuation).
+ */
+function tokenise(text: string | null): Set<string> {
+  if (!text) return new Set();
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length > 2),
+  );
+}
+
+/**
+ * Jaccard similarity between two token sets.
+ */
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 1;
+  const intersect = [...a].filter((t) => b.has(t)).length;
+  const union = new Set([...a, ...b]).size;
+  return union === 0 ? 0 : intersect / union;
+}
 
 /**
  * Compute organic confidence (0-100%) for a topic or keyword.
  *
  * Algorithm:
- *   1. Fetch all content items for the topic in the last N hours
- *   2. Average bot risk from existing botRiskScore column
- *   3. Same-author repeat detection: ≥3 posts in 30-min window = suspect
- *   4. Cross-account burst detection: ≥5 different accounts posting in the same
- *      30-min window = coordinated burst signal (astroturfing pattern)
- *   5. organic_confidence = 100 − (coordinated_ratio × 40) − (burst_penalty × 20) − (avg_bot_risk × 40)
+ *   1. Average bot risk from existing botRiskScore column
+ *   2. Same-author repeat detection: ≥3 posts in 30-min window
+ *   3. Cross-account burst detection: ≥5 different accounts posting in same 30-min slot
+ *   4. Near-duplicate text detection: pairs of items from different accounts with
+ *      Jaccard token similarity ≥0.7 within 30 min (coordinated messaging pattern)
+ *   5. organic_confidence = 100 − (repeat_ratio × 30) − (burst_penalty × 20) − (text_similarity_penalty × 10) − (avg_bot_risk × 40)
  */
 export async function computeOrganicConfidence(
   orgId: string,
@@ -42,6 +68,7 @@ export async function computeOrganicConfidence(
       botRiskScore: contentItemsTable.botRiskScore,
       collectedAt: contentItemsTable.collectedAt,
       title: contentItemsTable.title,
+      body: contentItemsTable.body,
     })
     .from(contentItemsTable)
     .where(
@@ -65,15 +92,13 @@ export async function computeOrganicConfidence(
     };
   }
 
-  // Average bot risk score
   const avgBotRisk =
     items.reduce((sum, i) => sum + (i.botRiskScore ?? 0), 0) / items.length;
-
   const highRiskCount = items.filter((i) => (i.botRiskScore ?? 0) >= BOT_RISK_THRESHOLD).length;
 
   const windowMs = COORDINATION_WINDOW_MINUTES * 60 * 1000;
 
-  // ─── Same-author repeat detection ───────────────────────────────────────────
+  // ── 1. Same-author repeat detection ────────────────────────────────────────
   const authorBuckets = new Map<string, number[]>();
   for (const item of items) {
     if (!item.author) continue;
@@ -84,7 +109,6 @@ export async function computeOrganicConfidence(
   const repeatingAuthors = new Set<string>();
   for (const [author, timestamps] of authorBuckets) {
     const sorted = timestamps.slice().sort((a, b) => a - b);
-    // Sliding window: find any window where ≥REPEAT_POST_THRESHOLD posts exist
     let l = 0;
     for (let r = 0; r < sorted.length; r++) {
       while (sorted[r]! - sorted[l]! > windowMs) l++;
@@ -95,10 +119,8 @@ export async function computeOrganicConfidence(
     }
   }
 
-  // ─── Cross-account burst detection ──────────────────────────────────────────
-  // Bucket items into 30-minute slots; any slot with ≥BURST_ACCOUNT_THRESHOLD
-  // distinct authors is a coordinated burst.
-  const slotMs = COORDINATION_WINDOW_MINUTES * 60 * 1000;
+  // ── 2. Cross-account burst detection ───────────────────────────────────────
+  const slotMs = windowMs;
   const slotBuckets = new Map<number, Set<string>>();
   for (const item of items) {
     if (!item.author) continue;
@@ -112,11 +134,34 @@ export async function computeOrganicConfidence(
     if (accounts.size >= BURST_ACCOUNT_THRESHOLD) coordinatedBurstCount++;
   }
 
-  // Items from repeating authors
+  // ── 3. Near-duplicate text detection (cross-account Jaccard similarity) ────
+  // Sample up to 100 items for efficiency; compute pairwise Jaccard in same slot
+  const sampleItems = items.slice(0, 100).map((i) => ({
+    author: i.author,
+    tokens: tokenise([i.title, i.body?.slice(0, 300)].filter(Boolean).join(" ")),
+    slot: Math.floor(i.collectedAt.getTime() / slotMs),
+  }));
+
+  let coordinatedTextPairs = 0;
+  for (let i = 0; i < sampleItems.length; i++) {
+    for (let j = i + 1; j < sampleItems.length; j++) {
+      const a = sampleItems[i]!;
+      const b = sampleItems[j]!;
+      if (
+        a.author !== b.author &&
+        a.slot === b.slot &&
+        a.tokens.size >= MIN_TOKENS &&
+        b.tokens.size >= MIN_TOKENS &&
+        jaccard(a.tokens, b.tokens) >= TEXT_SIMILARITY_THRESHOLD
+      ) {
+        coordinatedTextPairs++;
+      }
+    }
+  }
+  const textSimilarityPenalty = Math.min(0.5, coordinatedTextPairs / 10);
+
   const coordinatedItems = items.filter((i) => i.author && repeatingAuthors.has(i.author)).length;
   const coordinatedItemRatio = coordinatedItems / items.length;
-
-  // Burst penalty: 0 if no burst slots, up to 0.5 if ≥5 burst slots observed
   const burstPenalty = Math.min(0.5, coordinatedBurstCount / 10);
 
   const organicConfidence = Math.round(
@@ -124,7 +169,11 @@ export async function computeOrganicConfidence(
       0,
       Math.min(
         100,
-        100 - coordinatedItemRatio * 40 - burstPenalty * 20 - avgBotRisk * 40,
+        100
+          - coordinatedItemRatio * 30
+          - burstPenalty * 20
+          - textSimilarityPenalty * 10
+          - avgBotRisk * 40,
       ),
     ),
   );

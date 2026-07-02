@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { analysisReportsTable, contentItemsTable } from "@workspace/db/schema";
+import { analysisReportsTable, contentItemsTable, influencerScoresTable } from "@workspace/db/schema";
 import { eq, and, gte, desc, sql, count, sum } from "drizzle-orm";
 import { chat, type LlmProvider, type LlmMessage } from "../../lib/llm";
 import { semanticSearch } from "../../lib/analysis/embeddings";
@@ -167,13 +167,17 @@ router.get("/influencers", async (req, res) => {
     .orderBy(desc(sql`count(*)`))
     .limit(limit * 3); // over-fetch so we can compute reach score and re-rank
 
+  // Spec formula: log(mentions) × engagement_rate
+  // follower counts are not available in content_items; we use mention count as a
+  // reach proxy: engagementRate = totalEngagement / max(mentions, 1)
   const influencers = rows
     .filter((r) => r.author)
     .map((r) => {
       const mentions = Number(r.mentionCount);
       const engagement = Number(r.totalEngagement);
       const botRisk = Number(r.avgBotRisk);
-      const reachScore = Math.log10(mentions + 1) * (engagement + 1);
+      const engagementRate = mentions > 0 ? engagement / mentions : 0;
+      const reachScore = Math.log10(mentions + 1) * (engagementRate + 1);
       const isBotFlagged = botRisk > 0.7 ? "true" : "false";
 
       return {
@@ -181,6 +185,7 @@ router.get("/influencers", async (req, res) => {
         accountHandle: r.author!,
         mentionCount: mentions,
         totalEngagement: Math.round(engagement),
+        avgEngagementRate: Math.round(engagementRate * 100) / 100,
         reachScore: Math.round(reachScore * 100) / 100,
         botRisk: Math.round(botRisk * 100) / 100,
         isBotFlagged,
@@ -188,6 +193,26 @@ router.get("/influencers", async (req, res) => {
     })
     .sort((a, b) => b.reachScore - a.reachScore)
     .slice(0, limit);
+
+  // Persist influencer scores to influencer_scores table (fire-and-forget)
+  // Records are upserted by (orgId, topic, platform, accountHandle) at score time
+  const scoredAt = new Date();
+  db.insert(influencerScoresTable)
+    .values(
+      influencers.map((inf) => ({
+        orgId,
+        topic: topic!,
+        platform: inf.platform ?? "unknown",
+        accountHandle: inf.accountHandle,
+        avgEngagementRate: inf.avgEngagementRate,
+        reachScore: inf.reachScore,
+        botRisk: inf.botRisk,
+        isBotFlagged: inf.isBotFlagged,
+        mentionCount: inf.mentionCount,
+        scoredAt,
+      })),
+    )
+    .catch((err) => logger.warn({ err, orgId, topic }, "Failed to persist influencer scores"));
 
   res.json({ topic, timeframe, count: influencers.length, data: influencers });
 });

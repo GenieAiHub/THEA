@@ -72,7 +72,7 @@ export function startAlertDispatchWorker(): void {
       }
 
       const org = await db
-        .select({ name: organizationsTable.name })
+        .select({ name: organizationsTable.name, notificationConfig: organizationsTable.notificationConfig })
         .from(organizationsTable)
         .where(eq(organizationsTable.id, orgId))
         .then((rows) => rows[0]);
@@ -98,6 +98,37 @@ export function startAlertDispatchWorker(): void {
       );
 
       logger.info({ alertId, orgId, keyword, severity, recipients: recipients.length }, "Alert email queued");
+
+      // ── Slack delivery ────────────────────────────────────────────────────────
+      const notifConfig = org?.notificationConfig ?? {};
+      if (notifConfig.slackEnabled && notifConfig.slackWebhookUrl) {
+        try {
+          const severityEmoji2 = severity === "critical" ? "🚨" : severity === "high" ? "⚠️" : "📊";
+          const body = JSON.stringify({
+            text: `${severityEmoji2} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
+            attachments: [
+              {
+                color: severity === "critical" ? "#e53e3e" : severity === "high" ? "#dd6b20" : "#3182ce",
+                fields: [
+                  { title: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A", short: true },
+                  { title: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A", short: true },
+                  { title: "Organisation", value: org?.name ?? orgId, short: true },
+                ],
+                footer: "THEA Intelligence",
+              },
+            ],
+          });
+          await fetch(notifConfig.slackWebhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+            signal: AbortSignal.timeout(5000),
+          });
+          logger.info({ alertId, orgId }, "Slack alert delivered");
+        } catch (slackErr) {
+          logger.warn({ err: slackErr, alertId, orgId }, "Slack delivery failed — email already queued");
+        }
+      }
     } catch (err) {
       logger.warn({ err, alertId, orgId }, "Failed to queue alert email — alert still marked dispatched");
     }
