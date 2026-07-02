@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 
-const logoUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`;
+const logoUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`;
 
 const PLAN_NAMES: Record<string, string> = {
   professional: "Professional",

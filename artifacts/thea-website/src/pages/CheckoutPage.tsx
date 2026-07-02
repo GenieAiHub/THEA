@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useCheckout } from "@/hooks/use-checkout";
 
-const logoUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`;
+const logoUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`;
 
 interface PlanInfo {
   name: string;

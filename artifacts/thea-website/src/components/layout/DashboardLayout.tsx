@@ -132,7 +132,7 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
     <div className="flex flex-col h-full bg-slate-950 border-r border-slate-800 w-full text-slate-300">
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <img src={`${basePath || ""}/logo.svg`} alt="THEA Logo" className="w-8 h-8" />
+          <img src={`${basePath || ""}/logo.png`} alt="THEA Logo" className="w-8 h-8" />
           <span className="font-display font-bold text-xl tracking-tight text-white">THEA</span>
         </Link>
       </div>
