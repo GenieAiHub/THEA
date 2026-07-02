@@ -10,6 +10,9 @@
 **/crawlee_storage
 .local
 .agents
+# .replit carries an [env] block with dev-only secrets (encryption key, internal
+# tokens). Never bake it into an image layer — prod values come from .env.
+.replit
 # attached_assets is intentionally NOT ignored: the web apps import images from
 # it via the Vite "@assets" alias. Only drop the terminal-paste .txt logs.
 attached_assets/*.txt

@@ -38,3 +38,25 @@ api stays on the internal net only (each nginx proxies /api -> api:5000).
 **Rule:** TRUST_PROXY is read in app.ts (previously hardcoded to 1) — set it to 3
 in proxy mode (CF -> Caddy -> nginx), or express-rate-limit buckets all clients as
 one IP. CORS_ORIGIN accepts a comma-separated allowlist (split in app.ts).
+
+## corepack/pnpm version drift breaks the container build
+The container's corepack grabs the LATEST pnpm (11.x) unless pinned; pnpm 11 turns
+unrun build scripts into a fatal ERR_PNPM_IGNORED_BUILDS, while the Replit dev pnpm
+(10.x) only warns — so the image fails to build even though local install is clean.
+**Rule:** pin `"packageManager": "pnpm@<dev-version>"` in root package.json AND list
+the skipped scripts under `ignoredBuiltDependencies` in pnpm-workspace.yaml
+(@scarf/scarf, bufferutil, core-js, es5-ext, msgpackr-extract, utf-8-validate — all
+pure-JS fallbacks). Also set COREPACK_ENABLE_DOWNLOAD_PROMPT=0 in the Dockerfile.
+
+## .replit leaks dev secrets into image layers
+`.replit` is git-tracked and carries an [env] block with plaintext dev secrets
+(PLATFORM_ENCRYPTION_KEY, ADMIN_INTERNAL_TOKEN, PROVISION_TOKEN). `COPY . .` bakes it
+into every image layer AND into the repo cloned onto the VPS.
+**Rule:** add `.replit` to .dockerignore, and the prod .env MUST use freshly generated
+values for those keys — never the committed dev ones. A fresh PLATFORM_ENCRYPTION_KEY
+is safe only on a clean DB (it decrypts nothing pre-existing), which a first deploy is.
+
+## attached_assets must stay in the build context
+The web apps import images via the Vite `@assets` alias (-> ../../attached_assets),
+which IS git-tracked. Ignoring the whole dir in .dockerignore makes `vite build` fail
+with ENOENT on the imported image. Ignore only `attached_assets/*.txt` (paste logs).
