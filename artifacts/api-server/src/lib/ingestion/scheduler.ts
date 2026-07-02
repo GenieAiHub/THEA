@@ -13,7 +13,7 @@ const SOCIAL_INTERVAL_MS = 60 * 60 * 1000;
 const NEWS_API_INTERVAL_MS = 60 * 60 * 1000;
 const TIKTOK_INTERVAL_MS = 2 * 60 * 60 * 1000;
 const CRAWLER_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const SERP_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const SEARCH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 async function getActiveCategories(): Promise<string[]> {
   try {
@@ -77,7 +77,7 @@ async function scheduleWebCrawlerSources(): Promise<void> {
   }
 }
 
-async function scheduleSerpKeywords(): Promise<void> {
+async function scheduleSearchKeywords(): Promise<void> {
   const { contentIngestion } = getQueues();
   try {
     const keywords = await db
@@ -90,7 +90,7 @@ async function scheduleSerpKeywords(): Promise<void> {
       .where(eq(watchlistKeywordsTable.isActive, true));
 
     if (!keywords.length) {
-      logger.info("No active watchlist keywords found — skipping SERP scheduling");
+      logger.info("No active watchlist keywords found — skipping search scheduling");
       return;
     }
 
@@ -98,12 +98,12 @@ async function scheduleSerpKeywords(): Promise<void> {
       const slug = keyword.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       const orgSlug = orgId.slice(0, 8);
       await contentIngestion.upsertJobScheduler(
-        `serp-keyword-${slug}-${orgSlug}`,
-        { every: SERP_INTERVAL_MS },
+        `search-keyword-${slug}-${orgSlug}`,
+        { every: SEARCH_INTERVAL_MS },
         {
-          name: "serp",
+          name: "duckduckgo",
           data: {
-            sourceType: "serp",
+            sourceType: "duckduckgo",
             keyword,
             category: category ?? "general",
             orgId,
@@ -113,16 +113,16 @@ async function scheduleSerpKeywords(): Promise<void> {
       );
     }
 
-    logger.info({ count: keywords.length }, "SERP keyword schedulers registered from watchlist (all orgs)");
+    logger.info({ count: keywords.length }, "DuckDuckGo search keyword schedulers registered from watchlist (all orgs)");
   } catch (err) {
-    logger.warn({ err }, "Could not schedule SERP keyword jobs from watchlist_keywords");
+    logger.warn({ err }, "Could not schedule search keyword jobs from watchlist_keywords");
   }
 }
 
 /**
  * Schedule per-org watchlist collection jobs — runs every 15 minutes.
  * Each org gets its own job to collect content matching their watchlist terms
- * from Bing News and SERP across all active keywords.
+ * from DuckDuckGo (default) plus Bing News and SerpAPI when configured.
  */
 async function scheduleWatchlistCollectionJobs(): Promise<void> {
   const { contentIngestion } = getQueues();
@@ -271,7 +271,7 @@ export async function scheduleIngestion(): Promise<void> {
     }
 
     await scheduleWebCrawlerSources();
-    await scheduleSerpKeywords();
+    await scheduleSearchKeywords();
     await scheduleWatchlistCollectionJobs();
     await scheduleWatchlistAnalysisJobs();
 

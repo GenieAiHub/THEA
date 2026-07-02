@@ -14,6 +14,7 @@ import { collectTwitter } from "./collectors/twitter";
 import { collectReddit } from "./collectors/reddit";
 import { collectYouTube } from "./collectors/youtube";
 import { collectSerp } from "./collectors/serp";
+import { collectDuckDuckGo } from "./collectors/duckduckgo";
 import { crawlUrls } from "./collectors/web-crawler";
 import { collectTelegram, collectTelegramAllCategories } from "./collectors/telegram";
 import { collectTikTok } from "./collectors/tiktok";
@@ -146,6 +147,13 @@ export function startContentIngestionWorker(): void {
           break;
         }
 
+        case "duckduckgo": {
+          const items = await collectDuckDuckGo(keyword ?? category ?? "news", category ?? "general");
+          // Pass orgId so org-scoped search jobs attribute content to the correct org
+          stats = await ingestItems(items, orgId);
+          break;
+        }
+
         case "serp": {
           const apiKey = getEnv("SERP_API_KEY");
           if (!apiKey) { logger.warn("SERP_API_KEY not set — skipping SerpAPI collection"); break; }
@@ -183,12 +191,10 @@ export function startContentIngestionWorker(): void {
         case "watchlist-scan": {
           if (!orgId) { logger.warn("watchlist-scan job missing orgId — skipping"); break; }
 
+          // DuckDuckGo is the default keyless search engine, so watchlist-scan
+          // always runs; Bing News and SerpAPI are optional enhancers.
           const bingKey = getEnv("BING_NEWS_API_KEY");
           const serpKey = getEnv("SERP_API_KEY");
-          if (!bingKey && !serpKey) {
-            logger.warn("Neither BING_NEWS_API_KEY nor SERP_API_KEY set — watchlist-scan skipped");
-            break;
-          }
 
           const orgKeywords = await db
             .select({
@@ -220,9 +226,11 @@ export function startContentIngestionWorker(): void {
             const cat = kw.category ?? "general";
             const metaTag = { orgId, watchlistKeywordId: kw.id };
 
-            // Source 1: Bing News (keyword-targeted)
+            // Source 1: DuckDuckGo (default keyless search engine)
+            await collectDuckDuckGo(kw.keyword, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
+            // Source 2: Bing News (optional, keyword-targeted)
             if (bingKey) await collectBingNews(kw.keyword, bingKey, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
-            // Source 2: SerpAPI (keyword-targeted organic search)
+            // Source 3: SerpAPI (optional, keyword-targeted organic search)
             if (serpKey) await collectSerp(kw.keyword, serpKey, cat).then((items) => collectTagged(items, metaTag)).catch(() => undefined);
           }
 
