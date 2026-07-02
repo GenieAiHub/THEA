@@ -185,6 +185,56 @@ export function startAlertDispatchWorker(): void {
         logger.info({ alertId, orgId, telegramChatId }, "Telegram alert delivered");
       }
 
+      // ── WhatsApp Business Cloud API delivery ───────────────────────────────
+      const whatsappTo = emailPref?.whatsappPhoneNumber;
+      const whatsappPhoneNumberId = process.env["WHATSAPP_PHONE_NUMBER_ID"];
+      const whatsappAccessToken = process.env["WHATSAPP_ACCESS_TOKEN"];
+      if (whatsappTo && whatsappPhoneNumberId && whatsappAccessToken) {
+        try {
+          const body = JSON.stringify({
+            messaging_product: "whatsapp",
+            to: whatsappTo,
+            type: "template",
+            template: {
+              name: "thea_spike_alert",
+              language: { code: "en" },
+              components: [
+                {
+                  type: "body",
+                  parameters: [
+                    { type: "text", text: keyword ?? "N/A" },
+                    { type: "text", text: (severity ?? "medium").toUpperCase() },
+                    { type: "text", text: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
+                  ],
+                },
+              ],
+            },
+          });
+          const resp = await fetch(
+            `https://graph.facebook.com/v19.0/${whatsappPhoneNumberId}/messages`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${whatsappAccessToken}`,
+                "Content-Type": "application/json",
+              },
+              body,
+              signal: AbortSignal.timeout(5000),
+            },
+          );
+          if (!resp.ok) {
+            const errText = await resp.text().catch(() => "");
+            logger.warn({ alertId, orgId, status: resp.status, errText }, "WhatsApp delivery returned non-OK status");
+          } else {
+            logger.info({ alertId, orgId }, "WhatsApp alert delivered");
+          }
+        } catch (err) {
+          logger.warn({ err, alertId, orgId }, "WhatsApp delivery failed");
+        }
+      } else if (whatsappTo && (!whatsappPhoneNumberId || !whatsappAccessToken)) {
+        logger.warn({ alertId, orgId }, "WhatsApp recipient configured but WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_ACCESS_TOKEN missing — skipping");
+      }
+
       // ── Registered webhooks (HMAC-signed) ──────────────────────────────────
       dispatchWebhookEvent(orgId, "alert.spike", {
         alertId,

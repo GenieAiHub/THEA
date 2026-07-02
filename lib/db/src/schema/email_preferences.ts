@@ -19,6 +19,7 @@ export const emailPreferencesTable = pgTable("email_preferences", {
   teamsWebhookUrl: text("teams_webhook_url"),
   telegramChatId: text("telegram_chat_id"),
   whatsappNumbers: jsonb("whatsapp_numbers").default([]),
+  whatsappPhoneNumber: text("whatsapp_phone_number"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

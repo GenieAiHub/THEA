@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
-import { organizationsTable, usersTable } from "@workspace/db/schema";
+import { organizationsTable, usersTable, emailPreferencesTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../middlewares/auth";
 import { hashPassword } from "../../lib/auth";
@@ -161,6 +161,74 @@ router.delete("/team/:userId", requireRole("owner", "admin"), async (req, res) =
     .where(and(eq(usersTable.id, userId), eq(usersTable.orgId, orgId)));
 
   res.status(204).send();
+});
+
+// ── Notification channel preferences ──────────────────────────────────────
+router.get("/notifications", async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const pref = await db
+    .select()
+    .from(emailPreferencesTable)
+    .where(eq(emailPreferencesTable.orgId, orgId))
+    .then((rows) => rows[0] ?? null);
+
+  res.json({
+    data: {
+      alertEmailEnabled: pref?.alertEmailEnabled ?? true,
+      minSeverityForEmail: pref?.minSeverityForEmail ?? "medium",
+      slackWebhookUrl: pref?.slackWebhookUrl ?? null,
+      teamsWebhookUrl: pref?.teamsWebhookUrl ?? null,
+      telegramChatId: pref?.telegramChatId ?? null,
+      whatsappPhoneNumber: pref?.whatsappPhoneNumber ?? null,
+    },
+  });
+});
+
+router.patch("/notifications", requireRole("owner", "admin"), async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const { whatsappPhoneNumber } = req.body as { whatsappPhoneNumber?: string | null };
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (whatsappPhoneNumber !== undefined) {
+    const trimmed = typeof whatsappPhoneNumber === "string" ? whatsappPhoneNumber.trim() : "";
+    if (trimmed && !/^\+?[0-9]{7,15}$/.test(trimmed)) {
+      res.status(400).json({ error: "whatsappPhoneNumber must be a valid E.164-style phone number (7–15 digits, optional leading +)" });
+      return;
+    }
+    updates.whatsappPhoneNumber = trimmed || null;
+  }
+
+  const existing = await db
+    .select({ id: emailPreferencesTable.id })
+    .from(emailPreferencesTable)
+    .where(eq(emailPreferencesTable.orgId, orgId))
+    .then((rows) => rows[0] ?? null);
+
+  if (existing) {
+    await db
+      .update(emailPreferencesTable)
+      .set(updates)
+      .where(eq(emailPreferencesTable.orgId, orgId));
+  } else {
+    await db
+      .insert(emailPreferencesTable)
+      .values({ orgId, whatsappPhoneNumber: (updates.whatsappPhoneNumber as string | null) ?? null });
+  }
+
+  logger.info({ orgId }, "Notification preferences updated");
+
+  const pref = await db
+    .select()
+    .from(emailPreferencesTable)
+    .where(eq(emailPreferencesTable.orgId, orgId))
+    .then((rows) => rows[0] ?? null);
+
+  res.json({
+    data: {
+      whatsappPhoneNumber: pref?.whatsappPhoneNumber ?? null,
+    },
+  });
 });
 
 export default router;

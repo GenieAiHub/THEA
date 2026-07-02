@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -59,6 +59,45 @@ export default function SettingsPage() {
   );
   const [savingOrg, setSavingOrg] = useState(false);
   const [newTeamEmail, setNewTeamEmail] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [savingNotif, setSavingNotif] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/settings/notifications", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (!cancelled && body?.data?.whatsappPhoneNumber) {
+          setWhatsappNumber(body.data.whatsappPhoneNumber);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSaveNotifications = async () => {
+    setSavingNotif(true);
+    try {
+      const res = await fetch("/api/v1/settings/notifications", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whatsappPhoneNumber: whatsappNumber.trim() || null }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast({ title: "Could not save preferences", description: body?.error ?? "Please try again.", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Notification preferences saved" });
+    } catch {
+      toast({ title: "Could not save preferences", description: "Network error. Please try again.", variant: "destructive" });
+    } finally {
+      setSavingNotif(false);
+    }
+  };
 
   const { data: sources, isLoading: loadingSources } = useListCrawlerSources<any>();
   const { data: webhooks, isLoading: loadingWebhooks } = useListWebhooks<any>();
@@ -255,6 +294,22 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 <Separator className="bg-slate-800" />
+                <div className="space-y-1.5 max-w-md">
+                  <Label htmlFor="whatsapp-number" className="text-slate-400 text-sm">WhatsApp Alert Number</Label>
+                  <Input
+                    id="whatsapp-number"
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="+15551234567"
+                    value={whatsappNumber}
+                    onChange={(e) => setWhatsappNumber(e.target.value)}
+                    className="bg-slate-950 border-slate-800 text-slate-200"
+                  />
+                  <p className="text-xs text-slate-600">
+                    Instant crisis spike alerts are sent to this WhatsApp number via the THEA Business account. Use full international format (E.164), e.g. +15551234567. Leave blank to disable.
+                  </p>
+                </div>
+                <Separator className="bg-slate-800" />
                 <div className="space-y-3">
                   <Label className="text-slate-400 text-sm">Alert Digest Frequency</Label>
                   <Select defaultValue="daily">
@@ -271,9 +326,10 @@ export default function SettingsPage() {
                 </div>
                 <Button
                   className="bg-blue-600 hover:bg-blue-500"
-                  onClick={() => toast({ title: "Notification preferences saved" })}
+                  onClick={handleSaveNotifications}
+                  disabled={savingNotif}
                 >
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {savingNotif ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
                   Save Preferences
                 </Button>
               </CardContent>
