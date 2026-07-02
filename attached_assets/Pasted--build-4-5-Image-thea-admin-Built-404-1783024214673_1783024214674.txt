@@ -1,0 +1,38 @@
+[+] build 4/5
+ ✔ Image thea-admin   Built                                                       404.5s
+ ✔ Image thea-website Built                                                       404.5s
+ ✔ Image thea-markets Built                                                       404.5s
+ ⠙ Image thea-api     Building                                                    404.5s
+ ✔ Image thea-tools   Built                                                       404.5s
+[+] up 11/11
+ ✔ Network thea_internal    Created                                                 0.1s
+ ✔ Volume thea_db-data      Created                                                 0.0s
+ ✔ Volume thea_es-data      Created                                                 0.0s
+ ✔ Container thea-es-1      Started                                                 3.2s
+ ✔ Container thea-redis-1   Healthy                                                 9.7s
+ ✔ Container thea-db-1      Healthy                                                 9.8s
+ ✔ Container thea-migrate-1 Exited                                                 16.2s
+ ✔ Container thea-api-1     Started                                                16.5s
+ ✔ Container thea-admin-1   Started                                                17.4s
+ ✔ Container thea-website-1 Started                                                17.3s
+ ✔ Container thea-markets-1 Started                                                17.3s
+NAME             IMAGE                                                  COMMAND                  SERVICE   CREATED          STATUS                             PORTS
+thea-admin-1     thea-admin                                             "/docker-entrypoint.…"   admin     18 seconds ago   Up 1 second                        80/tcp
+thea-api-1       thea-api                                               "docker-entrypoint.s…"   api       18 seconds ago   Up 2 seconds (health: starting)    5000/tcp
+thea-db-1        pgvector/pgvector:pg16                                 "docker-entrypoint.s…"   db        19 seconds ago   Up 16 seconds (healthy)            5432/tcp
+thea-es-1        docker.elastic.co/elasticsearch/elasticsearch:8.15.3   "/bin/tini -- /usr/l…"   es        19 seconds ago   Up 16 seconds (health: starting)   9200/tcp, 9300/tcp
+thea-markets-1   thea-markets                                           "/docker-entrypoint.…"   markets   18 seconds ago   Up 1 second                        80/tcp
+thea-redis-1     redis:7-alpine                                         "docker-entrypoint.s…"   redis     19 seconds ago   Up 17 seconds (healthy)            6379/tcp
+thea-website-1   thea-website                                           "/docker-entrypoint.…"   website   18 seconds ago   Up 1 second                        80/tcp
+root@vmi3385433:~/thea# docker compose -f docker-compose.yml -f docker-compose.proxy.yml logs migrate api --tail=100
+migrate-1  |
+migrate-1  | > @workspace/db@0.0.0 push /app/lib/db
+migrate-1  | > node ./scripts/pre-push.mjs && drizzle-kit push --config ./drizzle.config.ts
+migrate-1  |
+migrate-1  | [pre-push] pgvector extension ensured
+migrate-1  | Reading config file '/app/lib/db/drizzle.config.ts'
+migrate-1  | Using 'pg' driver for database querying
+migrate-1  | [⣷] Pulling schema from database...
+[✓] Pulling schema from database...
+migrate-1  | [✓] Changes applied
+root@vmi3385433:~/thea#
