@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { contentItemsTable } from "@workspace/db/schema";
-import { eq, desc, gte, and, isNotNull, or } from "drizzle-orm";
+import { gte, and, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "../logger";
 
@@ -65,7 +65,7 @@ export async function buildSeedDocument(
     .from(contentItemsTable)
     .where(
       and(
-        eq(contentItemsTable.category, category),
+        sql`LOWER(${contentItemsTable.category}) = LOWER(${category})`,
         gte(contentItemsTable.collectedAt, since)
       )
     )

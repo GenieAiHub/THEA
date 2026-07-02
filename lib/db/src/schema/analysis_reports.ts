@@ -14,6 +14,7 @@ export const analysisReportsTable = pgTable("analysis_reports", {
   sentimentOverall: text("sentiment_overall"),
   keyEntities: jsonb("key_entities").default([]),
   predictions: jsonb("predictions").default([]),
+  dominantNarratives: jsonb("dominant_narratives").default([]),
   rawReport: text("raw_report"),
   seedDocumentLength: integer("seed_document_length"),
   itemsAnalyzed: integer("items_analyzed").default(0),

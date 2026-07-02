@@ -182,6 +182,7 @@ export async function classifyPendingItems(category?: string, limit = 500): Prom
         entities: r.entities,
         summary: r.summary,
         category: r.category,
+        processedAt: new Date(),
       })
       .where(eq(contentItemsTable.id, r.id));
   }

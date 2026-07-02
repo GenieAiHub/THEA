@@ -61,6 +61,7 @@ export function startMiroFishWorker(): void {
           sentimentOverall: parsed.sentimentOverall,
           keyEntities: parsed.keyEntities,
           predictions: parsed.predictions,
+          dominantNarratives: parsed.dominantNarratives,
           rawReport: JSON.stringify(report),
           seedDocumentLength: seedDocument.length,
           itemsAnalyzed: itemCount,
