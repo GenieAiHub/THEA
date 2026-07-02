@@ -16,6 +16,8 @@ import WatchlistPage from "@/pages/WatchlistPage";
 import AlertsPage from "@/pages/AlertsPage";
 import AiToolsPage from "@/pages/AiToolsPage";
 import DataExplorerPage from "@/pages/DataExplorerPage";
+import CampaignsPage from "@/pages/CampaignsPage";
+import CompetitorIntelligencePage from "@/pages/CompetitorIntelligencePage";
 import SettingsPage from "@/pages/SettingsPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 
@@ -163,6 +165,8 @@ function ClerkProviderWithRoutes() {
             <Route path="/alerts" component={AlertsPage} />
             <Route path="/ai-tools" component={AiToolsPage} />
             <Route path="/data-explorer" component={DataExplorerPage} />
+            <Route path="/campaigns" component={CampaignsPage} />
+            <Route path="/competitors" component={CompetitorIntelligencePage} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/onboarding" component={OnboardingPage} />
             <Route component={NotFound} />

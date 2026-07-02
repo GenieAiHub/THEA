@@ -11,7 +11,9 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Menu
+  Menu,
+  Target,
+  Sword
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,8 @@ const navItems: SidebarItem[] = [
   { icon: <ShieldAlert className="w-4 h-4" />, label: "Alerts", href: "/alerts" },
   { icon: <Cpu className="w-4 h-4" />, label: "AI Tools", href: "/ai-tools" },
   { icon: <Database className="w-4 h-4" />, label: "Data Explorer", href: "/data-explorer" },
+  { icon: <Target className="w-4 h-4" />, label: "Campaigns", href: "/campaigns" },
+  { icon: <Sword className="w-4 h-4" />, label: "Competitors", href: "/competitors" },
   { icon: <Settings className="w-4 h-4" />, label: "Settings", href: "/settings" },
 ];
 
