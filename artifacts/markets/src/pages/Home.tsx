@@ -1,43 +1,60 @@
-import { useState, useMemo } from "react";
-import { useListMarkets, useGetMarketStats, useListMarketCategories, getListMarketsQueryKey, getGetMarketStatsQueryKey, getListMarketCategoriesQueryKey, ListMarketsSort } from "@workspace/api-client-react";
-import { Navbar } from "@/components/layout/Navbar";
-import { MarketCard } from "@/components/markets/MarketCard";
-import { useVoting } from "@/hooks/use-voting";
+import { useState, useEffect } from "react";
+import { useSearch } from "wouter";
+import {
+  useListMarkets,
+  useGetMarketStats,
+  getListMarketsQueryKey,
+  getGetMarketStatsQueryKey,
+  ListMarketsSort,
+} from "@workspace/api-client-react";
+import { Layout } from "@/components/layout/Layout";
+import { CategoryChips } from "@/components/markets/CategoryChips";
+import { MarketGrid } from "@/components/markets/MarketGrid";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Flame, ListFilter, AlertCircle } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Flame } from "lucide-react";
 
 export default function Home() {
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string>("all");
+  const searchStr = useSearch();
+  const urlSearch = new URLSearchParams(searchStr).get("search") ?? "";
+
+  const [search, setSearch] = useState(urlSearch);
   const [sort, setSort] = useState<ListMarketsSort>("trending");
 
-  const { castVote, isVoting, localVotes } = useVoting();
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
 
   const { data: stats } = useGetMarketStats({
-    query: { queryKey: getGetMarketStatsQueryKey() }
+    query: { queryKey: getGetMarketStatsQueryKey() },
   });
 
-  const { data: categories } = useListMarketCategories({
-    query: { queryKey: getListMarketCategoriesQueryKey() }
+  const listParams = {
+    search: search || undefined,
+    sort,
+  };
+
+  const { data: marketsData, isLoading } = useListMarkets(listParams, {
+    query: { queryKey: getListMarketsQueryKey(listParams) },
   });
 
-  const { data: marketsData, isLoading } = useListMarkets(
-    { 
-      search: search || undefined,
-      category: category !== "all" ? category : undefined,
-      sort
-    },
-    { query: { queryKey: getListMarketsQueryKey({ search: search || undefined, category: category !== "all" ? category : undefined, sort }) } }
-  );
+  const statCards = [
+    { label: "Live Markets", value: stats?.openMarkets },
+    { label: "Total Votes", value: stats?.totalVotes },
+    { label: "Total Markets", value: stats?.totalMarkets },
+    { label: "Categories", value: stats?.categories },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">
-      <Navbar />
-
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
-        <header className="mb-12">
+    <Layout>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <header className="mb-10">
           <h1 className="text-4xl md:text-6xl font-display font-bold tracking-tight mb-4">
             The pulse of <span className="text-primary glow-text">public opinion</span>.
           </h1>
@@ -47,95 +64,49 @@ export default function Home() {
 
           {stats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="glass-panel p-4 rounded-xl">
-                <div className="text-sm text-muted-foreground mb-1">Live Markets</div>
-                <div className="text-2xl font-mono font-bold text-white">{stats.openMarkets.toLocaleString()}</div>
-              </div>
-              <div className="glass-panel p-4 rounded-xl">
-                <div className="text-sm text-muted-foreground mb-1">Total Votes</div>
-                <div className="text-2xl font-mono font-bold text-white">{stats.totalVotes.toLocaleString()}</div>
-              </div>
+              {statCards.map((s) => (
+                <div key={s.label} className="glass-panel p-4 rounded-xl">
+                  <div className="text-sm text-muted-foreground mb-1">{s.label}</div>
+                  <div className="text-2xl font-mono font-bold text-white">
+                    {(s.value ?? 0).toLocaleString()}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </header>
 
+        <section className="mb-6">
+          <CategoryChips />
+        </section>
+
         <section className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search markets..." 
+            <Input
+              placeholder="Search markets..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-secondary/30 border-primary/20 focus-visible:ring-primary"
             />
           </div>
-          <div className="flex gap-4 w-full md:w-auto">
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="w-full md:w-[180px] bg-secondary/30 border-primary/20">
-                <div className="flex items-center gap-2">
-                  <ListFilter className="w-4 h-4" />
-                  <SelectValue placeholder="Category" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories?.data?.map(cat => (
-                  <SelectItem key={cat.category} value={cat.category}>
-                    {cat.category} ({cat.count})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={sort} onValueChange={(val: any) => setSort(val)}>
-              <SelectTrigger className="w-full md:w-[180px] bg-secondary/30 border-primary/20">
-                <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4" />
-                  <SelectValue placeholder="Sort by" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="trending">Trending</SelectItem>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="closing">Closing Soon</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={sort} onValueChange={(val: any) => setSort(val)}>
+            <SelectTrigger className="w-full md:w-[180px] bg-secondary/30 border-primary/20">
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4" />
+                <SelectValue placeholder="Sort by" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="trending">Trending</SelectItem>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="closing">Closing Soon</SelectItem>
+            </SelectContent>
+          </Select>
         </section>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="glass-panel p-6 rounded-xl space-y-4">
-                <Skeleton className="h-6 w-24 rounded-full bg-primary/20" />
-                <Skeleton className="h-16 w-full bg-primary/10" />
-                <div className="space-y-2 mt-8">
-                  <Skeleton className="h-12 w-full bg-primary/5" />
-                  <Skeleton className="h-12 w-full bg-primary/5" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : !marketsData?.data?.length ? (
-          <div className="text-center py-24 glass-panel rounded-xl">
-            <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-display font-medium text-white mb-2">No markets found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or filters.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {marketsData.data.map(market => (
-              <MarketCard 
-                key={market.id}
-                market={market}
-                votedOptionIndex={localVotes[market.id] >= 0 ? localVotes[market.id] : undefined}
-                onVote={castVote}
-                isVoting={isVoting}
-              />
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+        <MarketGrid markets={marketsData?.data} isLoading={isLoading} />
+      </div>
+    </Layout>
   );
 }

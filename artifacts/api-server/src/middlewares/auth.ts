@@ -216,6 +216,57 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     });
 }
 
+/**
+ * Public/optional authentication for consumer-facing endpoints.
+ *
+ * Unlike {@link requireAuth}, this never rejects the request. When valid
+ * credentials (session cookie, session bearer token, or API key) are present it
+ * attaches the resolved tenant context to `req.thea`; otherwise it leaves
+ * `req.thea` undefined and continues. Routes are then responsible for falling
+ * back to platform-only scope (PLATFORM_ORG_ID) for anonymous callers, so the
+ * public THEA Markets app can browse and vote on platform markets without login
+ * while authenticated users still see their own org content.
+ */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader?.startsWith("Bearer thea_")) {
+    const rawKey = authHeader.slice(7);
+    resolveApiKeyContext(rawKey)
+      .then((context) => {
+        if (context) req.thea = context;
+        next();
+      })
+      .catch((err) => {
+        logger.error({ err }, "optionalAuth: API key resolution error");
+        next();
+      });
+    return;
+  }
+
+  let token = readSessionCookie(req);
+  if (!token && authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim() || null;
+  }
+  if (!token) {
+    next();
+    return;
+  }
+
+  getUserByToken(token)
+    .then(async (user) => {
+      if (user) {
+        const context = await resolveOrgContext(user);
+        if (context) req.thea = context;
+      }
+      next();
+    })
+    .catch((err) => {
+      logger.error({ err }, "optionalAuth: error resolving org context");
+      next();
+    });
+}
+
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const userRole = req.thea?.user.role;

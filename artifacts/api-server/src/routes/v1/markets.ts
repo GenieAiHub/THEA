@@ -4,21 +4,26 @@ import { predictionMarketsTable, marketVotesTable } from "@workspace/db/schema";
 import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { VoteOnMarketBody } from "@workspace/api-zod";
 import { serializeMarkets } from "../../lib/markets";
-import { requireAuth } from "../../middlewares/auth";
+import { optionalAuth } from "../../middlewares/auth";
 import { tenantOr, PLATFORM_ORG_ID } from "../../lib/tenantScope";
 
 const router = Router();
-router.use(requireAuth);
+// Consumer-facing markets are public: anonymous visitors browse and vote on
+// platform markets (PLATFORM_ORG_ID). Authenticated callers additionally see
+// their own org's markets. Never rejects — routes fall back to platform scope.
+router.use(optionalAuth);
 
 // ─── GET /api/v1/markets ──────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
-  const userOrgId = req.thea!.org.id;
+  const userOrgId = req.thea?.org.id ?? PLATFORM_ORG_ID;
   const { status, category, sort = "trending", search } = req.query as Record<string, string | undefined>;
   const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "50"), 10) || 50));
 
   const conditions = [tenantOr(predictionMarketsTable.orgId, userOrgId)];
 
-  if (category) conditions.push(eq(predictionMarketsTable.category, category));
+  if (category) {
+    conditions.push(sql`lower(${predictionMarketsTable.category}) = lower(${category})`);
+  }
   if (search) {
     conditions.push(
       or(
@@ -66,7 +71,7 @@ router.get("/", async (req, res) => {
 
 // ─── GET /api/v1/markets/categories ──────────────────────────────────────────
 router.get("/categories", async (req, res) => {
-  const userOrgId = req.thea!.org.id;
+  const userOrgId = req.thea?.org.id ?? PLATFORM_ORG_ID;
   const rows = await db
     .select({
       category: predictionMarketsTable.category,
@@ -82,7 +87,7 @@ router.get("/categories", async (req, res) => {
 
 // ─── GET /api/v1/markets/stats ────────────────────────────────────────────────
 router.get("/stats", async (req, res) => {
-  const userOrgId = req.thea!.org.id;
+  const userOrgId = req.thea?.org.id ?? PLATFORM_ORG_ID;
   const orgFilter = tenantOr(predictionMarketsTable.orgId, userOrgId);
 
   const [marketCounts] = await db
@@ -117,7 +122,7 @@ router.get("/:id", async (req, res) => {
     res.status(404).json({ error: "Market not found" });
     return;
   }
-  const userOrgId = req.thea!.org.id;
+  const userOrgId = req.thea?.org.id ?? PLATFORM_ORG_ID;
   const rows = await db
     .select()
     .from(predictionMarketsTable)
@@ -145,7 +150,7 @@ router.post("/:id/vote", async (req, res) => {
     return;
   }
   const { optionIndex, voterId } = parsed.data;
-  const userOrgId = req.thea!.org.id;
+  const userOrgId = req.thea?.org.id ?? PLATFORM_ORG_ID;
 
   const rows = await db
     .select()
