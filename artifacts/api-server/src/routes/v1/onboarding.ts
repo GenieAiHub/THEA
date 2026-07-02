@@ -44,7 +44,8 @@ router.post("/focus", async (req, res) => {
 
 router.post("/categories", async (req, res) => {
   const { categories } = req.body as { categories: string[] };
-  const { maxCategories } = req.thea!.subscription;
+  const { org, subscription } = req.thea!;
+  const { maxCategories } = subscription;
 
   if (!Array.isArray(categories) || categories.length === 0) {
     res.status(400).json({ error: "categories must be a non-empty array" });
@@ -61,6 +62,11 @@ router.post("/categories", async (req, res) => {
     res.status(402).json({ error: `Your plan allows up to ${maxCategories} categories. Upgrade for more.` });
     return;
   }
+
+  await db
+    .update(organizationsTable)
+    .set({ categories, updatedAt: new Date() })
+    .where(eq(organizationsTable.id, org.id));
 
   res.json({ data: { categories, savedCount: categories.length } });
 });

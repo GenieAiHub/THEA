@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { analysisReportsTable, llmUsageLogsTable } from "@workspace/db/schema";
-import { desc, eq, and, gte, sql } from "drizzle-orm";
+import { desc, eq, and, gte, sql, or, isNull } from "drizzle-orm";
 import { getQueues } from "../../lib/queues";
 import { requireAuth } from "../../middlewares/clerkAuth";
 
@@ -22,10 +22,13 @@ function requireAdminToken(req: Request, res: Response, next: NextFunction): voi
   next();
 }
 
-router.get("/latest", requireAuth, async (_req, res) => {
+router.get("/latest", requireAuth, async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const orgScope = or(isNull(analysisReportsTable.orgId), eq(analysisReportsTable.orgId, orgId));
   const reports = await db
     .select()
     .from(analysisReportsTable)
+    .where(orgScope)
     .orderBy(desc(analysisReportsTable.runAt))
     .limit(7);
   res.json({ data: reports });
@@ -33,10 +36,16 @@ router.get("/latest", requireAuth, async (_req, res) => {
 
 router.get("/category/:category", requireAuth, async (req, res) => {
   const category = req.params.category as string;
+  const orgId = req.thea!.org.id;
   const report = await db
     .select()
     .from(analysisReportsTable)
-    .where(eq(analysisReportsTable.category, category))
+    .where(
+      and(
+        eq(analysisReportsTable.category, category),
+        or(isNull(analysisReportsTable.orgId), eq(analysisReportsTable.orgId, orgId))
+      )
+    )
     .orderBy(desc(analysisReportsTable.runAt))
     .limit(1);
 
@@ -50,12 +59,17 @@ router.get("/category/:category", requireAuth, async (req, res) => {
 router.get("/history", requireAuth, async (req, res) => {
   const { category, limit = "50" } = req.query as Record<string, string>;
   const limitN = Math.min(200, parseInt(limit, 10));
+  const orgId = req.thea!.org.id;
+  const orgScope = or(isNull(analysisReportsTable.orgId), eq(analysisReportsTable.orgId, orgId));
 
-  const conditions = category ? [eq(analysisReportsTable.category, category)] : [];
+  const conditions = category
+    ? and(eq(analysisReportsTable.category, category), orgScope)
+    : orgScope;
+
   const reports = await db
     .select()
     .from(analysisReportsTable)
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(conditions)
     .orderBy(desc(analysisReportsTable.runAt))
     .limit(limitN);
 

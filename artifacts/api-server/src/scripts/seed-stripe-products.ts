@@ -36,38 +36,41 @@ interface TierConfig {
 const TIERS: TierConfig[] = [
   {
     name: "THEA Starter",
-    description: "Up to 5 users, 3 watchlist keywords, 1 market, standard analytics",
-    monthlyUsd: 49,
-    annualUsd: 470,
+    description: "Up to 5 users, 10 watchlist keywords, 3 categories, 14-day history",
+    monthlyUsd: 99,
+    annualUsd: 950,
     metadata: {
       tier: "starter",
       maxUsers: "5",
-      maxKeywords: "3",
-      maxMarkets: "1",
+      maxKeywords: "10",
+      maxCategories: "3",
+      historyDays: "14",
     },
   },
   {
     name: "THEA Pro",
-    description: "Up to 20 users, 20 watchlist keywords, 10 markets, advanced analytics",
-    monthlyUsd: 199,
-    annualUsd: 1910,
+    description: "Up to 20 users, 50 watchlist keywords, 7 categories, 90-day history",
+    monthlyUsd: 349,
+    annualUsd: 3350,
     metadata: {
       tier: "pro",
       maxUsers: "20",
-      maxKeywords: "20",
-      maxMarkets: "10",
+      maxKeywords: "50",
+      maxCategories: "7",
+      historyDays: "90",
     },
   },
   {
     name: "THEA Enterprise",
-    description: "Unlimited users, keywords, and markets — custom SLA and dedicated support",
+    description: "Unlimited users, keywords, and categories — 10 year history, custom SLA",
     monthlyUsd: 999,
     annualUsd: 9590,
     metadata: {
       tier: "enterprise",
       maxUsers: "-1",
       maxKeywords: "-1",
-      maxMarkets: "-1",
+      maxCategories: "-1",
+      historyDays: "3650",
     },
   },
 ];
@@ -106,12 +109,12 @@ async function seed(): Promise<void> {
   }
 
   console.log("Done! Copy the price IDs above into your environment variables:");
-  console.log("  STRIPE_STARTER_MONTHLY_PRICE_ID");
-  console.log("  STRIPE_STARTER_ANNUAL_PRICE_ID");
-  console.log("  STRIPE_PRO_MONTHLY_PRICE_ID");
-  console.log("  STRIPE_PRO_ANNUAL_PRICE_ID");
-  console.log("  STRIPE_ENTERPRISE_MONTHLY_PRICE_ID");
-  console.log("  STRIPE_ENTERPRISE_ANNUAL_PRICE_ID");
+  console.log("  STRIPE_STARTER_MONTHLY_PRICE_ID  ($99/mo)");
+  console.log("  STRIPE_STARTER_ANNUAL_PRICE_ID   ($950/yr)");
+  console.log("  STRIPE_PRO_MONTHLY_PRICE_ID      ($349/mo)");
+  console.log("  STRIPE_PRO_ANNUAL_PRICE_ID       ($3,350/yr)");
+  console.log("  STRIPE_ENTERPRISE_MONTHLY_PRICE_ID ($999/mo)");
+  console.log("  STRIPE_ENTERPRISE_ANNUAL_PRICE_ID  ($9,590/yr)");
 }
 
 seed().catch((err) => {
