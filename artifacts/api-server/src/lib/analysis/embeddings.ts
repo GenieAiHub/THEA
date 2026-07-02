@@ -139,28 +139,43 @@ export async function semanticSearch(
   if (!embedding) return [];
 
   const { pool } = await import("@workspace/db");
-  const { limit = 20, category, minSimilarity = 0.3 } = opts;
+
+  const safeLimit = Math.max(1, Math.min(100, Math.floor(Number(opts.limit ?? 20))));
+  const safeMinSimilarity = Math.max(0, Math.min(1, Number(opts.minSimilarity ?? 0.3)));
+  const category = typeof opts.category === "string" ? opts.category : null;
 
   const vectorStr = `[${embedding.join(",")}]`;
-  const conditions: string[] = [
-    "processed_at IS NOT NULL",
-    "embedding IS NOT NULL",
-    `1 - (embedding <=> '${vectorStr}'::vector) >= ${minSimilarity}`,
-  ];
-  if (category) conditions.push(`category = '${category.replace(/'/g, "''")}'`);
 
-  const query = `
-    SELECT id, title, summary, category, platform, published_at,
-           1 - (embedding <=> '${vectorStr}'::vector) AS similarity
-    FROM content_items
-    WHERE ${conditions.join(" AND ")}
-    ORDER BY embedding <=> '${vectorStr}'::vector
-    LIMIT ${limit}
-  `;
+  const query = category
+    ? `
+        SELECT id, title, summary, category, platform, published_at,
+               1 - (embedding <=> $1::vector) AS similarity
+        FROM content_items
+        WHERE processed_at IS NOT NULL
+          AND embedding IS NOT NULL
+          AND category = $2
+          AND 1 - (embedding <=> $1::vector) >= $3
+        ORDER BY embedding <=> $1::vector
+        LIMIT $4
+      `
+    : `
+        SELECT id, title, summary, category, platform, published_at,
+               1 - (embedding <=> $1::vector) AS similarity
+        FROM content_items
+        WHERE processed_at IS NOT NULL
+          AND embedding IS NOT NULL
+          AND 1 - (embedding <=> $1::vector) >= $2
+        ORDER BY embedding <=> $1::vector
+        LIMIT $3
+      `;
+
+  const params = category
+    ? [vectorStr, category, safeMinSimilarity, safeLimit]
+    : [vectorStr, safeMinSimilarity, safeLimit];
 
   const client = await pool.connect();
   try {
-    const result = await client.query(query);
+    const result = await client.query(query, params);
     return result.rows.map((r: Record<string, unknown>) => ({
       id: String(r.id),
       similarity: Number(r.similarity),

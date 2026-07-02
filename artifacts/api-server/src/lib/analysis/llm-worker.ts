@@ -1,5 +1,5 @@
 import { createWorker } from "../queues";
-import { classifyBatch, checkDailySpendCap } from "./classifier";
+import { classifyBatch, classifyPendingItems, checkDailySpendCap } from "./classifier";
 import { embedPendingItems } from "./embeddings";
 import { aggregateEntityMentions } from "./entity-tracker";
 import { db } from "@workspace/db";
@@ -65,6 +65,7 @@ export function startLlmProcessingWorker(): void {
       }
 
       case "classify_and_embed": {
+        let classified = 0;
         if (itemIds?.length) {
           const items = await db
             .select({
@@ -90,8 +91,11 @@ export function startLlmProcessingWorker(): void {
               })
               .where(eq(contentItemsTable.id, r.id));
           }
-          logger.info({ classified: results.length }, "Classification step complete");
+          classified = results.length;
+        } else {
+          classified = await classifyPendingItems(category, 200);
         }
+        logger.info({ classified }, "Classification step complete");
         const embedded = await embedPendingItems(200);
         logger.info({ embedded }, "Embedding step complete");
         break;

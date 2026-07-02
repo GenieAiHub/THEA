@@ -9,9 +9,16 @@ const router = Router();
 const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
 
 function requireAdminToken(req: Request, res: Response, next: NextFunction): void {
+  if (!ADMIN_TOKEN) {
+    res.status(503).json({ error: "Admin token not configured on this server" });
+    return;
+  }
   const header = req.headers["x-admin-token"] ?? req.headers.authorization?.replace("Bearer ", "");
-  if (!ADMIN_TOKEN || header === ADMIN_TOKEN) { next(); return; }
-  res.status(401).json({ error: "Unauthorized" });
+  if (header !== ADMIN_TOKEN) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
 }
 
 router.get("/latest", async (_req, res) => {
