@@ -1,3 +1,4 @@
+- [Ingestion pipeline architecture](ingestion-pipeline.md) — Phase 2 collector/dedup/worker design; PLATFORM_ORG_ID required for content_items.org_id FK; seed on startup
 - [OTel + drizzle-orm monorepo fix](otel-drizzle-fix.md) — @elastic/transport (via @elastic/elasticsearch) statically imports OTel; install all three OTel packages at workspace root
 - [pnpm dual-instance drizzle](otel-drizzle-fix.md) — drizzle-orm has OTel-aware and non-OTel variants; peerDependencyRules.ignoreMissing does NOT prevent OTel variant selection if OTel is installed anywhere in the graph
 - [BullMQ ioredis version conflict](bullmq-redis.md) — pass `{ url: REDIS_URL }` config object, never a shared Redis instance, to avoid ioredis version mismatch between BullMQ and ioredis

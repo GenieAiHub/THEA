@@ -1,0 +1,132 @@
+import { createWorker } from "../queues";
+import { ingestItems } from "./pipeline";
+import { startRun, completeRun, failRun } from "./run-tracker";
+import { collectRssBatch } from "./collectors/rss";
+import { collectGdelt, collectGdeltAllCategories } from "./collectors/gdelt";
+import { collectNewsApi } from "./collectors/news-api";
+import { collectMediaStack } from "./collectors/mediastack";
+import { collectBingNews } from "./collectors/bing-news";
+import { collectTwitter } from "./collectors/twitter";
+import { collectReddit } from "./collectors/reddit";
+import { collectYouTube } from "./collectors/youtube";
+import { collectSerp } from "./collectors/serp";
+import { crawlUrls } from "./collectors/web-crawler";
+import { getSourcesByCategory, PRECONFIGURED_SOURCES } from "./sources-config";
+import type { IngestionJobData } from "./types";
+import { logger } from "../logger";
+
+function getEnv(key: string): string {
+  return process.env[key] ?? "";
+}
+
+export function startContentIngestionWorker(): void {
+  createWorker<IngestionJobData>("content-ingestion", async (job) => {
+    const { sourceType, sourceId, category, keyword, urls } = job.data;
+    const runId = await startRun(sourceType, sourceId);
+    let stats = { fetched: 0, deduplicated: 0, stored: 0 };
+
+    logger.info({ sourceType, category, keyword, jobId: job.id }, "Content ingestion job started");
+
+    try {
+      switch (sourceType) {
+        case "rss-batch": {
+          const cat = category ?? "general";
+          const sources = sourceId
+            ? PRECONFIGURED_SOURCES.filter((s) => s.category === cat)
+            : getSourcesByCategory(cat);
+          const items = await collectRssBatch(sources);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "rss-all": {
+          const items = await collectRssBatch(PRECONFIGURED_SOURCES);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "gdelt": {
+          const items = category
+            ? await collectGdelt(category)
+            : await collectGdeltAllCategories();
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "newsapi": {
+          const apiKey = getEnv("NEWS_API_KEY");
+          if (!apiKey) { logger.warn("NEWS_API_KEY not set — skipping NewsAPI collection"); break; }
+          const items = await collectNewsApi(category ?? "general", apiKey);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "mediastack": {
+          const apiKey = getEnv("MEDIASTACK_API_KEY");
+          if (!apiKey) { logger.warn("MEDIASTACK_API_KEY not set — skipping MediaStack collection"); break; }
+          const items = await collectMediaStack(category ?? "general", apiKey);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "bing-news": {
+          const apiKey = getEnv("BING_NEWS_API_KEY");
+          if (!apiKey) { logger.warn("BING_NEWS_API_KEY not set — skipping Bing News collection"); break; }
+          const items = await collectBingNews(keyword ?? category ?? "news", apiKey, category ?? "general");
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "twitter": {
+          const bearerToken = getEnv("TWITTER_BEARER_TOKEN");
+          if (!bearerToken) { logger.warn("TWITTER_BEARER_TOKEN not set — skipping Twitter collection"); break; }
+          const items = await collectTwitter(category ?? "general", bearerToken);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "reddit": {
+          const clientId = getEnv("REDDIT_CLIENT_ID");
+          const clientSecret = getEnv("REDDIT_CLIENT_SECRET");
+          if (!clientId || !clientSecret) { logger.warn("REDDIT_CLIENT_ID/SECRET not set — skipping Reddit collection"); break; }
+          const items = await collectReddit(category ?? "general", clientId, clientSecret);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "youtube": {
+          const apiKey = getEnv("YOUTUBE_API_KEY");
+          if (!apiKey) { logger.warn("YOUTUBE_API_KEY not set — skipping YouTube collection"); break; }
+          const items = await collectYouTube(category ?? "general", apiKey);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "serp": {
+          const apiKey = getEnv("SERP_API_KEY");
+          if (!apiKey) { logger.warn("SERP_API_KEY not set — skipping SerpAPI collection"); break; }
+          const items = await collectSerp(keyword ?? category ?? "news", apiKey, category ?? "general");
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "web-crawler": {
+          if (!urls?.length) { logger.warn("No URLs provided for web-crawler job"); break; }
+          const items = await crawlUrls(urls, category ?? "general");
+          stats = await ingestItems(items);
+          break;
+        }
+
+        default:
+          logger.warn({ sourceType }, "Unknown ingestion source type");
+      }
+
+      await completeRun(runId, sourceId, stats.fetched, stats.deduplicated, stats.stored, { category, keyword });
+      logger.info({ sourceType, category, ...stats }, "Content ingestion job complete");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await failRun(runId, sourceId, msg);
+      throw err;
+    }
+  });
+}

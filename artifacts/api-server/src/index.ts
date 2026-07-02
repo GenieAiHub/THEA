@@ -2,8 +2,6 @@ import app from "./app";
 import { logger } from "./lib/logger";
 
 // ─── Fail-fast environment validation ────────────────────────────────────────
-// All required infrastructure variables must be present before the server
-// binds to a port.  Missing any of these means core functionality cannot work.
 const REQUIRED_ENV: Array<[string, string]> = [
   ["PORT",               "TCP port the HTTP server listens on"],
   ["DATABASE_URL",       "PostgreSQL connection string"],
@@ -32,6 +30,7 @@ import { ensureContentItemsIndex } from "./lib/elasticsearch";
 import { seedPlatformConfigs } from "./routes/v1/admin_configs";
 import { createWorker } from "./lib/queues";
 import { generateMarketsNow, getMarketSettings, syncMarketGenerationSchedule } from "./lib/markets";
+import { startContentIngestionWorker, scheduleIngestion, ensurePlatformOrg } from "./lib/ingestion";
 import { logger as bootLogger } from "./lib/logger";
 
 function startMarketGenerationWorker(): void {
@@ -84,6 +83,9 @@ app.listen(port, async (err) => {
     seedPlatformConfigs().catch((err) =>
       logger.warn({ err }, "Platform config seed failed — will retry on next startup")
     ),
+    ensurePlatformOrg().catch((err) =>
+      logger.warn({ err }, "Platform org seed failed — will retry on next startup")
+    ),
     Promise.resolve()
       .then(() => {
         startMarketGenerationWorker();
@@ -91,6 +93,14 @@ app.listen(port, async (err) => {
       })
       .catch((err) =>
         logger.warn({ err }, "Market generation scheduler bootstrap failed — will retry on next startup")
+      ),
+    Promise.resolve()
+      .then(() => {
+        startContentIngestionWorker();
+        return scheduleIngestion();
+      })
+      .catch((err) =>
+        logger.warn({ err }, "Content ingestion scheduler bootstrap failed — will retry on next startup")
       ),
   ]);
 });
