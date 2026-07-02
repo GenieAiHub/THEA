@@ -56,3 +56,24 @@ and config succeeds; `--profile mirofish` ⇒ included with empty ZEP).
 ## Keys
 LLM_API_KEY defaults to OPENAI_API_KEY; ZEP_API_KEY (Zep Cloud) is mandatory for
 the sidecar. Sidecar is internal-network only, no published ports.
+
+## Zep is Zep-CLOUD-locked — self-hosting is NOT a drop-in
+Upstream MiroFish instantiates every graph service as `Zep(api_key=...)` with NO
+`base_url` anywhere (zep-cloud==3.13.0) and relies on Cloud-only graph features
+(InsightForge, entity/edge graph search). Zep's Community Edition is
+archived/deprecated and its OSS engine (Graphiti) does not expose that Cloud API.
+**So pointing MiroFish at a self-hosted Zep requires forking it (rewrite
+zep_tools/graph_builder/etc.) — don't promise self-hosting as an easy escape.**
+MiroFish's own `.env.example` says Zep's FREE monthly quota suffices for light
+use, and its recommended LLM is cheap Alibaba qwen-plus (any OpenAI-format base
+URL works via MIROFISH_LLM_BASE_URL/MODEL). The genuinely free, zero-Zep path is
+simply not enabling the sidecar → the What-If simulator uses the GPT-4o path.
+
+## Primary-B / fallback-A is breaker-guarded
+"Primarily MiroFish, fallback GPT-4o" is enforced in `runMiroFishPipeline` by a
+per-process circuit breaker (MIROFISH_BREAKER_THRESHOLD / _COOLDOWN_MS).
+**Why:** on Zep's free tier, once the quota is exhausted a naive "always try B
+first" would grind every What-If request through a doomed 20-40min OASIS run (and
+its LLM spend) before failing over. After N consecutive failures the breaker
+serves GPT-4o directly for a cooldown, then half-open probes MiroFish again.
+Fallbacks tag `report.simulationMeta.fallbackReason`.

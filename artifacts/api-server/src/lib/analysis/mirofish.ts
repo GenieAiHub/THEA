@@ -66,6 +66,50 @@ function jsonPost(body: unknown): RequestInit {
   };
 }
 
+// ─── Circuit breaker: "primary MiroFish, fallback GPT-4o" ────────────────────
+// The What-If simulator prefers the real OASIS pipeline (Option B) but falls
+// back to GPT-4o (Option A) on any failure. A naive "always try B first" is
+// wasteful on Zep's free tier: once the monthly quota is exhausted every request
+// would grind through a doomed 20-40min pipeline (and its LLM spend) before
+// failing over. The breaker trips after MIROFISH_BREAKER_THRESHOLD consecutive
+// failures and then serves GPT-4o directly for MIROFISH_BREAKER_COOLDOWN_MS
+// before probing MiroFish again (half-open) — so B stays primary but A carries
+// the load cheaply while B is unavailable.
+const BREAKER_THRESHOLD = Number(process.env.MIROFISH_BREAKER_THRESHOLD ?? 3);
+const BREAKER_COOLDOWN_MS = Number(process.env.MIROFISH_BREAKER_COOLDOWN_MS ?? 30 * 60_000);
+const breaker = { consecutiveFailures: 0, openUntil: 0 };
+
+function breakerIsOpen(): boolean {
+  return Date.now() < breaker.openUntil;
+}
+
+function recordBreakerSuccess(): void {
+  breaker.consecutiveFailures = 0;
+  breaker.openUntil = 0;
+}
+
+function recordBreakerFailure(): void {
+  breaker.consecutiveFailures += 1;
+  if (breaker.consecutiveFailures >= BREAKER_THRESHOLD) {
+    breaker.openUntil = Date.now() + BREAKER_COOLDOWN_MS;
+  }
+}
+
+/** Run the GPT-4o path (Option A) and tag why we fell back off MiroFish. */
+async function gptFallback(
+  seedDocument: string,
+  category: string,
+  reason: string
+): Promise<{ runId: string; report: MiroFishReport }> {
+  const fallback = await runGptAnalysis(seedDocument, category);
+  fallback.report.simulationMeta = {
+    ...(fallback.report.simulationMeta ?? {}),
+    fallbackFrom: "mirofish",
+    fallbackReason: reason,
+  };
+  return fallback;
+}
+
 /**
  * Poll a MiroFish status endpoint until it reaches a terminal state.
  * Transient errors (e.g. a task-id 404 after an in-memory TaskManager reset)
@@ -101,7 +145,9 @@ async function pollStatus(
  * Drive MiroFish's real multi-agent simulation pipeline end to end, then map
  * the free-form markdown report into THEA's structured MiroFishReport. Any
  * failure (including MiroFish being unavailable) falls back to the GPT-4o path
- * so a simulation request never hard-fails.
+ * so a simulation request never hard-fails. A circuit breaker keeps MiroFish as
+ * the primary path while short-circuiting straight to GPT-4o once it is
+ * repeatedly failing (see the breaker block above).
  *
  * Only invoked by the on-demand What-If simulator — never the hourly scheduler.
  */
@@ -110,9 +156,20 @@ export async function runMiroFishPipeline(
   simulationRequirement: string,
   category: string
 ): Promise<{ runId: string; report: MiroFishReport }> {
+  // Option B not configured → Option A only.
   if (!MIROFISH_URL) {
     logger.warn({ category }, "MIROFISH_URL not set — using GPT-4o simulation for What-If run");
     return runGptAnalysis(seedDocument, category);
+  }
+
+  // Breaker open → skip the doomed pipeline, serve GPT-4o directly (half-open on expiry).
+  if (breakerIsOpen()) {
+    const cooldownSec = Math.round((breaker.openUntil - Date.now()) / 1000);
+    logger.warn(
+      { category, cooldownSec, consecutiveFailures: breaker.consecutiveFailures },
+      "MiroFish circuit open — serving GPT-4o fallback without attempting the OASIS pipeline"
+    );
+    return gptFallback(seedDocument, category, "circuit-open");
   }
 
   let createdSimulationId: string | undefined;
@@ -248,12 +305,15 @@ export async function runMiroFishPipeline(
       },
     };
     logger.info({ simulationId, reportId: gen.report_id, category }, "MiroFish pipeline complete");
+    recordBreakerSuccess();
     return { runId: `mirofish-${gen.report_id}`, report: structured };
   } catch (err) {
-    logger.warn({ err, category }, "MiroFish pipeline failed — falling back to GPT-4o simulation");
-    const fallback = await runGptAnalysis(seedDocument, category);
-    fallback.report.simulationMeta = { ...(fallback.report.simulationMeta ?? {}), fallbackFrom: "mirofish" };
-    return fallback;
+    recordBreakerFailure();
+    logger.warn(
+      { err, category, consecutiveFailures: breaker.consecutiveFailures, circuitOpened: breakerIsOpen() },
+      "MiroFish pipeline failed — falling back to GPT-4o simulation"
+    );
+    return gptFallback(seedDocument, category, err instanceof Error ? err.message : "pipeline-error");
   } finally {
     // Best-effort: release the sidecar's simulation env process so long-lived
     // runs don't pile up. Never let cleanup failures affect the result.
