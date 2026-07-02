@@ -16,7 +16,6 @@ export const organizationsTable = pgTable("organizations", {
   logoUrl: text("logo_url"),
   brandColor: text("brand_color").default("#6366f1"),
   focus: text("focus").notNull().default("general"),
-  clerkOrgId: text("clerk_org_id").unique(),
   categories: jsonb("categories").default([]).$type<string[]>(),
   notificationConfig: jsonb("notification_config").default({}).$type<OrgNotificationConfig>(),
   pausedAt: timestamp("paused_at"),

@@ -75,8 +75,6 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@clerk/react": "^6.11.3",
-    "@clerk/themes": "^2.4.57",
     "@tanstack/react-table": "^8.21.3",
     "@types/react-simple-maps": "^3.0.6",
     "react-simple-maps": "^3.0.0"

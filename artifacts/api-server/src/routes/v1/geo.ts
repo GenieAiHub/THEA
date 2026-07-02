@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth } from "../../middlewares/auth";
 import { queryGeoHeatmap } from "../../lib/geoSignals";
 import { PLATFORM_ORG_ID } from "../../lib/tenantScope";
 

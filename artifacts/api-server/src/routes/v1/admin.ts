@@ -1,5 +1,4 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import {
   organizationsTable,
@@ -9,7 +8,8 @@ import {
   usersTable,
 } from "@workspace/db/schema";
 import { desc, count, eq } from "drizzle-orm";
-import { resolveOrgContext } from "../../middlewares/clerkAuth";
+import { resolveOrgContext, getUserByToken } from "../../middlewares/auth";
+import { readSessionCookie } from "../../lib/auth";
 import { PLATFORM_ORG_ID } from "../../lib/tenantScope";
 
 const router = Router();
@@ -19,7 +19,7 @@ const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
 /**
  * Dual-path operator authentication:
  *   Path 1 — server-to-server: `x-admin-token` or `Authorization: Bearer <ADMIN_INTERNAL_TOKEN>`
- *   Path 2 — Clerk JWT: valid session where the user belongs to the platform org with
+ *   Path 2 — session cookie: valid session where the user belongs to the platform org with
  *             role "owner" or "admin". This is the preferred human-facing auth path.
  */
 async function requireOperator(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -33,33 +33,32 @@ async function requireOperator(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  // Path 2: Clerk JWT — must belong to PLATFORM org with owner or admin role
-  const auth = getAuth(req);
-  if (auth?.userId) {
+  // Path 2: session cookie — must belong to PLATFORM org with owner or admin role
+  const token = readSessionCookie(req);
+  if (token) {
     try {
-      const email = (auth.sessionClaims?.email as string) || "";
-      const name = (auth.sessionClaims?.name as string | null) ?? null;
-      const context = await resolveOrgContext(auth.userId, email, name);
-
-      if (
-        context &&
-        context.org.id === PLATFORM_ORG_ID &&
-        ["owner", "admin"].includes(context.user.role)
-      ) {
-        req.thea = context;
-        next();
+      const user = await getUserByToken(token);
+      if (user) {
+        const context = await resolveOrgContext(user);
+        if (
+          context &&
+          context.org.id === PLATFORM_ORG_ID &&
+          ["owner", "admin"].includes(context.user.role)
+        ) {
+          req.thea = context;
+          next();
+          return;
+        }
+        res.status(403).json({ error: "Operator role required (platform org owner or admin)" });
         return;
       }
-
-      res.status(403).json({ error: "Operator role required (platform org owner or admin)" });
-      return;
     } catch {
       res.status(500).json({ error: "Failed to verify operator identity" });
       return;
     }
   }
 
-  res.status(401).json({ error: "Invalid or missing admin token or Clerk session" });
+  res.status(401).json({ error: "Invalid or missing admin token or session" });
 }
 
 router.use(requireOperator);

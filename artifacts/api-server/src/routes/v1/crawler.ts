@@ -4,7 +4,7 @@ import { crawlerSourcesTable, collectionRunsTable } from "@workspace/db/schema";
 import { desc, eq, and } from "drizzle-orm";
 import { triggerImmediateCollection } from "../../lib/ingestion";
 import { PRECONFIGURED_SOURCES, CATEGORIES } from "../../lib/ingestion/sources-config";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth } from "../../middlewares/auth";
 
 const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
 

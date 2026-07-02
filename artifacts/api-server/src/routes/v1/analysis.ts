@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { analysisReportsTable, llmUsageLogsTable } from "@workspace/db/schema";
 import { desc, eq, and, gte, sql, or } from "drizzle-orm";
 import { getQueues } from "../../lib/queues";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth } from "../../middlewares/auth";
 
 const router = Router();
 

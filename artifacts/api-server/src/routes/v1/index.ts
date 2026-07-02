@@ -1,5 +1,6 @@
 import { Router } from "express";
 import healthV1Router from "./health";
+import authRouter from "./auth";
 import contentRouter from "./content";
 import crawlerRouter from "./crawler";
 import trendsRouter from "./trends";
@@ -23,6 +24,7 @@ import campaignsRouter from "./campaigns";
 const router = Router();
 
 router.use("/health", healthV1Router);
+router.use("/auth", authRouter);
 router.use("/content", contentRouter);
 router.use("/crawler", crawlerRouter);
 router.use("/trends", trendsRouter);

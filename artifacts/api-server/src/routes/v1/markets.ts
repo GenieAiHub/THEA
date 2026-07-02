@@ -4,7 +4,7 @@ import { predictionMarketsTable, marketVotesTable } from "@workspace/db/schema";
 import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { VoteOnMarketBody } from "@workspace/api-zod";
 import { serializeMarkets } from "../../lib/markets";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth } from "../../middlewares/auth";
 import { tenantOr, PLATFORM_ORG_ID } from "../../lib/tenantScope";
 
 const router = Router();

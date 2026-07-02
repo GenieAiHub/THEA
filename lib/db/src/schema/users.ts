@@ -6,8 +6,8 @@ import { organizationsTable } from "./organizations";
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   orgId: uuid("org_id").notNull().references(() => organizationsTable.id, { onDelete: "cascade" }),
-  clerkUserId: text("clerk_user_id").notNull().unique(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
   name: text("name"),
   role: text("role").notNull().default("analyst"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

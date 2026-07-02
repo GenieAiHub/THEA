@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import { requireFeature } from "../../middlewares/featureGate";
 
 const router = Router();

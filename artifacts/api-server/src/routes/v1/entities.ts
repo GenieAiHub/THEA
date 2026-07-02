@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getTopEntities } from "../../lib/analysis/entity-tracker";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth } from "../../middlewares/auth";
 
 const router = Router();
 router.use(requireAuth);

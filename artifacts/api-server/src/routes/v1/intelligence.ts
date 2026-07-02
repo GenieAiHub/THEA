@@ -5,7 +5,7 @@ import { analysisReportsTable, contentItemsTable, influencerScoresTable } from "
 import { eq, and, gte, desc, sql, count, sum } from "drizzle-orm";
 import { chat, type LlmProvider, type LlmMessage } from "../../lib/llm";
 import { semanticSearch } from "../../lib/analysis/embeddings";
-import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import { requireTier } from "../../middlewares/featureGate";
 import { computeOrganicConfidence } from "../../lib/botDetection";
 import { checkDisinformationForKeyword } from "../../lib/disinformation";

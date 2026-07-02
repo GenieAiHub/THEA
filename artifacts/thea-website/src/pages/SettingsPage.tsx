@@ -29,7 +29,7 @@ import {
   Trash2,
   History,
 } from "lucide-react";
-import { useUser } from "@clerk/react";
+import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const PLAN_FEATURES = [
@@ -50,7 +50,7 @@ const NOTIFICATION_OPTIONS = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [orgName, setOrgName] = useState("My Organisation");
   const [orgDomain, setOrgDomain] = useState("");
@@ -80,7 +80,7 @@ export default function SettingsPage() {
   };
 
   const teamMembers = [
-    { name: user?.fullName || user?.firstName || "You", email: user?.primaryEmailAddress?.emailAddress || "", role: "Owner", avatar: user?.imageUrl },
+    { name: user?.name || user?.email || "You", email: user?.email || "", role: "Owner", avatar: "" },
     { name: "Alex Chen", email: "alex@example.com", role: "Analyst", avatar: "" },
     { name: "Maria Santos", email: "maria@example.com", role: "Viewer", avatar: "" },
   ];
@@ -140,8 +140,8 @@ export default function SettingsPage() {
                   <Separator className="bg-slate-800" />
                   <div className="space-y-1.5">
                     <Label className="text-slate-400 text-sm">Account Owner</Label>
-                    <p className="text-slate-300 text-sm">{user?.fullName || user?.firstName || "—"}</p>
-                    <p className="text-slate-600 text-xs">{user?.primaryEmailAddress?.emailAddress}</p>
+                    <p className="text-slate-300 text-sm">{user?.name || user?.email || "—"}</p>
+                    <p className="text-slate-600 text-xs">{user?.email}</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-slate-400 text-sm">Time Zone</Label>

@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { webhookRegistrationsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import { requireFeature } from "../../middlewares/featureGate";
 
 const router = Router();

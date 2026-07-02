@@ -9,6 +9,14 @@ export const defaultRateLimiter = rateLimit({
   skip: (req) => req.path === "/api/v1/health",
 });
 
+export const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many authentication attempts, please try again later." },
+});
+
 export const apiKeyRateLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
   max: 1000,

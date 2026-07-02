@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { watchlistKeywordsTable, crisisScoresTable, alertsTable, contentItemsTable } from "@workspace/db/schema";
 import { eq, and, gte, lt, desc, count, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import { requireFeature } from "../../middlewares/featureGate";
 import { computeShareOfVoice } from "../../lib/shareOfVoice";
 import { computeCrisisScore } from "../../lib/crisisScoring";

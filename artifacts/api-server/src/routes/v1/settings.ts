@@ -1,21 +1,16 @@
 import { Router } from "express";
-import { createClerkClient } from "@clerk/express";
+import { randomBytes } from "node:crypto";
 import { db } from "@workspace/db";
 import { organizationsTable, usersTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
+import { hashPassword } from "../../lib/auth";
 import { logger } from "../../lib/logger";
 
 const router = Router();
 router.use(requireAuth);
 
 const VALID_ROLES = ["owner", "admin", "analyst"];
-
-function getClerkClient() {
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) throw new Error("CLERK_SECRET_KEY not configured");
-  return createClerkClient({ secretKey });
-}
 
 router.get("/org", async (req, res) => {
   const { org, subscription, tier } = req.thea!;
@@ -71,14 +66,14 @@ router.get("/team", async (req, res) => {
       name: m.name,
       email: m.email,
       role: m.role,
-      clerkUserId: m.clerkUserId,
       joinedAt: m.createdAt,
     })),
   });
 });
 
 router.post("/team/invite", requireRole("owner", "admin"), async (req, res) => {
-  const { email, role = "analyst" } = req.body as { email: string; role?: string };
+  const { email: rawEmail, role = "analyst" } = req.body as { email?: string; role?: string };
+  const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase() : "";
 
   if (!email) {
     res.status(400).json({ error: "email is required" });
@@ -91,38 +86,30 @@ router.post("/team/invite", requireRole("owner", "admin"), async (req, res) => {
   }
 
   const existing = await db
-    .select()
+    .select({ id: usersTable.id })
     .from(usersTable)
-    .where(and(eq(usersTable.email, email), eq(usersTable.orgId, req.thea!.org.id)))
+    .where(eq(usersTable.email, email))
     .limit(1);
 
   if (existing[0]) {
-    res.status(409).json({ error: "This email is already a member of your organization" });
+    res.status(409).json({ error: "An account with this email already exists" });
     return;
   }
 
-  try {
-    const clerkClient = getClerkClient();
-    await clerkClient.invitations.createInvitation({
-      emailAddress: email,
-      redirectUrl: process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL}/onboarding` : undefined,
-      publicMetadata: {
-        theaOrgId: req.thea!.org.id,
-        theaRole: role,
-        invitedBy: req.thea!.user.id,
-      },
-    });
-    logger.info({ orgId: req.thea!.org.id, email, role }, "Clerk invitation sent");
-  } catch (err) {
-    logger.error({ err, email }, "Failed to create Clerk invitation");
-    res.status(502).json({ error: "Failed to send invitation. Please try again." });
-    return;
-  }
+  const tempPassword = randomBytes(9).toString("base64url");
+  const passwordHash = await hashPassword(tempPassword);
 
-  res.status(202).json({
-    message: "Invitation sent",
-    email,
-    role,
+  const [member] = await db
+    .insert(usersTable)
+    .values({ orgId: req.thea!.org.id, email, passwordHash, name: null, role })
+    .returning();
+
+  logger.info({ orgId: req.thea!.org.id, userId: member.id, role }, "Team member account created");
+
+  res.status(201).json({
+    data: { id: member.id, email: member.email, role: member.role },
+    tempPassword,
+    message: "Member account created. Share this temporary password securely — they can sign in immediately.",
   });
 });
 

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { campaignsTable, campaignMeasurementsTable } from "@workspace/db/schema";
 import { eq, and, desc, gte } from "drizzle-orm";
-import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import { requireTier } from "../../middlewares/featureGate";
 import { computeCampaignBaseline, measureCampaignDaily } from "../../lib/campaignTracker";
 import { logger } from "../../lib/logger";

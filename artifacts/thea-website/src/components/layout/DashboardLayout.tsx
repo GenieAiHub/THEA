@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation, Redirect } from "wouter";
-import { Show, useUser, useClerk } from "@clerk/react";
+import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -17,7 +17,7 @@ import {
   Bell,
   Building2,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -116,13 +116,16 @@ function NotificationBell() {
 }
 
 export function DashboardLayout({ children, title }: { children: React.ReactNode, title?: string }) {
-  const { user } = useUser();
-  const { signOut } = useClerk();
-  const [location] = useLocation();
+  const { user, org, logout, isLoaded, isSignedIn } = useAuth();
+  const [location, setLocation] = useLocation();
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  const handleSignOut = () => {
-    signOut({ redirectUrl: basePath || "/" });
+  const displayName = user?.name || user?.email || "User";
+  const initials = (user?.name?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
+
+  const handleSignOut = async () => {
+    await logout();
+    setLocation("/");
   };
 
   const SidebarContent = () => (
@@ -157,17 +160,16 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center gap-3 mb-4 px-2">
           <Avatar className="w-9 h-9 border border-slate-700 bg-slate-800">
-            <AvatarImage src={user?.imageUrl} />
             <AvatarFallback className="text-xs bg-slate-800 text-slate-400">
-              {user?.firstName?.charAt(0) || user?.emailAddresses[0]?.emailAddress?.charAt(0)?.toUpperCase()}
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col overflow-hidden">
             <span className="text-sm font-medium text-slate-200 truncate">
-              {user?.fullName || user?.firstName || "User"}
+              {displayName}
             </span>
             <span className="text-xs text-slate-500 truncate">
-              {user?.primaryEmailAddress?.emailAddress}
+              {user?.email}
             </span>
           </div>
         </div>
@@ -183,13 +185,15 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
     </div>
   );
 
+  if (!isLoaded) {
+    return <div className="h-[100dvh] bg-[#020617]" />;
+  }
+  if (!isSignedIn) {
+    return <Redirect to="/" />;
+  }
+
   return (
-    <>
-      <Show when="signed-out">
-        <Redirect to="/" />
-      </Show>
-      <Show when="signed-in">
-        <div className="flex h-[100dvh] bg-[#020617] text-slate-200 font-sans overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#020617] text-slate-200 font-sans overflow-hidden">
           {/* Desktop Sidebar */}
           <div className="hidden md:flex w-64 flex-col fixed inset-y-0 z-10">
             <SidebarContent />
@@ -223,7 +227,7 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
                 <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-400">
                   <Building2 className="w-3.5 h-3.5" />
                   <span className="max-w-[120px] truncate">
-                    {user?.organizationMemberships?.[0]?.organization?.name || user?.fullName || "My Org"}
+                    {org?.name || "My Org"}
                   </span>
                 </div>
                 <NotificationBell />
@@ -239,7 +243,5 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
             </main>
           </div>
         </div>
-      </Show>
-    </>
   );
 }

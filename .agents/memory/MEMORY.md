@@ -10,4 +10,4 @@
 - [Phase 6 intelligence queue architecture](phase6-intelligence-queue.md) — intelligence-jobs is a separate BullMQ queue (concurrency=1); never share with llm-processing to avoid job-stealing
 - [DB package rebuild process](db-rebuild-process.md) — after schema changes, run `cd lib/db && pnpm exec tsc --build tsconfig.json` before API typecheck or the new exports won't be visible
 - [Orval codegen blocker](orval-codegen-blocker.md) — v8.18.0 "Failed to resolve input" persists; set clean:false, always restore from git on failure
-- [Phase 7 portal architecture](phase7-portal-architecture.md) — HomeRedirect+DashboardLayout pattern; Redirect from wouter not Clerk; hooks need <any> until codegen fixed
+- [Phase 7 portal architecture](phase7-portal-architecture.md) — self-hosted auth (AuthContext/useAuth + Protected wrapper + HomeRedirect); root-relative /api/v1; hooks need <any> until codegen fixed
