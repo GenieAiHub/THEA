@@ -1,4 +1,5 @@
 import { Router } from "express";
+import JSZip from "jszip";
 import { db } from "@workspace/db";
 import { analysisReportsTable, contentItemsTable, influencerScoresTable } from "@workspace/db/schema";
 import { eq, and, gte, desc, sql, count, sum } from "drizzle-orm";
@@ -151,14 +152,39 @@ router.get("/draft-statement/:draftId/download", async (req, res) => {
   const safeFilename = `statement-${(data.keyword ?? "draft").replace(/[^a-z0-9]/gi, "-").slice(0, 40)}-${draftId.slice(0, 8)}`;
 
   if (format === "docx") {
-    // Lightweight DOCX generation without external library: create a minimal Word XML document
-    const wordXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    // Build a valid OPC ZIP package (.docx) with required parts
+    const xmlEsc = (s: string) => s.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c] ?? c));
+    const paragraphs = draft
+      .split(/\n/)
+      .map((line) => `<w:p><w:r><w:t xml:space="preserve">${xmlEsc(line)}</w:t></w:r></w:p>`)
+      .join("");
+
+    const zip = new JSZip();
+
+    zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+
+    zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+    zip.file("word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:body>${draft.split(/\n/).map((line) => `<w:p><w:r><w:t xml:space="preserve">${line.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c] ?? c))}</w:t></w:r></w:p>`).join("")}
-<w:sectPr/></w:body></w:document>`;
+<w:body>${paragraphs}<w:sectPr/></w:body></w:document>`);
+
+    zip.file("word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`);
+
+    const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}.docx"`);
-    res.send(Buffer.from(wordXml, "utf-8"));
+    res.send(buf);
     return;
   }
 
@@ -196,17 +222,31 @@ router.post("/counter-narrative", async (req, res) => {
  * how it will land with the target audience. Returns simulationIds for polling.
  */
 router.post("/test-message", requireTier("enterprise"), async (req, res) => {
-  const { variants, category, geography } = req.body as {
-    variants: Array<{ label: string; message: string }>;
+  const { messages, variants: legacyVariants, category, geography } = req.body as {
+    messages?: string[];
+    variants?: Array<{ label: string; message: string }>;
     category: string;
     geography?: string;
   };
 
-  if (!Array.isArray(variants) || variants.length < 2 || variants.length > 5) {
-    res.status(400).json({ error: "variants must be an array of 2-5 items with label and message" });
+  if (!category) { res.status(400).json({ error: "category is required" }); return; }
+
+  // Normalise both shapes into a unified variants array
+  let variants: Array<{ label: string; message: string }>;
+  if (Array.isArray(messages) && messages.length > 0) {
+    // Canonical shape: { messages: string[], category, geography? }
+    variants = messages.map((msg, i) => ({ label: `Message ${i + 1}`, message: String(msg) }));
+  } else if (Array.isArray(legacyVariants) && legacyVariants.length > 0) {
+    variants = legacyVariants;
+  } else {
+    res.status(400).json({ error: "messages (string[]) or variants ([{ label, message }]) is required" });
     return;
   }
-  if (!category) { res.status(400).json({ error: "category is required" }); return; }
+
+  if (variants.length < 1 || variants.length > 10) {
+    res.status(400).json({ error: "Between 1 and 10 messages are allowed" });
+    return;
+  }
 
   const orgId = req.thea!.org.id;
   const simulations: Array<{ label: string; simulationId: string; pollUrl: string }> = [];
