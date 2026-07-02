@@ -805,22 +805,25 @@ paths:
         - cookieAuth: []
       responses:
         "200":
-          description: List of API key metadata (raw key is never returned)
+          description: List of API key metadata wrapped in a data envelope (raw key is never returned)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    id: { type: string, format: uuid }
-                    name: { type: string }
-                    keyPrefix: { type: string }
-                    scopes: { type: array, items: { type: string } }
-                    isActive: { type: boolean }
-                    lastUsedAt: { type: string, format: date-time, nullable: true }
-                    expiresAt: { type: string, format: date-time, nullable: true }
-                    createdAt: { type: string, format: date-time }
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        keyPrefix: { type: string }
+                        scopes: { type: array, items: { type: string } }
+                        isActive: { type: boolean }
+                        lastUsedAt: { type: string, format: date-time, nullable: true }
+                        expiresAt: { type: string, format: date-time, nullable: true }
+                        createdAt: { type: string, format: date-time }
         "401": { description: Unauthenticated }
         "403": { description: Insufficient role or feature not enabled }
     post:
@@ -842,16 +845,19 @@ paths:
                 expiresAt: { type: string, format: date-time, nullable: true }
       responses:
         "201":
-          description: Created — includes the raw key (shown once only)
+          description: Created — includes the raw key wrapped in a data envelope (shown once only)
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  id: { type: string, format: uuid }
-                  name: { type: string }
-                  key: { type: string, description: "Full API key — store securely, not retrievable again" }
-                  keyPrefix: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      key: { type: string, description: "Full API key — store securely, not retrievable again" }
+                      keyPrefix: { type: string }
         "401": { description: Unauthenticated }
         "403": { description: Insufficient role or feature not enabled }
   /v1/api-keys/{id}:
@@ -1377,7 +1383,17 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: "API key for Enterprise developer access (prefix: thea_)"
+      description: "Session Bearer token (internal use)"
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: thea_session
+      description: "Session cookie set after login via POST /v1/auth/login"
+    bearerApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: "thea_<key>"
+      description: "THEA Developer API key (Enterprise). Create via POST /v1/api-keys. Grants member-level read access."
   schemas:
     HealthStatus:
       type: object

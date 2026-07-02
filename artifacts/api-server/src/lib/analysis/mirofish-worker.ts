@@ -4,6 +4,7 @@ import { runMiroFishAnalysis } from "./mirofish";
 import { parseStructuredReport } from "./report-parser";
 import { scoreTrends } from "./trend-scorer";
 import { aggregateEntityMentions } from "./entity-tracker";
+import { dispatchWebhookEvent } from "../webhookDispatcher";
 import { db } from "@workspace/db";
 import { analysisReportsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -146,6 +147,17 @@ export function startMiroFishWorker(): void {
         { category, runId, topics: parsed.trendingTopics.length, itemCount },
         "MiroFish analysis run complete"
       );
+
+      // Dispatch analysis.complete webhook for org-scoped analysis runs
+      if (orgId) {
+        dispatchWebhookEvent(orgId, "analysis.complete", {
+          category,
+          reportId,
+          topicCount: parsed.trendingTopics.length,
+          itemsAnalyzed: itemCount,
+          runId,
+        }).catch((err) => logger.warn({ err, orgId, reportId }, "analysis.complete webhook dispatch failed"));
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error({ err, category, reportId }, "MiroFish analysis run failed");

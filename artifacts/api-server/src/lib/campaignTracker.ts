@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { contentItemsTable, crawlerSourcesTable, campaignsTable, campaignMeasurementsTable } from "@workspace/db/schema";
 import { eq, and, gte, lt, desc, sql, avg, count, inArray } from "drizzle-orm";
 import { computeShareOfVoice } from "./shareOfVoice";
+import { dispatchWebhookEvent } from "./webhookDispatcher";
 import { logger } from "./logger";
 
 const DEFAULT_CPM = 10; // fallback CPM if outlet has no benchmark set
@@ -157,6 +158,23 @@ export async function measureCampaignDaily(campaignId: string): Promise<Campaign
   });
 
   logger.info({ campaignId, keywordVolume, sentimentScore, emv: emv.toFixed(2) }, "Campaign measurement recorded");
+
+  // Milestone detection: dispatch webhook when volume spikes ≥25% or SOV shifts ≥10pp vs baseline
+  if (Math.abs(volumeChange) >= 25 || Math.abs(sovChange) >= 10) {
+    dispatchWebhookEvent(orgId, "campaign.milestone", {
+      campaignId,
+      campaignName: campaign.name,
+      keywordVolume,
+      sentimentScore,
+      sovPercent,
+      emv: Math.round(emv * 100) / 100,
+      vsBaseline: {
+        volumeChange: Math.round(volumeChange * 10) / 10,
+        sentimentChange: Math.round(sentimentChange * 100) / 100,
+        sovChange: Math.round(sovChange * 10) / 10,
+      },
+    }).catch((err) => logger.warn({ err, campaignId, orgId }, "campaign.milestone webhook dispatch failed"));
+  }
 
   return {
     campaignId,
