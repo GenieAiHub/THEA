@@ -1,5 +1,5 @@
 ---
-name: Phase 8 delivery architecture
+name: Email delivery queue architecture
 description: Email delivery queue design — transactional vs digest-schedule-trigger jobs, digest scheduler pattern
 ---
 

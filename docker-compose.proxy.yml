@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# Override: attach THEA's SPAs to the shared external `web` network (the Caddy
+# reverse proxy) and stop publishing host ports. The api + backing services
+# stay on the private `internal` network.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --build
+#
+# Requires the external network to exist (created by the reverse-proxy stack):
+#   docker network create web   # if it doesn't already exist
+# ---------------------------------------------------------------------------
+name: thea
+
+services:
+  api:
+    # Cloudflare -> shared Caddy -> web nginx = 3 proxy hops in front of the API.
+    environment:
+      TRUST_PROXY: ${TRUST_PROXY:-3}
+
+  website:
+    ports: !reset []
+    networks:
+      internal: {}
+      web:
+        aliases: [thea-website]
+
+  admin:
+    ports: !reset []
+    networks:
+      internal: {}
+      web:
+        aliases: [thea-admin]
+
+  markets:
+    ports: !reset []
+    networks:
+      internal: {}
+      web:
+        aliases: [thea-markets]
+
+networks:
+  web:
+    external: true

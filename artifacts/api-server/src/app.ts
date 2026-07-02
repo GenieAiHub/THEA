@@ -25,7 +25,15 @@ try {
 
 const app: Express = express();
 
-app.set("trust proxy", 1);
+// Number of proxy hops in front of the API (Cloudflare -> Caddy -> nginx = 3).
+// Configurable via TRUST_PROXY so express-rate-limit and req.ip see the real
+// client IP. Defaults to 1 (single nginx hop) when unset or invalid.
+const trustProxyRaw = process.env.TRUST_PROXY;
+const trustProxyHops = Number(trustProxyRaw);
+app.set(
+  "trust proxy",
+  trustProxyRaw && !Number.isNaN(trustProxyHops) ? trustProxyHops : 1,
+);
 
 app.use(requestIdMiddleware);
 
@@ -54,9 +62,19 @@ app.use(
   }),
 );
 
+// CORS_ORIGIN may be a single origin, "*", or a comma-separated allowlist.
+const corsOriginRaw = process.env.CORS_ORIGIN;
+const corsOrigin =
+  !corsOriginRaw || corsOriginRaw === "*"
+    ? "*"
+    : corsOriginRaw
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "*",
+    origin: corsOrigin,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID", "stripe-signature"],
     exposedHeaders: ["X-RateLimit-Remaining", "X-RateLimit-Reset"],

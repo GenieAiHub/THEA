@@ -20,3 +20,4 @@
 - [js-yaml v5 import](js-yaml-v5.md) — js-yaml v5 has no default export; use named import: `import { load as yamlLoad } from "js-yaml"` not `import YAML from "js-yaml"`
 - [Brave Search collector](brave-search-collector.md) — own-key integration, no Replit proxy; collectBrave(keyword, category, apiKey); worker handles "brave" and "duckduckgo" (alias) cases identically
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
+- [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)

@@ -1,0 +1,128 @@
+root@vmi3385433:~# echo '=== nginx template ==='; cat /root/agentopia/deploy/nginx/default.conf.template
+echo; echo '=== deploy tree (certs hidden) ==='; find /root/agentopia/deploy -maxdepth 3 -not -path '*/certs/*' | sort
+echo; echo '=== .env.docker.example ==='; cat /root/agentopia/.env.docker.example
+=== nginx template ===
+# nginx config for the `web` container. ${API_HOST} / ${API_PORT} are filled in
+# at container start from the environment (see docker-compose.yml). nginx runtime
+# variables like $host / $uri are left untouched.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    client_max_body_size 10m;
+
+    # Proxy API traffic to the api service. The path is NOT rewritten — the
+    # Express app owns the full /api prefix (app.use("/api", router)).
+    location /api/ {
+        proxy_pass http://${API_HOST}:${API_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Server-Sent Events (Genesis streaming chat): disable buffering and
+        # allow long-lived connections.
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # Single-page app: serve static assets, fall back to index.html for routing.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+=== deploy tree (certs hidden) ===
+/root/agentopia/deploy
+/root/agentopia/deploy/README.md
+/root/agentopia/deploy/agentopia-deploy.sh
+/root/agentopia/deploy/install-deploy-command.sh
+/root/agentopia/deploy/nginx
+/root/agentopia/deploy/nginx/default.conf.template
+/root/agentopia/deploy/reverse-proxy
+/root/agentopia/deploy/reverse-proxy/.env
+/root/agentopia/deploy/reverse-proxy/.env.example
+/root/agentopia/deploy/reverse-proxy/Caddyfile
+/root/agentopia/deploy/reverse-proxy/Caddyfile.bak.1782080473
+/root/agentopia/deploy/reverse-proxy/Caddyfile.bak.1782092953
+/root/agentopia/deploy/reverse-proxy/Caddyfile.bak.1782093102
+/root/agentopia/deploy/reverse-proxy/Caddyfile.bak.1782269436
+/root/agentopia/deploy/reverse-proxy/Caddyfile.bak.1782270115
+/root/agentopia/deploy/reverse-proxy/Caddyfile.bak.1782780714
+/root/agentopia/deploy/reverse-proxy/Caddyfile.prebak
+/root/agentopia/deploy/reverse-proxy/certs
+/root/agentopia/deploy/reverse-proxy/docker-compose.yml
+
+=== .env.docker.example ===
+# ---------------------------------------------------------------------------
+# Agentopia — self-hosting environment.
+# Copy this file to `.env` next to docker-compose.yml:  cp .env.docker.example .env
+# Then fill in the values below. Never commit your real .env.
+# ---------------------------------------------------------------------------
+
+# --- Local PostgreSQL (runs in the `db` container) -------------------------
+POSTGRES_USER=agentopia
+POSTGRES_PASSWORD=change-me-to-a-strong-password
+POSTGRES_DB=agentopia
+# DATABASE_URL is built automatically by docker-compose from the three values
+# above (host = the internal `db` service). Use a URL-safe password (letters,
+# digits, - and _). If your password contains special characters (@ : / # ?),
+# set a properly percent-encoded DATABASE_URL here to override:
+# DATABASE_URL=postgresql://agentopia:ENCODED_PASSWORD@db:5432/agentopia
+
+# --- Required --------------------------------------------------------------
+OPENAI_API_KEY=
+
+# --- Web exposure ----------------------------------------------------------
+# Host port the app is published on in STANDALONE mode (no shared proxy).
+# Use a UNIQUE port per project on the VPS (e.g. 8001, 8002, ...).
+WEB_PORT=8080
+# Base path the frontend is served under. Keep "/" for a dedicated domain.
+BASE_PATH=/
+
+# --- Reverse proxy (only when using deploy/reverse-proxy) ------------------
+# How many proxy hops sit in front of the API, so rate limiting sees the real
+# client IP. STANDALONE: leave blank (defaults to 1 = nginx only).
+#   - shared Caddy -> nginx (direct):       TRUST_PROXY=2
+#   - Cloudflare -> shared Caddy -> nginx:  TRUST_PROXY=3  (recommended)
+TRUST_PROXY=
+
+# --- Genesis co-founder recognition (optional) -----------------------------
+GENESIS_COFOUNDER_CODE=
+
+# --- Genesis autonomy + logging (optional) ---------------------------------
+GENESIS_AUTONOMY_ENABLED=false
+GENESIS_AUTONOMY_INTERVAL_HOURS=6
+GENESIS_SELF_HEAL_INTERVAL_MINUTES=15
+LOG_LEVEL=info
+
+# --- Solana economy (optional; Solana DEVNET only) -------------------------
+# The app runs fine WITHOUT these — the economy simply reports "not configured".
+# Fill them in only after the one-time bootstrap (see deploy/README.md).
+# Secret keys are JSON byte-arrays, e.g. [12,34,...]. Devnet play-money only.
+SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_CLUSTER=devnet
+VOLT_MINT_ADDRESS=
+USDT_MINT_ADDRESS=
+VOLT_TREASURY_SECRET_KEY=
+VOLT_VAULT_SECRET_KEY=
+COFOUNDER_SALARY_USDT=5000
+
+# --- On-chain staking Anchor program (optional; Solana DEVNET only) ---------
+# Separate from the custodial economy above. Set these ONLY after the
+# volt-staking Anchor program is deployed and its canonical IDL is committed
+# (see replit.md / deploy/README.md). While VOLT_STAKING_PROGRAM_ID is unset,
+# GET /economy/onchain-staking/info returns {configured:false} (200) and all
+# other on-chain staking routes return 503. The admin key is SEPARATE from the
+# treasury key and signs program initialize/params/pause only.
+VOLT_STAKING_PROGRAM_ID=
+VOLT_STAKING_ADMIN_SECRET_KEY=
+root@vmi3385433:~#

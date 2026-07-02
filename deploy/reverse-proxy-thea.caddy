@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------------
+# THEA — append these blocks to the shared Caddyfile:
+#   /root/agentopia/deploy/reverse-proxy/Caddyfile
+#
+# Prereqs on the reverse-proxy host:
+#   - Cloudflare Origin Certificate covering `thea.quest` AND `*.thea.quest`
+#     placed at:  ./certs/thea/origin.pem  and  ./certs/thea/origin.key
+#     (mounted read-only into the Caddy container at /etc/caddy/certs)
+#   - THEA's web containers joined to the external `web` network with aliases
+#     thea-website / thea-admin / thea-markets (docker-compose.proxy.yml).
+#
+# Each web container's nginx proxies /api -> thea-api internally, so the edge
+# only needs to point at the SPA container.
+# ---------------------------------------------------------------------------
+
+thea.quest {
+    tls /etc/caddy/certs/thea/origin.pem /etc/caddy/certs/thea/origin.key
+    encode gzip zstd
+    reverse_proxy thea-website:80
+}
+
+admin.thea.quest {
+    tls /etc/caddy/certs/thea/origin.pem /etc/caddy/certs/thea/origin.key
+    encode gzip zstd
+    reverse_proxy thea-admin:80
+}
+
+markets.thea.quest {
+    tls /etc/caddy/certs/thea/origin.pem /etc/caddy/certs/thea/origin.key
+    encode gzip zstd
+    reverse_proxy thea-markets:80
+}

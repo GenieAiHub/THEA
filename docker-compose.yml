@@ -1,0 +1,170 @@
+# ---------------------------------------------------------------------------
+# THEA — standalone stack (db + redis + elasticsearch + migrate + api + 3 SPAs).
+# Publishes each SPA on a host port for direct testing. To place it behind the
+# shared Caddy reverse proxy instead, add the override:
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+# ---------------------------------------------------------------------------
+name: thea
+
+x-db-url: &db-url
+  DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-thea}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-thea}}
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-thea}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-thea}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thea} -d ${POSTGRES_DB:-thea}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  es:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: ${ES_JAVA_OPTS:--Xms512m -Xmx512m}
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    networks: [internal]
+
+  # One-shot: enables pgvector then pushes the Drizzle schema. Exits 0 on success.
+  migrate:
+    build:
+      context: .
+      target: tools
+    image: thea-tools
+    env_file: [.env]
+    environment:
+      <<: *db-url
+    command: ["pnpm", "--filter", "@workspace/db", "run", "push"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: .
+      target: api
+    image: thea-api
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      <<: *db-url
+      NODE_ENV: production
+      PORT: "5000"
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://es:9200
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CRAWLEE_STORAGE_DIR: ${CRAWLEE_STORAGE_DIR:-/tmp/crawlee}
+      USE_PLAYWRIGHT: ${USE_PLAYWRIGHT:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:5000/api/healthz',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [internal]
+
+  website:
+    build:
+      context: .
+      target: web
+      args:
+        APP: thea-website
+        BASE_PATH: ${WEBSITE_BASE_PATH:-/}
+    image: thea-website
+    restart: unless-stopped
+    environment:
+      API_HOST: api
+      API_PORT: "5000"
+    depends_on:
+      - api
+    ports:
+      - "${WEBSITE_PORT:-8091}:80"
+    networks: [internal]
+
+  admin:
+    build:
+      context: .
+      target: web
+      args:
+        APP: admin-ui
+        BASE_PATH: ${ADMIN_BASE_PATH:-/}
+    image: thea-admin
+    restart: unless-stopped
+    environment:
+      API_HOST: api
+      API_PORT: "5000"
+    depends_on:
+      - api
+    ports:
+      - "${ADMIN_PORT:-8092}:80"
+    networks: [internal]
+
+  markets:
+    build:
+      context: .
+      target: web
+      args:
+        APP: markets
+        BASE_PATH: ${MARKETS_BASE_PATH:-/}
+    image: thea-markets
+    restart: unless-stopped
+    environment:
+      API_HOST: api
+      API_PORT: "5000"
+    depends_on:
+      - api
+    ports:
+      - "${MARKETS_PORT:-8093}:80"
+    networks: [internal]
+
+volumes:
+  db-data:
+  es-data:
+
+networks:
+  internal:
