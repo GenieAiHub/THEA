@@ -7,3 +7,5 @@
 - [BullMQ ioredis version conflict](bullmq-redis.md) — pass `{ url: REDIS_URL }` config object, never a shared Redis instance, to avoid ioredis version mismatch between BullMQ and ioredis
 - [OpenAPI naming rule](openapi-naming.md) — never name component schemas after OperationIdPascal+Body/Response; Orval auto-generates those names causing TS2308 collisions
 - [Cross-artifact API routing](cross-artifact-api-routing.md) — frontends must call the API with root-relative /api/v1/... URLs; prepending BASE_URL hits their own Vite server and returns SPA HTML
+- [Phase 6 intelligence queue architecture](phase6-intelligence-queue.md) — intelligence-jobs is a separate BullMQ queue (concurrency=1); never share with llm-processing to avoid job-stealing
+- [DB package rebuild process](db-rebuild-process.md) — after schema changes, run `cd lib/db && pnpm exec tsc --build tsconfig.json` before API typecheck or the new exports won't be visible

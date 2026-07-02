@@ -472,6 +472,155 @@ paths:
                 $ref: "#/components/schemas/StatementResult"
         "400":
           description: API key not configured
+  /v1/intelligence/counter-narrative:
+    post:
+      operationId: generateCounterNarrative
+      tags: [intelligence]
+      summary: Generate counter-narrative reframing strategies for a keyword under attack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CounterNarrativeInput"
+      responses:
+        "200":
+          description: Counter-narrative strategies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CounterNarrativeResult"
+        "400":
+          description: Missing keyword or LLM not configured
+        "502":
+          description: LLM provider error
+  /v1/intelligence/test-message:
+    post:
+      operationId: testMessageResonance
+      tags: [intelligence]
+      summary: Queue message resonance simulations for 2-5 variants (Enterprise only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestMessageInput"
+      responses:
+        "202":
+          description: Simulations queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestMessageQueued"
+        "400":
+          description: Invalid input
+        "402":
+          description: Enterprise tier required
+  /v1/campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [intelligence]
+      summary: List all campaigns for the org (Pro+)
+      responses:
+        "200":
+          description: Campaigns list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignList"
+    post:
+      operationId: createCampaign
+      tags: [intelligence]
+      summary: Create a new campaign tracker (Pro+)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCampaignInput"
+      responses:
+        "201":
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "400":
+          description: Invalid input
+        "402":
+          description: Pro tier required
+  /v1/campaigns/{id}:
+    get:
+      operationId: getCampaign
+      tags: [intelligence]
+      summary: Get a single campaign with last 30 days of measurements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Campaign with measurements
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCampaign
+      tags: [intelligence]
+      summary: Update campaign name, status, or keywords
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated campaign
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCampaign
+      tags: [intelligence]
+      summary: Delete a campaign and all its measurements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Deleted
+  /v1/campaigns/{id}/measurements:
+    get:
+      operationId: getCampaignMeasurements
+      tags: [intelligence]
+      summary: Get campaign measurement history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: days
+          in: query
+          schema: { type: integer, default: 30, maximum: 90 }
+      responses:
+        "200":
+          description: Measurements
+  /v1/campaigns/{id}/measure:
+    post:
+      operationId: triggerCampaignMeasurement
+      tags: [intelligence]
+      summary: Manually trigger a campaign measurement now
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Current metrics
+        "404":
+          description: Not found
   /v1/admin/configs:
     get:
       operationId: adminListConfigs
@@ -1525,3 +1674,152 @@ components:
         predictions:        { type: array, items: { type: object } }
         dominantNarratives: { type: array, items: { type: object } }
         keyEntities:        { type: array, items: { type: object } }
+    TalkingPointsInput:
+      type: object
+      required: [keyword]
+      properties:
+        keyword:          { type: string, description: "Keyword or topic to generate talking points for" }
+        topic:            { type: string, description: "Alias for keyword" }
+        context_override: { type: string, description: "Optional additional context to inject into the prompt" }
+    TalkingPointsResult:
+      type: object
+      required: [keyword, keyFacts, recommendedPosition, phrasesToAvoid, suggestedQuotes, contextItemCount, generatedAt]
+      properties:
+        keyword:             { type: string }
+        keyFacts:            { type: array, items: { type: string } }
+        recommendedPosition: { type: string }
+        phrasesToAvoid:      { type: array, items: { type: string } }
+        suggestedQuotes:     { type: array, items: { type: string } }
+        contextItemCount:    { type: integer }
+        cachedAt:            { type: string, format: date-time }
+        generatedAt:         { type: string, format: date-time }
+    DraftStatementInput:
+      type: object
+      properties:
+        keyword:   { type: string, description: "Topic keyword (required for new drafts)" }
+        topic:     { type: string, description: "Alias for keyword" }
+        tone:      { type: string, enum: [formal, empathetic, assertive], default: formal }
+        type:      { type: string, enum: [press_release, social_post, internal_memo], default: press_release }
+        alert_id:  { type: string, format: uuid, description: "Optional: pull alert context into the draft" }
+        draftId:   { type: string, format: uuid, description: "Existing draft ID (for regeneration with feedback)" }
+        feedback:  { type: string, description: "Revision notes for regeneration" }
+    StatementResult:
+      type: object
+      required: [draftId, keyword, tone, type, draft, wordCount, generatedAt, regenerateUrl]
+      properties:
+        draftId:       { type: string, format: uuid }
+        keyword:       { type: string }
+        alertId:       { type: ["string", "null"], format: uuid }
+        tone:          { type: string, enum: [formal, empathetic, assertive] }
+        type:          { type: string, enum: [press_release, social_post, internal_memo] }
+        draft:         { type: string }
+        wordCount:     { type: integer }
+        generatedAt:   { type: string, format: date-time }
+        regenerateUrl: { type: string }
+    CounterNarrativeInput:
+      type: object
+      required: [keyword]
+      properties:
+        keyword:  { type: string }
+        alert_id: { type: string, format: uuid, description: "Optional: pull crisis alert context" }
+    CounterNarrativeStrategy:
+      type: object
+      required: [angle, rationale, sampleMessage, predictedEffectiveness, targetAudience]
+      properties:
+        angle:                   { type: string }
+        rationale:               { type: string }
+        sampleMessage:           { type: string }
+        predictedEffectiveness:  { type: string, enum: [high, medium, low] }
+        targetAudience:          { type: string }
+    CounterNarrativeResult:
+      type: object
+      required: [keyword, dominantNarratives, strategies, generatedAt]
+      properties:
+        keyword:            { type: string }
+        dominantNarratives: { type: array, items: { type: string } }
+        strategies:
+          type: array
+          items:
+            $ref: "#/components/schemas/CounterNarrativeStrategy"
+        generatedAt: { type: string, format: date-time }
+    TestMessageVariant:
+      type: object
+      required: [label, message]
+      properties:
+        label:   { type: string, description: "Short label for this variant (e.g. 'Empathetic', 'Direct')" }
+        message: { type: string, description: "The message text to test" }
+    TestMessageInput:
+      type: object
+      required: [variants, category]
+      properties:
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestMessageVariant"
+          minItems: 2
+          maxItems: 5
+        category:  { type: string }
+        geography: { type: string }
+    TestMessageQueued:
+      type: object
+      required: [status, variantCount, simulations, message]
+      properties:
+        status:       { type: string, enum: [queued] }
+        variantCount: { type: integer }
+        simulations:
+          type: array
+          items:
+            type: object
+            required: [label, simulationId, pollUrl]
+            properties:
+              label:        { type: string }
+              simulationId: { type: string, format: uuid }
+              pollUrl:      { type: string }
+        message: { type: string }
+    Campaign:
+      type: object
+      required: [id, orgId, name, targetKeywords, startDate, status, createdAt, updatedAt]
+      properties:
+        id:                     { type: string, format: uuid }
+        orgId:                  { type: string, format: uuid }
+        name:                   { type: string }
+        targetKeywords:         { type: array, items: { type: string } }
+        startDate:              { type: string, format: date-time }
+        baselinePeriodStart:    { type: ["string", "null"], format: date-time }
+        baselinePeriodEnd:      { type: ["string", "null"], format: date-time }
+        goal:                   { type: ["string", "null"] }
+        status:                 { type: string, enum: [active, paused, completed] }
+        baselineKeywordVolume:  { type: ["number", "null"] }
+        baselineSentiment:      { type: ["number", "null"] }
+        baselineSov:            { type: ["number", "null"] }
+        createdAt:              { type: string, format: date-time }
+        updatedAt:              { type: string, format: date-time }
+    CampaignList:
+      type: object
+      required: [count, data]
+      properties:
+        count: { type: integer }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Campaign"
+    CreateCampaignInput:
+      type: object
+      required: [name, targetKeywords]
+      properties:
+        name:           { type: string }
+        targetKeywords: { type: array, items: { type: string }, minItems: 1 }
+        startDate:      { type: string, format: date-time, description: "Launch date (defaults to now)" }
+        goal:           { type: string }
+    CampaignMeasurement:
+      type: object
+      required: [id, campaignId, measuredAt, keywordVolume, sentimentScore, sovPercent, mediaPickupCount, emv]
+      properties:
+        id:               { type: string, format: uuid }
+        campaignId:       { type: string, format: uuid }
+        measuredAt:       { type: string, format: date-time }
+        keywordVolume:    { type: integer }
+        sentimentScore:   { type: number }
+        sovPercent:       { type: number }
+        mediaPickupCount: { type: integer }
+        emv:              { type: number, description: "Earned media value in thousands of USD" }
