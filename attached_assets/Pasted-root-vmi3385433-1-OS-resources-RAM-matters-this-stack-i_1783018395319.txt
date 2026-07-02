@@ -1,0 +1,128 @@
+root@vmi3385433:~# # 1) OS + resources (RAM matters — this stack includes Elasticsearch, which is hungry)
+cat /etc/os-release | head -n 2; echo "---"; nproc; free -h; df -h /
+PRETTY_NAME="Ubuntu 22.04.5 LTS"
+NAME="Ubuntu"
+---
+6
+               total        used        free      shared  buff/cache   available
+Mem:            11Gi       3.4Gi       3.5Gi       201Mi       4.8Gi       7.7Gi
+Swap:             0B          0B          0B
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       194G   63G  131G  33% /
+root@vmi3385433:~# # 2) Running containers with their published ports
+docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+NAMES                   IMAGE                           STATUS                  PORTS
+gnx-app-1               gnx-app                         Up About an hour        8080/tcp
+nexus-api               nexus-api:latest                Up 11 hours (healthy)   3000/tcp
+nexus-web               nexus-web:latest                Up 11 hours             80/tcp, 443/tcp, 2019/tcp, 443/udp
+nexus-app               nexus-app:latest                Up 11 hours             80/tcp, 443/tcp, 2019/tcp, 443/udp
+cliniq-admin-1          cliniq-admin                    Up 24 hours             80/tcp
+cliniq-web-1            cliniq-web                      Up 24 hours             80/tcp
+cliniq-api-1            cliniq-api                      Up 24 hours             8080/tcp
+genieai-app-1           genieai-app                     Up 33 hours             8080/tcp
+trustsure-web           trustsure-web                   Up 2 days               443/tcp, 2019/tcp, 443/udp, 127.0.0.1:8080->80/tcp
+trustsure-api-1         trustsure-api                   Up 2 days (healthy)     3000/tcp
+nexus-egress            livekit/egress:latest           Up 2 days
+nexus-livekit           livekit/livekit-server:latest   Up 2 days               0.0.0.0:7881->7881/tcp, [::]:7881->7881/tcp, 0.0.0.0:7882->7882/udp, [::]:7882->7882/udp
+nexus-redis             redis:7-alpine                  Up 2 days               6379/tcp
+nexus-db                postgres:16-alpine              Up 2 days (healthy)     5432/tcp
+nexus-ipfs              ipfs/kubo:v0.30.0               Up 2 days (healthy)     5001/tcp, 0.0.0.0:4001->4001/tcp, 0.0.0.0:4001->4001/udp, [::]:4001->4001/tcp, [::]:4001->4001/udp, 8080-8081/tcp
+nexus-minio             minio/minio:latest              Up 2 days               9000/tcp
+mlmnode-app-1           mlmnode-app                     Up 2 days               3000/tcp
+genisys-app-1           genisys-app                     Up 2 days (healthy)     8080/tcp
+genisys-db-1            postgres:16-alpine              Up 2 days (healthy)     5432/tcp
+firstfly-app-1          firstfly-app                    Up 2 days (healthy)     8080/tcp
+firstfly-db-1           postgres:18-alpine              Up 2 days (healthy)     5432/tcp
+socialvista-app-1       socialvista-app                 Up 2 days               5000/tcp
+cryptoplay-web-1        cryptoplay-web                  Up 2 days               443/tcp, 2019/tcp, 443/udp, 127.0.0.1:9101->80/tcp
+cryptoplay-api-1        cryptoplay-api                  Up 2 days (healthy)     8080/tcp
+cliniq-postgres-1       postgres:16-alpine              Up 2 days (healthy)     5432/tcp
+cliniq-minio-1          minio/minio:latest              Up 2 days               9000/tcp
+mlmnode-db-1            postgres:17-alpine              Up 2 days (healthy)     5432/tcp
+dseaw-website           dseaw-website-dseaw-website     Up 2 days               443/tcp, 2019/tcp, 443/udp, 127.0.0.1:8085->80/tcp
+reverse-proxy-caddy-1   caddy:2-alpine                  Up 2 days               0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp
+agentopia-web-1         agentopia-web                   Up 2 days               80/tcp
+agentopia-api-1         agentopia-api                   Up 2 days (healthy)     8080/tcp
+cryptoplay-db-1         postgres:18-alpine              Up 2 days (healthy)     5432/tcp
+genieai-db-1            pgvector/pgvector:pg17          Up 2 days (healthy)     5432/tcp
+gnx-db-1                postgres:17-alpine              Up 2 days (healthy)     5432/tcp
+socialvista-db-1        postgres:18-alpine              Up 2 days (healthy)     5432/tcp
+trustsure-db-1          postgres:18-alpine              Up 2 days (healthy)     127.0.0.1:5432->5432/tcp
+polypay-caddy-1         polypay-web                     Up 2 days               80/tcp, 2019/tcp, 443/udp, 0.0.0.0:8443->443/tcp, [::]:8443->443/tcp
+polypay-api-1           polypay-api                     Up 2 days (healthy)     8080/tcp
+agentopia-db-1          postgres:16-alpine              Up 2 days (healthy)     5432/tcp
+root@vmi3385433:~# # 3) Docker networks (I need to know which shared network Caddy uses to proxy the other projects)
+docker network ls
+NETWORK ID     NAME                   DRIVER    SCOPE
+3d74f2d8e9c0   agentopia_internal     bridge    local
+6db34bf1d70c   bridge                 bridge    local
+8cae749e8175   cliniq_cliniq          bridge    local
+37a6d7363309   cryptoplay_default     bridge    local
+32fb12083346   firstfly_internal      bridge    local
+3747fec3fe1f   genieai_internal       bridge    local
+d429169dc3a4   genisys_internal       bridge    local
+c9528f899856   gnx_internal           bridge    local
+cf3ed31a82a0   host                   host      local
+2cd1528ed5f6   mlmnode_internal       bridge    local
+df2af56e1231   nexus_internal         bridge    local
+074ce69b1d6a   none                   null      local
+146250b85e5f   polypay_polypay        bridge    local
+bf3bcff29999   socialvista_internal   bridge    local
+2932b92648df   trustsure_default      bridge    local
+4c9a9cc02949   web                    bridge    local
+root@vmi3385433:~# # 4) Host ports currently listening (drop `sudo` if you're already root)
+sudo ss -tlnp | sort -k4
+LISTEN 0      128             [::]:22           [::]:*    users:(("sshd",pid=832,fd=4)) 
+LISTEN 0      4096            [::]:4001         [::]:*    users:(("docker-proxy",pid=4557,fd=8))
+LISTEN 0      4096            [::]:443          [::]:*    users:(("docker-proxy",pid=4808,fd=8))
+LISTEN 0      4096            [::]:7881         [::]:*    users:(("docker-proxy",pid=3907,fd=8))
+LISTEN 0      4096            [::]:80           [::]:*    users:(("docker-proxy",pid=4769,fd=8))
+LISTEN 0      4096            [::]:8443         [::]:*    users:(("docker-proxy",pid=4700,fd=8))
+LISTEN 0      128          0.0.0.0:22        0.0.0.0:*    users:(("sshd",pid=832,fd=3)) 
+LISTEN 0      4096         0.0.0.0:4001      0.0.0.0:*    users:(("docker-proxy",pid=4540,fd=8))
+LISTEN 0      4096         0.0.0.0:443       0.0.0.0:*    users:(("docker-proxy",pid=4800,fd=8))
+LISTEN 0      4096         0.0.0.0:7881      0.0.0.0:*    users:(("docker-proxy",pid=3897,fd=8))
+LISTEN 0      4096         0.0.0.0:80        0.0.0.0:*    users:(("docker-proxy",pid=4762,fd=8))
+LISTEN 0      4096         0.0.0.0:8443      0.0.0.0:*    users:(("docker-proxy",pid=4694,fd=8))
+LISTEN 0      4096       127.0.0.1:5432      0.0.0.0:*    users:(("docker-proxy",pid=4862,fd=8))
+LISTEN 0      4096       127.0.0.1:8080      0.0.0.0:*    users:(("docker-proxy",pid=182790,fd=8))
+LISTEN 0      4096       127.0.0.1:8085      0.0.0.0:*    users:(("docker-proxy",pid=3224,fd=8))
+LISTEN 0      4096       127.0.0.1:9101      0.0.0.0:*    users:(("docker-proxy",pid=4077,fd=8))
+LISTEN 0      4096   127.0.0.53%lo:53        0.0.0.0:*    users:(("systemd-resolve",pid=619,fd=14))
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess                        
+root@vmi3385433:~# # 5) How is Caddy running — container or host service? And where's its config?
+docker ps -a --filter "name=caddy" --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+systemctl status caddy --no-pager 2>/dev/null | head -n 5
+find / -iname "Caddyfile" 2>/dev/null
+NAMES                   IMAGE            STATUS      PORTS
+reverse-proxy-caddy-1   caddy:2-alpine   Up 2 days   0.0.0.0:80->80/tcp, [::]:80->80/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp, 2019/tcp
+polypay-caddy-1         polypay-web      Up 2 days   80/tcp, 2019/tcp, 443/udp, 0.0.0.0:8443->443/tcp, [::]:8443->443/tcp
+/etc/caddy/Caddyfile
+/root/gnx/deploy/Caddyfile
+/root/agentopia/deploy/reverse-proxy/Caddyfile
+/root/polypay/Caddyfile
+/root/dseaw/artifacts/dseaw-website/Caddyfile
+/var/lib/docker/rootfs/overlayfs/b4a359610bb60cbe4d996a7443abdeaacc92894ac6de752e6ce297bc7d24b19f/etc/caddy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/5250951ec1f8359afb13b64979b71bb225a4f2be36df01b63cec5394e387b1cb/etc/caddy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/07d26c4dfa5c33aeb78a7a1bfb98155ceb16adba33019cfad895bb34fc338332/etc/caddy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/abddb7cdbfedad4d3439fd82ffbf25501f8f7daf72d6f9bbc2604b3db111298f/etc/caddy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/eb988d9163d858125b00f18db344df18433b785918b3621e6683fade61223a0d/app/deploy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/31881f699d4fe2e3fc71ff7776897560ec10637674454f14026340e6f5bb696f/etc/caddy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/8df595ecaa2c2d804203c583c522337f87062a725131e6feccfa0caeef56ec50/etc/caddy/Caddyfile
+/var/lib/docker/rootfs/overlayfs/a441f9eac4c152260acc6694548fde2143b0dd5311a41987f68f549c8b429993/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4178/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4704/fs/app/deploy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4675/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4523/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1898/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4078/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/164/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4588/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/179/fs/repo/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4517/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4763/fs/app/deploy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4691/fs/deploy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4598/fs/etc/caddy/Caddyfile
+/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/4592/fs/etc/caddy/Caddyfile
+^C
+root@vmi3385433:~#
