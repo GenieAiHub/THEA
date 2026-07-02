@@ -1,0 +1,214 @@
+root@vmi3385433:~/thea# echo '=== caddy container ==='
+docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}' | grep -i caddy
+echo '=== reverse-proxy dir ==='
+ls -la /root/agentopia/deploy/reverse-proxy/
+echo '=== Caddyfile head (look for import directives) ==='
+head -40 /root/agentopia/deploy/reverse-proxy/Caddyfile
+echo '=== THEA origin cert staged? ==='
+ls -la /root/agentopia/deploy/reverse-proxy/certs/thea/ 2>&1
+=== caddy container ===
+reverse-proxy-caddy-1   caddy:2-alpine  Up 2 days
+polypay-caddy-1 polypay-web     Up 2 days
+=== reverse-proxy dir ===
+total 68
+drwxr-xr-x  3 root root 4096 Jun 30 03:27 .
+drwxr-xr-x  4 root root 4096 Jun 22 01:32 ..
+-rw-r--r--  1 root root   35 Jun 20 15:20 .env
+-rw-r--r--  1 root root  171 Jun 20 22:55 .env.example
+-rw-r--r--  1 root root 4868 Jun 30 03:27 Caddyfile
+-rw-r--r--  1 root root 2479 Jun 22 00:21 Caddyfile.bak.1782080473
+-rw-r--r--  1 root root 2282 Jun 22 03:49 Caddyfile.bak.1782092953
+-rw-r--r--  1 root root 2784 Jun 22 03:51 Caddyfile.bak.1782093102
+-rw-r--r--  1 root root 2411 Jun 24 04:50 Caddyfile.bak.1782269436
+-rw-r--r--  1 root root 2411 Jun 24 05:01 Caddyfile.bak.1782270115
+-rw-r--r--  1 root root 4374 Jun 30 02:51 Caddyfile.bak.1782780714
+-rw-r--r--  1 root root 4517 Jun 30 03:27 Caddyfile.prebak
+drwxr-xr-x 15 root root 4096 Jul  2 21:54 certs
+-rw-r--r--  1 root root 1164 Jun 20 22:55 docker-compose.yml
+=== Caddyfile head (look for import directives) ===
+# Shared Caddy reverse proxy, run BEHIND Cloudflare (SSL/TLS mode: Full (strict)).
+# Each site serves a Cloudflare Origin Certificate (trusted by Cloudflare's edge),
+# so the Cloudflare<->server hop is encrypted end-to-end. Caddy does NOT use
+# Let's Encrypt here — the explicit `tls` directive pins the origin cert and
+# disables ACME (which can't complete while traffic is proxied through Cloudflare).
+#
+# Caddy routes by the request's Host header, so one server IP serves many domains:
+# each project's `web` container is reachable on the shared `web` network under the
+# alias referenced below. Drop each domain's origin cert + key into ./certs/<name>/
+# (mounted read-only at /etc/caddy/certs — gitignored, never committed).
+#
+# RECOMMENDED HARDENING (Authenticated Origin Pulls): lock the origin so ONLY
+# Cloudflare can connect. Otherwise anyone who finds your server IP can hit the
+# origin directly and forge X-Forwarded-For (defeating per-IP rate limiting, which
+# trusts the proxy chain via TRUST_PROXY). To enable, see deploy/README.md
+# "Step 5 — Harden": turn on Authenticated Origin Pulls in Cloudflare, download the
+# origin-pull CA to ./certs/cloudflare/origin-pull-ca.pem, and switch each site's
+# single-line `tls ...` to the commented block form shown below it.
+
+{$AGENTOPIA_DOMAIN} {
+        tls /etc/caddy/certs/agentopia/origin.pem /etc/caddy/certs/agentopia/origin.key
+        # Hardened (Authenticated Origin Pulls) — replace the `tls` line above with:
+        # tls /etc/caddy/certs/agentopia/origin.pem /etc/caddy/certs/agentopia/origin.key {
+        #       client_auth {
+        #               mode require_and_verify
+        #               trust_pool file /etc/caddy/certs/cloudflare/origin-pull-ca.pem
+        #       }
+        # }
+        reverse_proxy agentopia-web:80
+}
+
+# To add another project on this VPS (its own domain, same IP):
+#   1. In that project's docker-compose.proxy.yml, give its `web` service a
+#      unique alias on the external `web` network (e.g. `myapp-web`).
+#   2. Create a Cloudflare Origin Certificate for that domain and save it as
+#      ./certs/myapp/origin.pem + ./certs/myapp/origin.key on the VPS.
+#   3. Add a block here, then reload: `docker compose up -d` in this directory.
+#
+# myapp.example.com {
+#       tls /etc/caddy/certs/myapp/origin.pem /etc/caddy/certs/myapp/origin.key
+=== THEA origin cert staged? ===
+total 16
+drwxr-xr-x  2 root root 4096 Jul  2 21:55 .
+drwxr-xr-x 15 root root 4096 Jul  2 21:54 ..
+-rw-------  1 root root 1704 Jul  2 21:55 origin.key
+-rw-r--r--  1 root root 1663 Jul  2 21:55 origin.pem
+root@vmi3385433:~/thea# cd /root/agentopia/deploy/reverse-proxy
+
+echo '=== reverse-proxy compose (confirm mount path + reload mechanism) ==='
+cat docker-compose.yml
+
+echo; echo '=== backup Caddyfile ==='
+cp -a Caddyfile Caddyfile.bak.$(date +%s) && echo backed up
+
+echo; echo '=== append THEA blocks (idempotent) ==='
+if grep -q '^thea\.quest' Caddyfile; then echo "already present — skipping"; else
+cat >> Caddyfile <<'CADDY'
+
+thea.quest {
+        tls /etc/caddy/certs/thea/origin.pem /etc/caddy/certs/thea/origin.key
+        encode gzip zstd
+        reverse_proxy thea-website:80
+}
+
+admin.thea.quest {
+        tls /etc/caddy/certs/thea/origin.pem /etc/caddy/certs/thea/origin.key
+        encode gzip zstd
+        reverse_proxy thea-admin:80
+}
+
+markets.thea.quest {
+        tls /etc/caddy/certs/thea/origin.pem /etc/caddy/certs/thea/origin.key
+        encode gzip zstd
+        reverse_proxy thea-markets:80
+}
+CADDY
+echo appended; fi
+
+echo; echo '=== cert visible INSIDE the caddy container? ==='
+docker exec reverse-proxy-caddy-1 ls -la /etc/caddy/certs/thea/
+
+echo; echo '=== validate full config (live server NOT touched) ==='
+docker exec reverse-proxy-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+=== reverse-proxy compose (confirm mount path + reload mechanism) ===
+# Shared reverse proxy for ALL your projects on this VPS, run behind Cloudflare.
+# Each site serves a Cloudflare Origin Certificate (see ./Caddyfile + ./certs);
+# set Cloudflare's SSL/TLS mode to Full (strict) for end-to-end encryption.
+#
+# One-time setup on the VPS:
+#   1. Point each project's domain (A record, Proxied/orange) at this server's IP.
+#   2. Set AGENTOPIA_DOMAIN (and any other project domains) in ./.env.
+#   3. Save each domain's origin cert + key under ./certs/<name>/ (gitignored).
+#   4. docker compose up -d
+#
+# This creates the external `web` network that each project attaches to via its
+# docker-compose.proxy.yml override.
+name: reverse-proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      AGENTOPIA_DOMAIN: ${AGENTOPIA_DOMAIN:?set AGENTOPIA_DOMAIN in deploy/reverse-proxy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/etc/caddy/certs:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - web
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  web:
+    name: web
+    driver: bridge
+
+=== backup Caddyfile ===
+backed up
+
+=== append THEA blocks (idempotent) ===
+appended
+
+=== cert visible INSIDE the caddy container? ===
+total 16
+drwxr-xr-x    2 root     root          4096 Jul  2 19:55 .
+drwxr-xr-x   15 root     root          4096 Jul  2 19:54 ..
+-rw-------    1 root     root          1704 Jul  2 19:55 origin.key
+-rw-r--r--    1 root     root          1663 Jul  2 19:55 origin.pem
+
+=== validate full config (live server NOT touched) ===
+{"level":"info","ts":1783024488.0296743,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+{"level":"info","ts":1783024488.0490782,"msg":"adapted config to JSON","adapter":"caddyfile"}
+{"level":"warn","ts":1783024488.049147,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":51}
+{"level":"info","ts":1783024488.0532115,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x299a7e0acc00"}
+{"level":"warn","ts":1783024488.160806,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.nexushub.network nexushub.network]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1623416,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.genieai.finance genieai.finance]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.162899,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.socialvista.co.in socialvista.co.in]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1630642,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.firstflyai.com firstflyai.com]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1631572,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.genisys.ind.in genisys.ind.in]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1635675,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.agentopia.network agentopia.network]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1639128,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.mlmnode.tech mlmnode.tech]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1647184,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.dseaw.org dseaw.org]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1665983,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.gnx.co.in gnx.co.in]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1945593,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.trustsure.id trustsure.id]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1973171,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.cgplay.games cgplay.games]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.19764,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.thea.quest thea.quest]: no URL to issuing certificate"}
+{"level":"warn","ts":1783024488.1981857,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.cliniq.li cliniq.li]: no URL to issuing certificate"}
+{"level":"info","ts":1783024488.1993883,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"livekit.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994247,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"socialvista.co.in","server_name":"srv0"}
+{"level":"info","ts":1783024488.19946,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.firstflyai.com","server_name":"srv0"}
+{"level":"info","ts":1783024488.199469,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.gnx.co.in","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994743,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"trustsure.id","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994777,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994815,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"genieai.finance","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994882,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"tenants.genieai.finance","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994925,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"genisys.ind.in","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994963,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.genisys.ind.in","server_name":"srv0"}
+{"level":"info","ts":1783024488.1994998,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"mlmnode.tech","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995032,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.mlmnode.tech","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995072,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.dseaw.org","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995103,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"gnx.co.in","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995137,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.genieai.finance","server_name":"srv0"}
+{"level":"info","ts":1783024488.199517,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.socialvista.co.in","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995203,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"nodes.mlmnode.tech","server_name":"srv0"}
+{"level":"info","ts":1783024488.199523,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"firstflyai.com","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995308,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"markets.thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783024488.199535,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"agentopia.network","server_name":"srv0"}
+{"level":"info","ts":1783024488.199538,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995409,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"admin.thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995437,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"app.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995468,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"dseaw.org","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995504,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"cgplay.games","server_name":"srv0"}
+{"level":"info","ts":1783024488.199553,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"cliniq.li","server_name":"srv0"}
+{"level":"info","ts":1783024488.1995556,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+{"level":"info","ts":1783024488.2177885,"logger":"tls.cache.maintenance","msg":"stopped background certificate maintenance","cache":"0x299a7e0acc00"}
+{"level":"info","ts":1783024488.218067,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Valid configuration
+root@vmi3385433:~/agentopia/deploy/reverse-proxy#
