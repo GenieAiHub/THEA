@@ -142,14 +142,25 @@ async function resolveApiKeyContext(rawKey: string): Promise<TheaRequestContext 
   // Update lastUsedAt asynchronously (non-blocking)
   db.update(apiKeysTable).set({ lastUsedAt: new Date() }).where(eq(apiKeysTable.id, key.id)).catch(() => undefined);
 
-  const userRows = await db
-    .select()
-    .from(usersTable)
-    .where(and(eq(usersTable.orgId, key.orgId), eq(usersTable.role, "owner")))
-    .limit(1);
-  if (!userRows[0]) return null;
+  /**
+   * API keys are deliberately scoped to "member" role regardless of scopes array.
+   * This means:
+   *  - requireAuth-only routes: accessible (read endpoints, trend data, alerts)
+   *  - requireRole("owner", "admin") routes: BLOCKED (cannot manage keys, run admin ops)
+   * Scope-based RBAC (e.g. "write" scope → "admin" role) is a future enhancement.
+   */
+  const syntheticUser: User = {
+    id: `apik:${key.id}`,
+    orgId: key.orgId,
+    email: `${key.keyPrefix}@api-key.local`,
+    passwordHash: "",
+    name: key.name,
+    role: "member",
+    createdAt: key.createdAt,
+    updatedAt: key.updatedAt,
+  };
 
-  return resolveOrgContext(userRows[0]);
+  return resolveOrgContext(syntheticUser);
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {

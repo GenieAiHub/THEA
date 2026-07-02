@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import { apiKeyRateLimiter } from "../../middlewares/rateLimiter";
 import healthV1Router from "./health";
 import authRouter from "./auth";
 import contentRouter from "./content";
@@ -23,6 +24,16 @@ import campaignsRouter from "./campaigns";
 import apiKeysRouter from "./api-keys";
 
 const router = Router();
+
+// Apply API-key rate limit (1000 req/day per key) only when Bearer thea_ token is present.
+// Session-cookie requests are already covered by the global defaultRateLimiter.
+router.use((req: Request, res: Response, next: NextFunction): void => {
+  if (req.headers.authorization?.startsWith("Bearer thea_")) {
+    void apiKeyRateLimiter(req, res, next);
+  } else {
+    next();
+  }
+});
 
 router.use("/health", healthV1Router);
 router.use("/auth", authRouter);
