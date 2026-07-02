@@ -1,7 +1,7 @@
 import type { NormalizedItem } from "../types";
 import { logger } from "../../logger";
 
-const BASE_URL = "http://api.mediastack.com/v1/news";
+const BASE_URL = "https://api.mediastack.com/v1/news";
 
 interface MediaStackArticle {
   source?: string;

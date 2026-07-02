@@ -35,6 +35,7 @@ export const contentItemsTable = pgTable("content_items", {
   category: text("category"),
   sentimentScore: real("sentiment_score"),
   engagementMetrics: jsonb("engagement_metrics").default({}),
+  rawMetadata: jsonb("raw_metadata").default({}),
   entities: jsonb("entities").default([]),
   summary: text("summary"),
   embedding: vector("embedding", { dimensions: 1536 }),

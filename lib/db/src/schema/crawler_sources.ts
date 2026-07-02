@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, jsonb, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean, jsonb, integer, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,7 +18,9 @@ export const crawlerSourcesTable = pgTable("crawler_sources", {
   errorCount: integer("error_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("crawler_sources_url_unique").on(table.url),
+]);
 
 export const insertCrawlerSourceSchema = createInsertSchema(crawlerSourcesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const selectCrawlerSourceSchema = createSelectSchema(crawlerSourcesTable);

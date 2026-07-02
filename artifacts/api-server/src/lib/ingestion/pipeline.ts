@@ -55,6 +55,7 @@ export async function ingestItems(
           category: item.category,
           publishedAt: item.publishedAt ?? null,
           engagementMetrics: item.engagementMetrics ?? {},
+          rawMetadata: item.rawMetadata ?? {},
         })
         .returning({ id: contentItemsTable.id });
 
@@ -94,6 +95,7 @@ async function indexInElasticsearch(
         engagementMetrics: item.engagementMetrics,
       },
     });
-  } catch {
+  } catch (err) {
+    logger.warn({ err, id }, "Elasticsearch indexing failed — item is in DB but missing from search");
   }
 }

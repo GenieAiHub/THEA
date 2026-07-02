@@ -27,27 +27,27 @@ function getEnv(key: string): string {
 
 async function getActiveRssSources(category?: string): Promise<RssSource[]> {
   const baseline: RssSource[] = category ? getSourcesByCategory(category) : PRECONFIGURED_SOURCES;
-  const seenUrls = new Set(baseline.map((s) => s.url));
 
   try {
-    const conditions = [
-      eq(crawlerSourcesTable.isActive, true),
-      eq(crawlerSourcesTable.type, "rss"),
-    ];
-    if (category) conditions.push(eq(crawlerSourcesTable.category, category));
+    const typeConditions = [eq(crawlerSourcesTable.type, "rss")];
+    if (category) typeConditions.push(eq(crawlerSourcesTable.category, category));
 
-    const rows = await db
+    const allDbRows = await db
       .select({
         name: crawlerSourcesTable.name,
         url: crawlerSourcesTable.url,
         category: crawlerSourcesTable.category,
         language: crawlerSourcesTable.language,
+        isActive: crawlerSourcesTable.isActive,
       })
       .from(crawlerSourcesTable)
-      .where(and(...conditions));
+      .where(and(...typeConditions));
 
-    const dbSources: RssSource[] = rows
-      .filter((r) => !seenUrls.has(r.url))
+    const inactiveUrls = new Set(allDbRows.filter((r) => !r.isActive).map((r) => r.url));
+    const mergedBaseline = baseline.filter((s) => !inactiveUrls.has(s.url));
+
+    const dbOnlySources: RssSource[] = allDbRows
+      .filter((r) => r.isActive && !baseline.some((b) => b.url === r.url))
       .map((r) => ({
         name: r.name,
         url: r.url,
@@ -56,9 +56,9 @@ async function getActiveRssSources(category?: string): Promise<RssSource[]> {
         platform: "rss",
       }));
 
-    return [...baseline, ...dbSources];
+    return [...mergedBaseline, ...dbOnlySources];
   } catch (err) {
-    logger.warn({ err }, "Could not load additional RSS sources from DB — using preconfigured list only");
+    logger.warn({ err }, "Could not load RSS source overrides from DB — using preconfigured list only");
     return baseline;
   }
 }
