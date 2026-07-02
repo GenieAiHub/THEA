@@ -11,6 +11,7 @@
 - [DB package rebuild process](db-rebuild-process.md) — after schema changes, run `cd lib/db && pnpm exec tsc --build tsconfig.json` before API typecheck or the new exports won't be visible
 - [Orval codegen blocker](orval-codegen-blocker.md) — v8.18.0 "Failed to resolve input" persists; set clean:false, always restore from git on failure
 - [Phase 7 portal architecture](phase7-portal-architecture.md) — self-hosted auth (AuthContext/useAuth + Protected wrapper + HomeRedirect); root-relative /api/v1; hooks need <any> until codegen fixed
+- [Design subagent redesign fidelity](design-subagent-redesign-fidelity.md) — redesign delegations silently drop sections & invent product claims; diff result vs git original before accepting
 - [Public consumer markets auth](public-markets-auth.md) — markets router stays anonymous (optionalAuth, not requireAuth) despite new optional sign-in UI; anon scoped to PLATFORM_ORG_ID
 - [Expo web platform quirks](expo-web-quirks.md) — expo-secure-store THROWS and Alert.alert no-ops on react-native-web; wrap both with Platform.OS (localStorage + window.confirm/alert)
 - [Backend face recognition](face-recognition-backend.md) — mobile face-scan matches on backend via @vladmandic/face-api + pure-JS tfjs (NOT tfjs-node) + jpeg-js; 128-d in pgvector, threshold ~0.5-0.6

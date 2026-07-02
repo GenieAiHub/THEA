@@ -6,3 +6,33 @@ id = "nWAnEdIepZa4bFCX32Dsp"
 uri = "file://artifacts/thea-access/assets/images/icon.png"
 type = "image"
 title = "thea access icon"
+
+[[generated]]
+id = "dqwujqAODrgpZJ979DJfq"
+uri = "file://attached_assets/generated_images/hero_earth.png"
+type = "image"
+title = "hero earth horizon"
+
+[[generated]]
+id = "R7fYT4uIwzfYsAnSpCAPk"
+uri = "file://attached_assets/generated_images/radar_signals.png"
+type = "image"
+title = "radar signal fields"
+
+[[generated]]
+id = "FRjwgBYicLT0i7i_ZGASc"
+uri = "file://attached_assets/generated_images/command_center.png"
+type = "image"
+title = "tactical command center"
+
+[[generated]]
+id = "EpiyYjA3720BZenb4PmY_"
+uri = "file://attached_assets/generated_images/neural_network.png"
+type = "image"
+title = "neural network fields"
+
+[[generated]]
+id = "LoikikpYHBn9t9wRdIFeY"
+uri = "file://attached_assets/generated_images/glowing_world.png"
+type = "image"
+title = "glowing world data"
