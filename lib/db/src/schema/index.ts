@@ -21,3 +21,4 @@ export * from "./geo_signals";
 export * from "./influencer_scores";
 export * from "./journalists";
 export * from "./campaigns";
+export * from "./webhook_delivery_logs";

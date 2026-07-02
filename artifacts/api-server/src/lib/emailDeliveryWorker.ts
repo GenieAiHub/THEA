@@ -96,12 +96,58 @@ export function startEmailDeliveryWorker(): void {
       const freq = pref[0].digestFrequency === "daily" ? "Daily" : "Weekly";
       const html = buildHtml("digest", digestData as unknown as Record<string, unknown>);
       const subject = `${freq} THEA Intelligence Digest — ${digestData.dateRange}`;
+
+      // Email delivery
       if (!RESEND_API_KEY) {
         logger.info({ orgId, recipients }, "[DRY-RUN] Digest email would be sent");
-        return;
+      } else {
+        await sendViaResend(recipients.map((email: string) => ({ email })), subject, html, RESEND_API_KEY);
+        logger.info({ orgId, recipients: recipients.length }, "Digest email sent");
       }
-      await sendViaResend(recipients.map((email: string) => ({ email })), subject, html, RESEND_API_KEY);
-      logger.info({ orgId, recipients: recipients.length }, "Digest email sent");
+
+      // Slack digest delivery (if webhook URL configured)
+      const slackUrl = (pref[0] as Record<string, unknown>).slackWebhookUrl as string | undefined;
+      if (slackUrl) {
+        try {
+          const parsed = new URL(slackUrl);
+          if (parsed.protocol === "https:" && parsed.hostname === "hooks.slack.com") {
+            const slackBody = JSON.stringify({
+              text: `*${freq} THEA Intelligence Digest* — ${digestData.orgName}\n*${digestData.dateRange}*\n\n${digestData.topTrends.slice(0, 5).map((t, i) => `${i + 1}. *${t.topic}* (${t.category}) — Score: ${Math.round(t.score)}`).join("\n")}\n\n_${digestData.alertsSummary}_`,
+            });
+            await fetch(slackUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: slackBody, signal: AbortSignal.timeout(5000) });
+            logger.info({ orgId }, "Digest posted to Slack");
+          }
+        } catch (err) {
+          logger.warn({ err, orgId }, "Slack digest delivery failed");
+        }
+      }
+
+      // Teams digest delivery (if webhook URL configured)
+      const teamsUrl = (pref[0] as Record<string, unknown>).teamsWebhookUrl as string | undefined;
+      if (teamsUrl) {
+        try {
+          const parsed = new URL(teamsUrl);
+          if (parsed.protocol === "https:" && parsed.hostname.endsWith(".webhook.office.com")) {
+            const teamsCard = JSON.stringify({
+              "@type": "MessageCard",
+              "@context": "http://schema.org/extensions",
+              themeColor: "6366f1",
+              summary: subject,
+              sections: [{
+                activityTitle: `📈 ${freq} THEA Intelligence Digest`,
+                activitySubtitle: `${digestData.orgName} · ${digestData.dateRange}`,
+                facts: digestData.topTrends.slice(0, 5).map((t) => ({ name: t.topic, value: `${t.category} — Score: ${Math.round(t.score)}` })),
+                markdown: true,
+              }],
+            });
+            await fetch(teamsUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: teamsCard, signal: AbortSignal.timeout(5000) });
+            logger.info({ orgId }, "Digest posted to Teams");
+          }
+        } catch (err) {
+          logger.warn({ err, orgId }, "Teams digest delivery failed");
+        }
+      }
+
       return;
     }
 

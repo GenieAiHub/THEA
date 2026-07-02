@@ -32,7 +32,7 @@ async function getReportData(orgId: string, category?: string) {
  * POST /api/v1/reports/pdf
  * Generate a white-label PDF trend report for the org.
  */
-router.post("/pdf", requireRole("owner", "admin"), requireFeature("pdf_export"), async (req, res) => {
+router.post("/pdf", requireFeature("pdf_export"), async (req, res) => {
   const { category } = req.body as { category?: string };
   const orgId = req.thea!.org.id;
 
@@ -127,7 +127,7 @@ router.post("/pdf", requireRole("owner", "admin"), requireFeature("pdf_export"),
  * POST /api/v1/reports/pptx
  * Generate a white-label PowerPoint slide deck.
  */
-router.post("/pptx", requireRole("owner", "admin"), requireFeature("pptx_export"), async (req, res) => {
+router.post("/pptx", requireFeature("pptx_export"), async (req, res) => {
   const { category } = req.body as { category?: string };
   const orgId = req.thea!.org.id;
 

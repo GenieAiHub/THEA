@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { db } from "@workspace/db";
-import { webhookRegistrationsTable } from "@workspace/db/schema";
+import { webhookRegistrationsTable, webhookDeliveryLogsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -53,11 +53,34 @@ function isSafeWebhookUrl(rawUrl: string): boolean {
   return true;
 }
 
+async function writeDeliveryLog(
+  webhookRegistrationId: string,
+  orgId: string,
+  event: WebhookEventType,
+  targetUrl: string,
+  status: "success" | "failed",
+  attempt: number,
+  httpStatus?: number,
+  responseSnippet?: string,
+): Promise<void> {
+  await db.insert(webhookDeliveryLogsTable).values({
+    webhookRegistrationId,
+    orgId,
+    event,
+    targetUrl,
+    status,
+    httpStatus: httpStatus ?? null,
+    attempt,
+    responseSnippet: responseSnippet ?? null,
+  }).catch((err) => logger.warn({ err }, "Failed to write webhook delivery log"));
+}
+
 /**
  * Deliver a signed webhook event to all active registered URLs for the org.
  * Per-URL: HMAC-SHA256 signed POST with X-THEA-Signature header.
  * Retries: up to 3 attempts with exponential backoff (1s, 2s, 4s).
  * Non-2xx responses are treated as delivery failures and trigger retries.
+ * All attempts are persisted to webhook_delivery_logs for audit/debugging.
  */
 export async function dispatchWebhookEvent(
   orgId: string,
@@ -90,15 +113,16 @@ export async function dispatchWebhookEvent(
         // SSRF guard — validate target URL before sending any server-side request
         if (!isSafeWebhookUrl(reg.url)) {
           logger.warn({ webhookId: reg.id, url: reg.url, orgId }, "Webhook URL failed SSRF safety check — skipping");
+          await writeDeliveryLog(reg.id, orgId, event, reg.url, "failed", 1, undefined, "SSRF_BLOCKED");
           return;
         }
 
         const sig = signPayload(reg.secret, body);
         let lastErr: unknown;
 
-        for (let attempt = 0; attempt < 3; attempt++) {
-          if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          if (attempt > 1) {
+            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 2)));
           }
           try {
             const resp = await fetch(reg.url, {
@@ -114,13 +138,17 @@ export async function dispatchWebhookEvent(
             });
 
             if (!resp.ok) {
+              const snippet = await resp.text().then((t) => t.slice(0, 200)).catch(() => "");
+              await writeDeliveryLog(reg.id, orgId, event, reg.url, "failed", attempt, resp.status, snippet);
               throw new Error(`Webhook target returned ${resp.status} ${resp.statusText}`);
             }
 
-            await db
-              .update(webhookRegistrationsTable)
-              .set({ lastDeliveredAt: new Date(), failureCount: "0", updatedAt: new Date() })
-              .where(eq(webhookRegistrationsTable.id, reg.id));
+            await Promise.all([
+              db.update(webhookRegistrationsTable)
+                .set({ lastDeliveredAt: new Date(), failureCount: "0", updatedAt: new Date() })
+                .where(eq(webhookRegistrationsTable.id, reg.id)),
+              writeDeliveryLog(reg.id, orgId, event, reg.url, "success", attempt, resp.status),
+            ]);
 
             logger.info({ webhookId: reg.id, orgId, event, status: resp.status }, "Webhook delivered");
             return;
