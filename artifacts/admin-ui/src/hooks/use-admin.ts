@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getToken, clearToken } from "@/lib/auth";
 
-const getBaseUrl = () => import.meta.env.BASE_URL.replace(/\/$/, "");
-
 export async function adminFetch(path: string, options: RequestInit = {}) {
   const token = getToken();
   const headers = new Headers(options.headers);
@@ -11,7 +9,7 @@ export async function adminFetch(path: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${getBaseUrl()}/api/v1/admin${path}`, { ...options, headers });
+  const res = await fetch(`/api/v1/admin${path}`, { ...options, headers });
   
   if (res.status === 401 || res.status === 403) {
     clearToken();
@@ -75,5 +73,103 @@ export function useAdminChat() {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  });
+}
+
+// ─── Markets ──────────────────────────────────────────────────────────────────
+
+export function useAdminMarkets() {
+  return useQuery({
+    queryKey: ["admin", "markets"],
+    queryFn: () => adminFetch("/markets").then((res) => res.data),
+  });
+}
+
+export function useAdminMarketSettings() {
+  return useQuery({
+    queryKey: ["admin", "market-settings"],
+    queryFn: () => adminFetch("/market-settings"),
+  });
+}
+
+export function useAdminUpdateMarketSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      enabled?: boolean;
+      frequencyMinutes?: number;
+      topics?: string[];
+      marketsPerRun?: number;
+    }) =>
+      adminFetch("/market-settings", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "market-settings"] });
+    },
+  });
+}
+
+export function useAdminCreateMarket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      question: string;
+      description?: string;
+      category: string;
+      options: string[];
+      closesAt?: string;
+    }) =>
+      adminFetch("/markets", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "markets"] });
+    },
+  });
+}
+
+export function useAdminUpdateMarket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: {
+      id: string;
+      question?: string;
+      description?: string;
+      category?: string;
+      status?: string;
+      resolvedOption?: number;
+      closesAt?: string | null;
+    }) =>
+      adminFetch(`/markets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "markets"] });
+    },
+  });
+}
+
+export function useAdminDeleteMarket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminFetch(`/markets/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "markets"] });
+    },
+  });
+}
+
+export function useAdminGenerateMarkets() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminFetch("/markets/generate", { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "markets"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "market-settings"] });
+    },
   });
 }

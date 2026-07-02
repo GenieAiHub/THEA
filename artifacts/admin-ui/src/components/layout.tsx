@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, KeyRound, Terminal, BarChart2, Building2, LogOut } from "lucide-react";
+import { LayoutDashboard, KeyRound, Terminal, BarChart2, Building2, TrendingUp, LogOut } from "lucide-react";
 import { clearToken } from "@/lib/auth";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -12,6 +12,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/llm-test", label: "LLM Playground", icon: Terminal },
     { href: "/usage", label: "Usage Logs", icon: BarChart2 },
     { href: "/orgs", label: "Organizations", icon: Building2 },
+    { href: "/markets", label: "Markets", icon: TrendingUp },
   ];
 
   const handleLogout = () => {

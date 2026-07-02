@@ -30,6 +30,32 @@ if (missing.length > 0) {
 import { bootstrapPgVector } from "./lib/pgvector";
 import { ensureContentItemsIndex } from "./lib/elasticsearch";
 import { seedPlatformConfigs } from "./routes/v1/admin_configs";
+import { createWorker } from "./lib/queues";
+import { generateMarketsNow, getMarketSettings, syncMarketGenerationSchedule } from "./lib/markets";
+import { logger as bootLogger } from "./lib/logger";
+
+function startMarketGenerationWorker(): void {
+  createWorker("market-generation", async () => {
+    const settings = await getMarketSettings();
+    if (!settings.enabled) {
+      bootLogger.info("Market auto-generation is disabled — skipping scheduled run");
+      return;
+    }
+    try {
+      const result = await generateMarketsNow();
+      bootLogger.info({ generated: result.generated }, "Scheduled market generation complete");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("No LLM API key configured")) {
+        bootLogger.warn(
+          "Market auto-generation skipped: no LLM API key configured. Add an OpenAI or Gemini key in Super Admin → API Keys.",
+        );
+        return;
+      }
+      throw err;
+    }
+  });
+}
 
 // ─── Start HTTP server ────────────────────────────────────────────────────────
 const port = Number(process.env["PORT"]!);
@@ -58,5 +84,13 @@ app.listen(port, async (err) => {
     seedPlatformConfigs().catch((err) =>
       logger.warn({ err }, "Platform config seed failed — will retry on next startup")
     ),
+    Promise.resolve()
+      .then(() => {
+        startMarketGenerationWorker();
+        return syncMarketGenerationSchedule();
+      })
+      .catch((err) =>
+        logger.warn({ err }, "Market generation scheduler bootstrap failed — will retry on next startup")
+      ),
   ]);
 });

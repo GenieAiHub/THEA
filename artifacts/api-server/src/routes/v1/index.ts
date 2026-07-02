@@ -11,6 +11,8 @@ import intelligenceRouter from "./intelligence";
 import webhooksRouter from "./webhooks";
 import adminRouter from "./admin";
 import adminConfigsRouter from "./admin_configs";
+import marketsRouter from "./markets";
+import adminMarketsRouter from "./admin_markets";
 
 const router = Router();
 
@@ -24,6 +26,8 @@ router.use("/alerts", alertsRouter);
 router.use("/reports", reportsRouter);
 router.use("/intelligence", intelligenceRouter);
 router.use("/webhooks", webhooksRouter);
+router.use("/markets", marketsRouter);
+router.use("/admin", adminMarketsRouter);
 router.use("/admin", adminRouter);
 router.use("/admin/configs", adminConfigsRouter);
 

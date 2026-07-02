@@ -29,6 +29,8 @@ tags:
     description: Webhook registration and delivery
   - name: admin
     description: Platform operator admin endpoints
+  - name: markets
+    description: THEA Markets — public prediction polls generated from trend data
 paths:
   /healthz:
     get:
@@ -603,6 +605,218 @@ paths:
       responses:
         "501":
           description: Not yet implemented
+  /v1/markets:
+    get:
+      operationId: listMarkets
+      tags: [markets]
+      summary: List public prediction markets
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, closed, resolved] }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [trending, newest, closing], default: trending }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 100 }
+      responses:
+        "200":
+          description: Markets list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketList"
+  /v1/markets/categories:
+    get:
+      operationId: listMarketCategories
+      tags: [markets]
+      summary: List market categories with counts
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MarketCategory"
+  /v1/markets/stats:
+    get:
+      operationId: getMarketStats
+      tags: [markets]
+      summary: Public stats for the markets platform
+      responses:
+        "200":
+          description: Market stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketStats"
+  /v1/markets/{id}:
+    get:
+      operationId: getMarket
+      tags: [markets]
+      summary: Get a single market by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Market detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Market"
+        "404":
+          description: Not found
+  /v1/markets/{id}/vote:
+    post:
+      operationId: voteOnMarket
+      tags: [markets]
+      summary: Cast a vote on a market option (one vote per voter per market)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketVoteInput"
+      responses:
+        "200":
+          description: Updated market after vote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Market"
+        "404":
+          description: Market not found
+        "409":
+          description: Already voted or market closed
+  /v1/admin/markets:
+    get:
+      operationId: adminListMarkets
+      tags: [admin]
+      summary: List all markets including closed (admin only)
+      responses:
+        "200":
+          description: All markets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketList"
+    post:
+      operationId: adminCreateMarket
+      tags: [admin]
+      summary: Manually create a market (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Market"
+  /v1/admin/markets/generate:
+    post:
+      operationId: adminGenerateMarkets
+      tags: [admin]
+      summary: Trigger LLM market generation from trend data now (admin only)
+      responses:
+        "200":
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketGenerationResult"
+  /v1/admin/markets/{id}:
+    patch:
+      operationId: adminUpdateMarket
+      tags: [admin]
+      summary: Update a market (close, resolve, edit) (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketUpdate"
+      responses:
+        "200":
+          description: Updated market
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Market"
+        "404":
+          description: Not found
+    delete:
+      operationId: adminDeleteMarket
+      tags: [admin]
+      summary: Delete a market (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+  /v1/admin/market-settings:
+    get:
+      operationId: adminGetMarketSettings
+      tags: [admin]
+      summary: Get market auto-generation settings (admin only)
+      responses:
+        "200":
+          description: Market generation settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketSettings"
+    put:
+      operationId: adminUpdateMarketSettings
+      tags: [admin]
+      summary: Update market auto-generation settings (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketSettings"
 components:
   securitySchemes:
     bearerAuth:
@@ -826,3 +1040,109 @@ components:
       type: object
       properties:
         category: { type: string }
+    MarketOption:
+      type: object
+      required: [label, votes, percentage]
+      properties:
+        label:      { type: string }
+        votes:      { type: integer }
+        percentage: { type: number }
+    Market:
+      type: object
+      required: [id, question, category, options, totalVotes, status, createdAt]
+      properties:
+        id:             { type: string, format: uuid }
+        question:       { type: string }
+        description:    { type: ["string", "null"] }
+        category:       { type: string }
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketOption"
+        totalVotes:     { type: integer }
+        status:         { type: string, enum: [open, closed, resolved] }
+        resolvedOption: { type: ["integer", "null"] }
+        source:         { type: string, enum: [auto, manual] }
+        sourceTopic:    { type: ["string", "null"] }
+        closesAt:       { type: ["string", "null"], format: date-time }
+        createdAt:      { type: string, format: date-time }
+    MarketList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Market"
+    MarketCategory:
+      type: object
+      required: [category, count]
+      properties:
+        category: { type: string }
+        count:    { type: integer }
+    MarketStats:
+      type: object
+      required: [totalMarkets, openMarkets, totalVotes, categories]
+      properties:
+        totalMarkets: { type: integer }
+        openMarkets:  { type: integer }
+        totalVotes:   { type: integer }
+        categories:   { type: integer }
+    MarketVoteInput:
+      type: object
+      required: [optionIndex, voterId]
+      properties:
+        optionIndex: { type: integer, minimum: 0 }
+        voterId:     { type: string, minLength: 8, maxLength: 128 }
+    MarketInput:
+      type: object
+      required: [question, category, options]
+      properties:
+        question:    { type: string, minLength: 1 }
+        description: { type: string }
+        category:    { type: string, minLength: 1 }
+        options:
+          type: array
+          minItems: 2
+          maxItems: 6
+          items: { type: string, minLength: 1 }
+        closesAt:    { type: string, format: date-time }
+    MarketUpdate:
+      type: object
+      properties:
+        question:       { type: string, minLength: 1 }
+        description:    { type: string }
+        category:       { type: string }
+        status:         { type: string, enum: [open, closed, resolved] }
+        resolvedOption: { type: integer, minimum: 0 }
+        closesAt:       { type: ["string", "null"], format: date-time }
+    MarketGenerationResult:
+      type: object
+      required: [generated, markets]
+      properties:
+        generated: { type: integer }
+        markets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Market"
+        message:   { type: string }
+    MarketSettings:
+      type: object
+      required: [enabled, frequencyMinutes, topics, marketsPerRun]
+      properties:
+        enabled:          { type: boolean }
+        frequencyMinutes: { type: integer }
+        topics:
+          type: array
+          items: { type: string }
+        marketsPerRun:    { type: integer }
+        lastRunAt:        { type: ["string", "null"], format: date-time }
+    MarketSettingsInput:
+      type: object
+      properties:
+        enabled:          { type: boolean }
+        frequencyMinutes: { type: integer, minimum: 5, maximum: 10080 }
+        topics:
+          type: array
+          items: { type: string }
+        marketsPerRun:    { type: integer, minimum: 1, maximum: 10 }

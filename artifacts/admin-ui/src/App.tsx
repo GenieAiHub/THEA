@@ -10,6 +10,7 @@ import ApiKeysPage from "@/pages/api-keys";
 import LlmTestPage from "@/pages/llm-test";
 import UsagePage from "@/pages/usage";
 import OrgsPage from "@/pages/orgs";
+import MarketsPage from "@/pages/markets";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -34,6 +35,7 @@ function Router() {
         <Route path="/llm-test" component={LlmTestPage} />
         <Route path="/usage" component={UsagePage} />
         <Route path="/orgs" component={OrgsPage} />
+        <Route path="/markets" component={MarketsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

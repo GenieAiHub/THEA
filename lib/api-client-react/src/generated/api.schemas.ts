@@ -248,6 +248,140 @@ export interface AnalysisRunInput {
   category?: string;
 }
 
+export interface MarketOption {
+  label: string;
+  votes: number;
+  percentage: number;
+}
+
+export type MarketStatus = typeof MarketStatus[keyof typeof MarketStatus];
+
+
+export const MarketStatus = {
+  open: 'open',
+  closed: 'closed',
+  resolved: 'resolved',
+} as const;
+
+export type MarketSource = typeof MarketSource[keyof typeof MarketSource];
+
+
+export const MarketSource = {
+  auto: 'auto',
+  manual: 'manual',
+} as const;
+
+export interface Market {
+  id: string;
+  question: string;
+  /** @nullable */
+  description?: string | null;
+  category: string;
+  options: MarketOption[];
+  totalVotes: number;
+  status: MarketStatus;
+  /** @nullable */
+  resolvedOption?: number | null;
+  source?: MarketSource;
+  /** @nullable */
+  sourceTopic?: string | null;
+  /** @nullable */
+  closesAt?: string | null;
+  createdAt: string;
+}
+
+export interface MarketList {
+  data: Market[];
+}
+
+export interface MarketCategory {
+  category: string;
+  count: number;
+}
+
+export interface MarketStats {
+  totalMarkets: number;
+  openMarkets: number;
+  totalVotes: number;
+  categories: number;
+}
+
+export interface MarketVoteInput {
+  /** @minimum 0 */
+  optionIndex: number;
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  voterId: string;
+}
+
+export interface MarketInput {
+  /** @minLength 1 */
+  question: string;
+  description?: string;
+  /** @minLength 1 */
+  category: string;
+  /**
+     * @minItems 2
+     * @maxItems 6
+     * @items.minLength 1
+     */
+  options: string[];
+  closesAt?: string;
+}
+
+export type MarketUpdateStatus = typeof MarketUpdateStatus[keyof typeof MarketUpdateStatus];
+
+
+export const MarketUpdateStatus = {
+  open: 'open',
+  closed: 'closed',
+  resolved: 'resolved',
+} as const;
+
+export interface MarketUpdate {
+  /** @minLength 1 */
+  question?: string;
+  description?: string;
+  category?: string;
+  status?: MarketUpdateStatus;
+  /** @minimum 0 */
+  resolvedOption?: number;
+  /** @nullable */
+  closesAt?: string | null;
+}
+
+export interface MarketGenerationResult {
+  generated: number;
+  markets: Market[];
+  message?: string;
+}
+
+export interface MarketSettings {
+  enabled: boolean;
+  frequencyMinutes: number;
+  topics: string[];
+  marketsPerRun: number;
+  /** @nullable */
+  lastRunAt?: string | null;
+}
+
+export interface MarketSettingsInput {
+  enabled?: boolean;
+  /**
+     * @minimum 5
+     * @maximum 10080
+     */
+  frequencyMinutes?: number;
+  topics?: string[];
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  marketsPerRun?: number;
+}
+
 export type ListContentParams = {
 platform?: string;
 category?: string;
@@ -311,5 +445,38 @@ limit?: number;
 
 export type AdminListConfigs200 = {
   data?: PlatformConfig[];
+};
+
+export type ListMarketsParams = {
+status?: ListMarketsStatus;
+category?: string;
+sort?: ListMarketsSort;
+search?: string;
+/**
+ * @maximum 100
+ */
+limit?: number;
+};
+
+export type ListMarketsStatus = typeof ListMarketsStatus[keyof typeof ListMarketsStatus];
+
+
+export const ListMarketsStatus = {
+  open: 'open',
+  closed: 'closed',
+  resolved: 'resolved',
+} as const;
+
+export type ListMarketsSort = typeof ListMarketsSort[keyof typeof ListMarketsSort];
+
+
+export const ListMarketsSort = {
+  trending: 'trending',
+  newest: 'newest',
+  closing: 'closing',
+} as const;
+
+export type ListMarketCategories200 = {
+  data?: MarketCategory[];
 };
 

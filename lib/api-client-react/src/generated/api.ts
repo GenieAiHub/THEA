@@ -37,9 +37,20 @@ import type {
   ListCategories200,
   ListCollectionRunsParams,
   ListContentParams,
+  ListMarketCategories200,
+  ListMarketsParams,
   ListTrendsParams,
   LlmChatInput,
   LlmReply,
+  Market,
+  MarketGenerationResult,
+  MarketInput,
+  MarketList,
+  MarketSettings,
+  MarketSettingsInput,
+  MarketStats,
+  MarketUpdate,
+  MarketVoteInput,
   PlatformConfig,
   PlatformConfigInput,
   StatementResult,
@@ -3063,5 +3074,896 @@ export const useRunWhatIfSimulation = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRunWhatIfSimulationMutationOptions(options));
+    }
+
+export const getListMarketsUrl = (params?: ListMarketsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/markets?${stringifiedParams}` : `/api/v1/markets`
+}
+
+/**
+ * @summary List public prediction markets
+ */
+export const listMarkets = async (params?: ListMarketsParams, options?: RequestInit): Promise<MarketList> => {
+
+  return customFetch<MarketList>(getListMarketsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMarketsQueryKey = (params?: ListMarketsParams,) => {
+    return [
+    `/api/v1/markets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMarketsQueryOptions = <TData = Awaited<ReturnType<typeof listMarkets>>, TError = ErrorType<unknown>>(params?: ListMarketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMarketsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarkets>>> = ({ signal }) => listMarkets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMarkets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMarketsQueryResult = NonNullable<Awaited<ReturnType<typeof listMarkets>>>
+export type ListMarketsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List public prediction markets
+ */
+
+export function useListMarkets<TData = Awaited<ReturnType<typeof listMarkets>>, TError = ErrorType<unknown>>(
+ params?: ListMarketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMarketsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMarketCategoriesUrl = () => {
+
+
+
+
+  return `/api/v1/markets/categories`
+}
+
+/**
+ * @summary List market categories with counts
+ */
+export const listMarketCategories = async ( options?: RequestInit): Promise<ListMarketCategories200> => {
+
+  return customFetch<ListMarketCategories200>(getListMarketCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMarketCategoriesQueryKey = () => {
+    return [
+    `/api/v1/markets/categories`
+    ] as const;
+    }
+
+
+export const getListMarketCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listMarketCategories>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarketCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMarketCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMarketCategories>>> = ({ signal }) => listMarketCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMarketCategories>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMarketCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listMarketCategories>>>
+export type ListMarketCategoriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List market categories with counts
+ */
+
+export function useListMarketCategories<TData = Awaited<ReturnType<typeof listMarketCategories>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMarketCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMarketCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMarketStatsUrl = () => {
+
+
+
+
+  return `/api/v1/markets/stats`
+}
+
+/**
+ * @summary Public stats for the markets platform
+ */
+export const getMarketStats = async ( options?: RequestInit): Promise<MarketStats> => {
+
+  return customFetch<MarketStats>(getGetMarketStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketStatsQueryKey = () => {
+    return [
+    `/api/v1/markets/stats`
+    ] as const;
+    }
+
+
+export const getGetMarketStatsQueryOptions = <TData = Awaited<ReturnType<typeof getMarketStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarketStats>>> = ({ signal }) => getMarketStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarketStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getMarketStats>>>
+export type GetMarketStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public stats for the markets platform
+ */
+
+export function useGetMarketStats<TData = Awaited<ReturnType<typeof getMarketStats>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarketStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketStatsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMarketUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/markets/${id}`
+}
+
+/**
+ * @summary Get a single market by ID
+ */
+export const getMarket = async (id: string, options?: RequestInit): Promise<Market> => {
+
+  return customFetch<Market>(getGetMarketUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMarketQueryKey = (id: string,) => {
+    return [
+    `/api/v1/markets/${id}`
+    ] as const;
+    }
+
+
+export const getGetMarketQueryOptions = <TData = Awaited<ReturnType<typeof getMarket>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMarketQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMarket>>> = ({ signal }) => getMarket(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMarket>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMarketQueryResult = NonNullable<Awaited<ReturnType<typeof getMarket>>>
+export type GetMarketQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a single market by ID
+ */
+
+export function useGetMarket<TData = Awaited<ReturnType<typeof getMarket>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMarket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMarketQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getVoteOnMarketUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/markets/${id}/vote`
+}
+
+/**
+ * @summary Cast a vote on a market option (one vote per voter per market)
+ */
+export const voteOnMarket = async (id: string,
+    marketVoteInput: MarketVoteInput, options?: RequestInit): Promise<Market> => {
+
+  return customFetch<Market>(getVoteOnMarketUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(marketVoteInput)
+  }
+);}
+
+
+
+
+export const getVoteOnMarketMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voteOnMarket>>, TError,{id: string;data: BodyType<MarketVoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voteOnMarket>>, TError,{id: string;data: BodyType<MarketVoteInput>}, TContext> => {
+
+const mutationKey = ['voteOnMarket'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voteOnMarket>>, {id: string;data: BodyType<MarketVoteInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  voteOnMarket(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoteOnMarketMutationResult = NonNullable<Awaited<ReturnType<typeof voteOnMarket>>>
+    export type VoteOnMarketMutationBody = BodyType<MarketVoteInput>
+    export type VoteOnMarketMutationError = ErrorType<void>
+
+    /**
+ * @summary Cast a vote on a market option (one vote per voter per market)
+ */
+export const useVoteOnMarket = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voteOnMarket>>, TError,{id: string;data: BodyType<MarketVoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof voteOnMarket>>,
+        TError,
+        {id: string;data: BodyType<MarketVoteInput>},
+        TContext
+      > => {
+      return useMutation(getVoteOnMarketMutationOptions(options));
+    }
+
+export const getAdminListMarketsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/markets`
+}
+
+/**
+ * @summary List all markets including closed (admin only)
+ */
+export const adminListMarkets = async ( options?: RequestInit): Promise<MarketList> => {
+
+  return customFetch<MarketList>(getAdminListMarketsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListMarketsQueryKey = () => {
+    return [
+    `/api/v1/admin/markets`
+    ] as const;
+    }
+
+
+export const getAdminListMarketsQueryOptions = <TData = Awaited<ReturnType<typeof adminListMarkets>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListMarketsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListMarkets>>> = ({ signal }) => adminListMarkets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListMarkets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListMarketsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListMarkets>>>
+export type AdminListMarketsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all markets including closed (admin only)
+ */
+
+export function useAdminListMarkets<TData = Awaited<ReturnType<typeof adminListMarkets>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListMarkets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListMarketsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminCreateMarketUrl = () => {
+
+
+
+
+  return `/api/v1/admin/markets`
+}
+
+/**
+ * @summary Manually create a market (admin only)
+ */
+export const adminCreateMarket = async (marketInput: MarketInput, options?: RequestInit): Promise<Market> => {
+
+  return customFetch<Market>(getAdminCreateMarketUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(marketInput)
+  }
+);}
+
+
+
+
+export const getAdminCreateMarketMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateMarket>>, TError,{data: BodyType<MarketInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateMarket>>, TError,{data: BodyType<MarketInput>}, TContext> => {
+
+const mutationKey = ['adminCreateMarket'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateMarket>>, {data: BodyType<MarketInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateMarket(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateMarketMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateMarket>>>
+    export type AdminCreateMarketMutationBody = BodyType<MarketInput>
+    export type AdminCreateMarketMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Manually create a market (admin only)
+ */
+export const useAdminCreateMarket = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateMarket>>, TError,{data: BodyType<MarketInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateMarket>>,
+        TError,
+        {data: BodyType<MarketInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateMarketMutationOptions(options));
+    }
+
+export const getAdminGenerateMarketsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/markets/generate`
+}
+
+/**
+ * @summary Trigger LLM market generation from trend data now (admin only)
+ */
+export const adminGenerateMarkets = async ( options?: RequestInit): Promise<MarketGenerationResult> => {
+
+  return customFetch<MarketGenerationResult>(getAdminGenerateMarketsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminGenerateMarketsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminGenerateMarkets>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminGenerateMarkets>>, TError,void, TContext> => {
+
+const mutationKey = ['adminGenerateMarkets'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminGenerateMarkets>>, void> = () => {
+
+
+          return  adminGenerateMarkets(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminGenerateMarketsMutationResult = NonNullable<Awaited<ReturnType<typeof adminGenerateMarkets>>>
+
+    export type AdminGenerateMarketsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Trigger LLM market generation from trend data now (admin only)
+ */
+export const useAdminGenerateMarkets = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminGenerateMarkets>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminGenerateMarkets>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAdminGenerateMarketsMutationOptions(options));
+    }
+
+export const getAdminUpdateMarketUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/admin/markets/${id}`
+}
+
+/**
+ * @summary Update a market (close, resolve, edit) (admin only)
+ */
+export const adminUpdateMarket = async (id: string,
+    marketUpdate: MarketUpdate, options?: RequestInit): Promise<Market> => {
+
+  return customFetch<Market>(getAdminUpdateMarketUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(marketUpdate)
+  }
+);}
+
+
+
+
+export const getAdminUpdateMarketMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateMarket>>, TError,{id: string;data: BodyType<MarketUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateMarket>>, TError,{id: string;data: BodyType<MarketUpdate>}, TContext> => {
+
+const mutationKey = ['adminUpdateMarket'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateMarket>>, {id: string;data: BodyType<MarketUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminUpdateMarket(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateMarketMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateMarket>>>
+    export type AdminUpdateMarketMutationBody = BodyType<MarketUpdate>
+    export type AdminUpdateMarketMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a market (close, resolve, edit) (admin only)
+ */
+export const useAdminUpdateMarket = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateMarket>>, TError,{id: string;data: BodyType<MarketUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateMarket>>,
+        TError,
+        {id: string;data: BodyType<MarketUpdate>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateMarketMutationOptions(options));
+    }
+
+export const getAdminDeleteMarketUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/admin/markets/${id}`
+}
+
+/**
+ * @summary Delete a market (admin only)
+ */
+export const adminDeleteMarket = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminDeleteMarketUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteMarketMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteMarket>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteMarket>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['adminDeleteMarket'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteMarket>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminDeleteMarket(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteMarketMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteMarket>>>
+
+    export type AdminDeleteMarketMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a market (admin only)
+ */
+export const useAdminDeleteMarket = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteMarket>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteMarket>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteMarketMutationOptions(options));
+    }
+
+export const getAdminGetMarketSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/market-settings`
+}
+
+/**
+ * @summary Get market auto-generation settings (admin only)
+ */
+export const adminGetMarketSettings = async ( options?: RequestInit): Promise<MarketSettings> => {
+
+  return customFetch<MarketSettings>(getAdminGetMarketSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetMarketSettingsQueryKey = () => {
+    return [
+    `/api/v1/admin/market-settings`
+    ] as const;
+    }
+
+
+export const getAdminGetMarketSettingsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetMarketSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetMarketSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetMarketSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetMarketSettings>>> = ({ signal }) => adminGetMarketSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetMarketSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetMarketSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetMarketSettings>>>
+export type AdminGetMarketSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get market auto-generation settings (admin only)
+ */
+
+export function useAdminGetMarketSettings<TData = Awaited<ReturnType<typeof adminGetMarketSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetMarketSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetMarketSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminUpdateMarketSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/market-settings`
+}
+
+/**
+ * @summary Update market auto-generation settings (admin only)
+ */
+export const adminUpdateMarketSettings = async (marketSettingsInput: MarketSettingsInput, options?: RequestInit): Promise<MarketSettings> => {
+
+  return customFetch<MarketSettings>(getAdminUpdateMarketSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(marketSettingsInput)
+  }
+);}
+
+
+
+
+export const getAdminUpdateMarketSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateMarketSettings>>, TError,{data: BodyType<MarketSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateMarketSettings>>, TError,{data: BodyType<MarketSettingsInput>}, TContext> => {
+
+const mutationKey = ['adminUpdateMarketSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateMarketSettings>>, {data: BodyType<MarketSettingsInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminUpdateMarketSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateMarketSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateMarketSettings>>>
+    export type AdminUpdateMarketSettingsMutationBody = BodyType<MarketSettingsInput>
+    export type AdminUpdateMarketSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update market auto-generation settings (admin only)
+ */
+export const useAdminUpdateMarketSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateMarketSettings>>, TError,{data: BodyType<MarketSettingsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateMarketSettings>>,
+        TError,
+        {data: BodyType<MarketSettingsInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateMarketSettingsMutationOptions(options));
     }
 

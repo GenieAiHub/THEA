@@ -31,6 +31,7 @@ export const QUEUE_CONCURRENCY: Record<string, number> = {
   "alert-dispatch":    5,
   "report-generation": 2,
   "email-delivery":    5,
+  "market-generation": 1,   // LLM poll generation — sequential
   "dlq":               1,   // dead-letter queue — sequential, low priority
 };
 
@@ -66,6 +67,7 @@ export function getQueues() {
       alertDispatch: makeQueue("alert-dispatch", { attempts: 5 }),
       reportGeneration: makeQueue("report-generation", { attempts: 3 }),
       emailDelivery: makeQueue("email-delivery", { attempts: 5 }),
+      marketGeneration: makeQueue("market-generation", { attempts: 1 }),
       // Dead-letter queue — jobs are moved here after exhausting all retries
       dlq: makeQueue("dlq", { attempts: 1, removeOnFail: { count: 10000 } }),
     };

@@ -53,6 +53,17 @@ const Navbar = () => {
         <a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a>
         <a href="#audiences" className="hover:text-white transition-colors">Audiences</a>
         <a href="#features" className="hover:text-white transition-colors">Features</a>
+        <a
+          href="/markets/"
+          className="relative flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+          data-testid="link-markets-nav"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+          </span>
+          THEA Markets
+        </a>
       </div>
       <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300">
         Request Access
@@ -514,6 +525,55 @@ const FAQ = () => {
   );
 };
 
+const MarketsPromo = () => {
+  return (
+    <section className="py-32 px-6 relative overflow-hidden" id="markets">
+      <div className="max-w-5xl mx-auto relative z-10">
+        <div className="relative border border-blue-500/30 rounded-2xl p-10 md:p-16 bg-gradient-to-br from-blue-950/40 to-background overflow-hidden">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/20 blur-[100px] rounded-full"></div>
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/40 bg-blue-500/10 text-blue-400 text-xs font-semibold uppercase tracking-widest mb-6">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+                New &amp; Live
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 font-display">
+                THEA <span className="text-blue-400">Markets</span>
+              </h2>
+              <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8">
+                The pulse of public opinion. Live prediction polls auto-generated from the trends THEA detects across the world's media — vote free, no stakes, pure signal.
+              </p>
+              <a href="/markets/" data-testid="link-markets-promo">
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-500 text-white px-8 h-14 text-lg">
+                  Explore Markets <ChevronRight className="ml-2 w-5 h-5" />
+                </Button>
+              </a>
+            </div>
+            <div className="flex-1 w-full space-y-3">
+              {[
+                { q: "Will AI content exceed 50% of social posts by 2027?", pct: 68 },
+                { q: "Which sector leads Q3 market gains?", pct: 41 },
+                { q: "New global temperature record this summer?", pct: 83 },
+              ].map((item, i) => (
+                <div key={i} className="border border-white/10 rounded-lg p-4 bg-white/5 backdrop-blur-sm">
+                  <div className="text-sm font-medium text-white mb-2">{item.q}</div>
+                  <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400" style={{ width: `${item.pct}%` }}></div>
+                  </div>
+                  <div className="text-xs text-blue-400 mt-1.5 font-mono">{item.pct}% consensus</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const CTA = () => {
   return (
     <section className="py-40 px-6 relative overflow-hidden">
@@ -575,6 +635,7 @@ export default function Home() {
         <HowItWorks />
         <Audiences />
         <PlatformFeatures />
+        <MarketsPromo />
         <FAQ />
         <CTA />
       </main>

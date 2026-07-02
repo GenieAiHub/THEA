@@ -2,3 +2,4 @@
 - [pnpm dual-instance drizzle](otel-drizzle-fix.md) — drizzle-orm has OTel-aware and non-OTel variants; peerDependencyRules.ignoreMissing does NOT prevent OTel variant selection if OTel is installed anywhere in the graph
 - [BullMQ ioredis version conflict](bullmq-redis.md) — pass `{ url: REDIS_URL }` config object, never a shared Redis instance, to avoid ioredis version mismatch between BullMQ and ioredis
 - [OpenAPI naming rule](openapi-naming.md) — never name component schemas after OperationIdPascal+Body/Response; Orval auto-generates those names causing TS2308 collisions
+- [Cross-artifact API routing](cross-artifact-api-routing.md) — frontends must call the API with root-relative /api/v1/... URLs; prepending BASE_URL hits their own Vite server and returns SPA HTML

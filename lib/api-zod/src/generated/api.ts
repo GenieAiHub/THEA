@@ -539,3 +539,310 @@ export const GeneratePdfReportResponse = zod.void()
 export const RunWhatIfSimulationResponse = zod.void()
 
 
+/**
+ * @summary List public prediction markets
+ */
+export const listMarketsQuerySortDefault = `trending`;
+export const listMarketsQueryLimitDefault = 50;
+export const listMarketsQueryLimitMax = 100;
+
+
+
+export const ListMarketsQueryParams = zod.object({
+  "status": zod.enum(['open', 'closed', 'resolved']).optional(),
+  "category": zod.coerce.string().optional(),
+  "sort": zod.enum(['trending', 'newest', 'closing']).default(listMarketsQuerySortDefault),
+  "search": zod.coerce.string().optional(),
+  "limit": zod.coerce.number().max(listMarketsQueryLimitMax).default(listMarketsQueryLimitDefault)
+})
+
+export const ListMarketsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List market categories with counts
+ */
+export const ListMarketCategoriesResponse = zod.object({
+  "data": zod.array(zod.object({
+  "category": zod.string(),
+  "count": zod.number()
+})).optional()
+})
+
+
+/**
+ * @summary Public stats for the markets platform
+ */
+export const GetMarketStatsResponse = zod.object({
+  "totalMarkets": zod.number(),
+  "openMarkets": zod.number(),
+  "totalVotes": zod.number(),
+  "categories": zod.number()
+})
+
+
+/**
+ * @summary Get a single market by ID
+ */
+export const GetMarketParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetMarketResponse = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Cast a vote on a market option (one vote per voter per market)
+ */
+export const VoteOnMarketParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const voteOnMarketBodyOptionIndexMin = 0;
+
+export const voteOnMarketBodyVoterIdMin = 8;
+export const voteOnMarketBodyVoterIdMax = 128;
+
+
+
+export const VoteOnMarketBody = zod.object({
+  "optionIndex": zod.number().min(voteOnMarketBodyOptionIndexMin),
+  "voterId": zod.string().min(voteOnMarketBodyVoterIdMin).max(voteOnMarketBodyVoterIdMax)
+})
+
+export const VoteOnMarketResponse = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List all markets including closed (admin only)
+ */
+export const AdminListMarketsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Manually create a market (admin only)
+ */
+
+
+
+export const adminCreateMarketBodyOptionsMin = 2;
+export const adminCreateMarketBodyOptionsMax = 6;
+
+
+
+export const AdminCreateMarketBody = zod.object({
+  "question": zod.string().min(1),
+  "description": zod.string().optional(),
+  "category": zod.string().min(1),
+  "options": zod.array(zod.string().min(1)).min(adminCreateMarketBodyOptionsMin).max(adminCreateMarketBodyOptionsMax),
+  "closesAt": zod.coerce.date().optional()
+})
+
+export const AdminCreateMarketResponse = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Trigger LLM market generation from trend data now (admin only)
+ */
+export const AdminGenerateMarketsResponse = zod.object({
+  "generated": zod.number(),
+  "markets": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Update a market (close, resolve, edit) (admin only)
+ */
+export const AdminUpdateMarketParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const adminUpdateMarketBodyResolvedOptionMin = 0;
+
+
+
+export const AdminUpdateMarketBody = zod.object({
+  "question": zod.string().min(1).optional(),
+  "description": zod.string().optional(),
+  "category": zod.string().optional(),
+  "status": zod.enum(['open', 'closed', 'resolved']).optional(),
+  "resolvedOption": zod.number().min(adminUpdateMarketBodyResolvedOptionMin).optional(),
+  "closesAt": zod.coerce.date().nullish()
+})
+
+export const AdminUpdateMarketResponse = zod.object({
+  "id": zod.string().uuid(),
+  "question": zod.string(),
+  "description": zod.string().nullish(),
+  "category": zod.string(),
+  "options": zod.array(zod.object({
+  "label": zod.string(),
+  "votes": zod.number(),
+  "percentage": zod.number()
+})),
+  "totalVotes": zod.number(),
+  "status": zod.enum(['open', 'closed', 'resolved']),
+  "resolvedOption": zod.number().nullish(),
+  "source": zod.enum(['auto', 'manual']).optional(),
+  "sourceTopic": zod.string().nullish(),
+  "closesAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a market (admin only)
+ */
+export const AdminDeleteMarketParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const AdminDeleteMarketResponse = zod.void()
+
+
+/**
+ * @summary Get market auto-generation settings (admin only)
+ */
+export const AdminGetMarketSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "frequencyMinutes": zod.number(),
+  "topics": zod.array(zod.string()),
+  "marketsPerRun": zod.number(),
+  "lastRunAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update market auto-generation settings (admin only)
+ */
+export const adminUpdateMarketSettingsBodyFrequencyMinutesMin = 5;
+export const adminUpdateMarketSettingsBodyFrequencyMinutesMax = 10080;
+
+export const adminUpdateMarketSettingsBodyMarketsPerRunMax = 10;
+
+
+
+export const AdminUpdateMarketSettingsBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "frequencyMinutes": zod.number().min(adminUpdateMarketSettingsBodyFrequencyMinutesMin).max(adminUpdateMarketSettingsBodyFrequencyMinutesMax).optional(),
+  "topics": zod.array(zod.string()).optional(),
+  "marketsPerRun": zod.number().min(1).max(adminUpdateMarketSettingsBodyMarketsPerRunMax).optional()
+})
+
+export const AdminUpdateMarketSettingsResponse = zod.object({
+  "enabled": zod.boolean(),
+  "frequencyMinutes": zod.number(),
+  "topics": zod.array(zod.string()),
+  "marketsPerRun": zod.number(),
+  "lastRunAt": zod.coerce.date().nullish()
+})
+
+
