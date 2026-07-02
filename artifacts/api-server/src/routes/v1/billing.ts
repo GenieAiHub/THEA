@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { requireFeature } from "../../middlewares/featureGate";
 import { createCheckoutSession, createBillingPortalSession, getStripeClient } from "../../lib/stripe";
 import { db } from "@workspace/db";
 import { subscriptionsTable } from "@workspace/db/schema";
@@ -31,6 +32,7 @@ const TIER_DISPLAY = {
   enterprise: { name: "Enterprise", priceMonthly: 1999, priceAnnual: 1599 },
 };
 
+/** All billing reads: any authenticated user (analysts see plan info) */
 router.get("/plan", async (req, res) => {
   const { subscription, tier } = req.thea!;
   const display = TIER_DISPLAY[tier] ?? TIER_DISPLAY.starter;
@@ -56,51 +58,7 @@ router.get("/plan", async (req, res) => {
   });
 });
 
-router.post("/checkout", async (req, res) => {
-  const { priceId, successUrl, cancelUrl } = req.body as {
-    priceId: string;
-    successUrl: string;
-    cancelUrl: string;
-  };
-
-  if (!priceId || !successUrl || !cancelUrl) {
-    res.status(400).json({ error: "priceId, successUrl, and cancelUrl are required" });
-    return;
-  }
-
-  try {
-    const url = await createCheckoutSession(req.thea!.org.id, priceId, successUrl, cancelUrl);
-    res.json({ url });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Stripe checkout failed";
-    if (msg.includes("STRIPE_SECRET_KEY")) {
-      res.status(503).json({ error: "Payment processing is not yet configured" });
-      return;
-    }
-    logger.error({ err }, "Checkout session creation failed");
-    res.status(500).json({ error: msg });
-  }
-});
-
-router.post("/portal", async (req, res) => {
-  const { returnUrl } = req.body as { returnUrl?: string };
-  const fallbackReturnUrl = `${req.headers.origin || "https://app.thea.ai"}/settings/billing`;
-
-  try {
-    const url = await createBillingPortalSession(req.thea!.org.id, returnUrl || fallbackReturnUrl);
-    res.json({ url });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Portal session failed";
-    if (msg.includes("No Stripe customer") || msg.includes("STRIPE_SECRET_KEY")) {
-      res.status(404).json({ error: "No billing account found — please subscribe to a plan first" });
-      return;
-    }
-    logger.error({ err }, "Billing portal session creation failed");
-    res.status(500).json({ error: msg });
-  }
-});
-
-router.get("/invoices", async (req, res) => {
+router.get("/invoices", requireRole("owner", "admin"), async (req, res) => {
   const { subscription } = req.thea!;
   const customerId = subscription.stripeCustomerId;
 
@@ -134,6 +92,51 @@ router.get("/invoices", async (req, res) => {
     }
     logger.error({ err }, "Invoices fetch failed");
     res.status(500).json({ error: "Failed to fetch invoices" });
+  }
+});
+
+/** Checkout and portal are owner/admin only — analysts cannot initiate billing changes */
+router.post("/checkout", requireRole("owner", "admin"), async (req, res) => {
+  const { priceId, successUrl, cancelUrl } = req.body as {
+    priceId: string;
+    successUrl: string;
+    cancelUrl: string;
+  };
+
+  if (!priceId || !successUrl || !cancelUrl) {
+    res.status(400).json({ error: "priceId, successUrl, and cancelUrl are required" });
+    return;
+  }
+
+  try {
+    const url = await createCheckoutSession(req.thea!.org.id, priceId, successUrl, cancelUrl);
+    res.json({ url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Stripe checkout failed";
+    if (msg.includes("STRIPE_SECRET_KEY")) {
+      res.status(503).json({ error: "Payment processing is not yet configured" });
+      return;
+    }
+    logger.error({ err }, "Checkout session creation failed");
+    res.status(500).json({ error: msg });
+  }
+});
+
+router.post("/portal", requireRole("owner", "admin"), async (req, res) => {
+  const { returnUrl } = req.body as { returnUrl?: string };
+  const fallbackReturnUrl = `${req.headers.origin || "https://app.thea.ai"}/settings/billing`;
+
+  try {
+    const url = await createBillingPortalSession(req.thea!.org.id, returnUrl || fallbackReturnUrl);
+    res.json({ url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Portal session failed";
+    if (msg.includes("No Stripe customer") || msg.includes("STRIPE_SECRET_KEY")) {
+      res.status(404).json({ error: "No billing account found — please subscribe to a plan first" });
+      return;
+    }
+    logger.error({ err }, "Billing portal session creation failed");
+    res.status(500).json({ error: msg });
   }
 });
 

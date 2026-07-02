@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { alertsTable } from "@workspace/db/schema";
 import { desc, eq, and } from "drizzle-orm";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
 
 const router = Router();
 router.use(requireAuth);
@@ -29,7 +29,7 @@ router.get("/:id", async (req, res) => {
   const [alert] = await db
     .select()
     .from(alertsTable)
-    .where(and(eq(alertsTable.id, req.params.id), eq(alertsTable.orgId, req.thea!.org.id)))
+    .where(and(eq(alertsTable.id, req.params.id as string), eq(alertsTable.orgId, req.thea!.org.id)))
     .limit(1);
 
   if (!alert) {
@@ -39,11 +39,12 @@ router.get("/:id", async (req, res) => {
   res.json(alert);
 });
 
-router.patch("/:id/resolve", async (req, res) => {
+/** Resolving an alert is a write — analyst is read-only */
+router.patch("/:id/resolve", requireRole("owner", "admin"), async (req, res) => {
   const [updated] = await db
     .update(alertsTable)
     .set({ status: "resolved", resolvedAt: new Date() })
-    .where(and(eq(alertsTable.id, req.params.id), eq(alertsTable.orgId, req.thea!.org.id)))
+    .where(and(eq(alertsTable.id, req.params.id as string), eq(alertsTable.orgId, req.thea!.org.id)))
     .returning();
 
   if (!updated) {

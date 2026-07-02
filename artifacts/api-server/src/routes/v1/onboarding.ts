@@ -2,13 +2,25 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { organizationsTable, watchlistKeywordsTable, emailPreferencesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
 
 const router = Router();
 router.use(requireAuth);
 
 const VALID_FOCUSES = ["political", "business", "media", "agency", "general"] as const;
 const VALID_CATEGORIES = ["Politics", "News", "Technology", "Society", "Media", "Branding", "Entertainment", "Health", "Sports", "Environment", "Crypto"] as const;
+
+/** Block onboarding mutations once the flow is complete. */
+function requireOnboardingIncomplete(req: Parameters<typeof requireAuth>[0], res: Parameters<typeof requireAuth>[1], next: Parameters<typeof requireAuth>[2]): void {
+  if (req.thea!.org.onboardingCompletedAt) {
+    res.status(409).json({
+      error: "Onboarding is already complete. Use /settings to update your organization configuration.",
+      code: "ONBOARDING_ALREADY_COMPLETE",
+    });
+    return;
+  }
+  next();
+}
 
 router.get("/status", async (req, res) => {
   const { org, subscription } = req.thea!;
@@ -26,9 +38,9 @@ router.get("/status", async (req, res) => {
   });
 });
 
-router.post("/focus", async (req, res) => {
+router.post("/focus", requireRole("owner", "admin"), requireOnboardingIncomplete, async (req, res) => {
   const { focus } = req.body as { focus: string };
-  if (!focus || !VALID_FOCUSES.includes(focus as any)) {
+  if (!focus || !VALID_FOCUSES.includes(focus as typeof VALID_FOCUSES[number])) {
     res.status(400).json({ error: `focus must be one of: ${VALID_FOCUSES.join(", ")}` });
     return;
   }
@@ -42,7 +54,7 @@ router.post("/focus", async (req, res) => {
   res.json({ data: { focus: updated.focus } });
 });
 
-router.post("/categories", async (req, res) => {
+router.post("/categories", requireRole("owner", "admin"), requireOnboardingIncomplete, async (req, res) => {
   const { categories } = req.body as { categories: string[] };
   const { org, subscription } = req.thea!;
   const { maxCategories } = subscription;
@@ -52,7 +64,7 @@ router.post("/categories", async (req, res) => {
     return;
   }
 
-  const invalid = categories.filter((c) => !VALID_CATEGORIES.includes(c as any));
+  const invalid = categories.filter((c) => !VALID_CATEGORIES.includes(c as typeof VALID_CATEGORIES[number]));
   if (invalid.length > 0) {
     res.status(400).json({ error: `Invalid categories: ${invalid.join(", ")}. Valid: ${VALID_CATEGORIES.join(", ")}` });
     return;
@@ -71,7 +83,7 @@ router.post("/categories", async (req, res) => {
   res.json({ data: { categories, savedCount: categories.length } });
 });
 
-router.post("/keywords", async (req, res) => {
+router.post("/keywords", requireRole("owner", "admin"), requireOnboardingIncomplete, async (req, res) => {
   const { keywords } = req.body as { keywords: string[] };
   const { org, subscription } = req.thea!;
 
@@ -100,7 +112,7 @@ router.post("/keywords", async (req, res) => {
   res.status(201).json({ data: inserted });
 });
 
-router.post("/notifications", async (req, res) => {
+router.post("/notifications", requireRole("owner", "admin"), requireOnboardingIncomplete, async (req, res) => {
   const { email, digestFrequency = "daily" } = req.body as { email: string; digestFrequency?: string };
   const { org } = req.thea!;
 
@@ -133,7 +145,7 @@ router.post("/notifications", async (req, res) => {
   res.json({ data: { email, digestFrequency } });
 });
 
-router.post("/complete", async (req, res) => {
+router.post("/complete", requireRole("owner", "admin"), requireOnboardingIncomplete, async (req, res) => {
   const [updated] = await db
     .update(organizationsTable)
     .set({ onboardingCompletedAt: new Date(), updatedAt: new Date() })
