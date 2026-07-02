@@ -25,14 +25,15 @@ const DEFAULT_JOB_OPTIONS: JobsOptions = {
  * type can run simultaneously across all worker processes.
  */
 export const QUEUE_CONCURRENCY: Record<string, number> = {
-  "content-ingestion": 10,
-  "llm-processing":    3,   // rate-limited by OpenAI quotas
-  "mirofish-runs":     2,   // resource-intensive simulation
-  "alert-dispatch":    5,
-  "report-generation": 2,
-  "email-delivery":    5,
-  "market-generation": 1,   // LLM poll generation — sequential
-  "dlq":               1,   // dead-letter queue — sequential, low priority
+  "content-ingestion":  10,
+  "llm-processing":     3,   // rate-limited by OpenAI quotas
+  "mirofish-runs":      2,   // resource-intensive simulation
+  "alert-dispatch":     5,
+  "report-generation":  2,
+  "email-delivery":     5,
+  "market-generation":  1,   // LLM poll generation — sequential
+  "intelligence-jobs":  1,   // journalist scan, newsjacking, campaign measure, competitive briefing
+  "dlq":                1,   // dead-letter queue — sequential, low priority
 };
 
 let queues: Record<string, Queue> | null = null;
@@ -68,6 +69,10 @@ export function getQueues() {
       reportGeneration: makeQueue("report-generation", { attempts: 3 }),
       emailDelivery: makeQueue("email-delivery", { attempts: 5 }),
       marketGeneration: makeQueue("market-generation", { attempts: 1 }),
+      intelligenceJobs: makeQueue("intelligence-jobs", {
+        attempts: 2,
+        backoff: { type: "exponential", delay: 30_000 },
+      }),
       // Dead-letter queue — jobs are moved here after exhausting all retries
       dlq: makeQueue("dlq", { attempts: 1, removeOnFail: { count: 10000 } }),
     };

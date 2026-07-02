@@ -33,6 +33,8 @@ import { generateMarketsNow, getMarketSettings, syncMarketGenerationSchedule } f
 import { startContentIngestionWorker, scheduleIngestion, ensurePlatformOrg } from "./lib/ingestion";
 import { startLlmProcessingWorker, startMiroFishWorker, scheduleAnalysis } from "./lib/analysis";
 import { startAlertDispatchWorker } from "./lib/alert-dispatch-worker";
+import { startIntelligenceWorker } from "./lib/intelligence/worker";
+import { scheduleIntelligenceJobs } from "./lib/intelligence/scheduler";
 import { logger as bootLogger } from "./lib/logger";
 
 function startMarketGenerationWorker(): void {
@@ -113,6 +115,14 @@ app.listen(port, async (err) => {
       })
       .catch((err) =>
         logger.warn({ err }, "Analysis worker bootstrap failed — will retry on next startup")
+      ),
+    Promise.resolve()
+      .then(() => {
+        startIntelligenceWorker();
+        return scheduleIntelligenceJobs();
+      })
+      .catch((err) =>
+        logger.warn({ err }, "Intelligence worker bootstrap failed — will retry on next startup")
       ),
   ]);
 });

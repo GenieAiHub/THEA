@@ -10,6 +10,9 @@ import { computeOrganicConfidence } from "../../lib/botDetection";
 import { checkDisinformationForKeyword } from "../../lib/disinformation";
 import { getQueues } from "../../lib/queues";
 import { logger } from "../../lib/logger";
+import { generateTalkingPoints } from "../../lib/talkingPoints";
+import { generateCounterNarrative } from "../../lib/counterNarrative";
+import { draftStatement, regenerateStatement, type StatementTone, type StatementType } from "../../lib/statementDrafter";
 
 const router = Router();
 router.use(requireAuth);
@@ -45,50 +48,165 @@ router.post("/chat", async (req, res) => {
   }
 });
 
+// ─── POST /api/v1/intelligence/talking-points ─────────────────────────────────
+/**
+ * Generate structured talking points for a keyword using AI + recent content context.
+ *
+ * Returns: keyFacts, recommendedPosition, phrasesToAvoid, suggestedQuotes.
+ * Results are cached in Redis for 30 minutes per org+keyword.
+ */
 router.post("/talking-points", async (req, res) => {
-  const { topic, provider = "openai", context } = req.body as {
-    topic: string; provider?: LlmProvider; context?: string;
+  const { keyword, topic, context_override } = req.body as {
+    keyword?: string;
+    topic?: string;
+    context_override?: string;
   };
-  if (!topic) { res.status(400).json({ error: "topic is required" }); return; }
-
-  const systemPrompt = `You are a strategic communications expert for political campaigns and advocacy organisations.
-Generate 5-7 concise, compelling talking points on the given topic. Format as a numbered list.
-Each point should be punchy, evidence-based, and emotionally resonant.`;
+  const kw = keyword ?? topic;
+  if (!kw) { res.status(400).json({ error: "keyword is required" }); return; }
 
   try {
-    const result = await chat(
-      provider,
-      [{ role: "system", content: systemPrompt }, { role: "user", content: `Topic: ${topic}${context ? `\n\nContext: ${context}` : ""}` }],
-      { operation: "talking-points" }
-    );
-    res.json({ topic, talkingPoints: result.content, provider: result.provider, model: result.model });
+    const result = await generateTalkingPoints(req.thea!.org.id, kw, context_override);
+    res.json(result);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to generate talking points";
     res.status(msg.includes("not configured") ? 400 : 502).json({ error: msg });
   }
 });
 
+// ─── POST /api/v1/intelligence/draft-statement ────────────────────────────────
+/**
+ * Draft a press release, social post, or internal memo using AI + recent alert/content context.
+ *
+ * Pass draftId + feedback to regenerate an existing draft with revisions.
+ */
 router.post("/draft-statement", async (req, res) => {
-  const { topic, tone = "professional", audience, provider = "openai" } = req.body as {
-    topic: string; tone?: string; audience?: string; provider?: LlmProvider;
+  const {
+    keyword,
+    topic,
+    tone = "formal",
+    type = "press_release",
+    alert_id,
+    draftId,
+    feedback,
+  } = req.body as {
+    keyword?: string;
+    topic?: string;
+    tone?: StatementTone;
+    type?: StatementType;
+    alert_id?: string;
+    draftId?: string;
+    feedback?: string;
   };
-  if (!topic) { res.status(400).json({ error: "topic is required" }); return; }
 
-  const systemPrompt = `You are a speechwriter and communications strategist. Draft a concise,
-impactful public statement on the given topic. Tone: ${tone}. ${audience ? `Target audience: ${audience}.` : ""}
-The statement should be 2-3 paragraphs, clear, and suitable for press release format.`;
+  const orgId = req.thea!.org.id;
 
   try {
-    const result = await chat(
-      provider,
-      [{ role: "system", content: systemPrompt }, { role: "user", content: `Draft a statement on: ${topic}` }],
-      { operation: "draft-statement" }
-    );
-    res.json({ topic, statement: result.content, provider: result.provider, model: result.model });
+    // Regeneration path
+    if (draftId && feedback) {
+      const result = await regenerateStatement(orgId, draftId, feedback);
+      res.json(result);
+      return;
+    }
+
+    const kw = keyword ?? topic;
+    if (!kw) { res.status(400).json({ error: "keyword is required" }); return; }
+
+    const validTones: StatementTone[] = ["formal", "empathetic", "assertive"];
+    const validTypes: StatementType[] = ["press_release", "social_post", "internal_memo"];
+    if (!validTones.includes(tone)) { res.status(400).json({ error: `tone must be one of: ${validTones.join(", ")}` }); return; }
+    if (!validTypes.includes(type)) { res.status(400).json({ error: `type must be one of: ${validTypes.join(", ")}` }); return; }
+
+    const result = await draftStatement(orgId, kw, tone, type, alert_id, feedback);
+    res.json(result);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to draft statement";
+    res.status(msg.includes("not found") ? 404 : msg.includes("not configured") ? 400 : 502).json({ error: msg });
+  }
+});
+
+// ─── POST /api/v1/intelligence/counter-narrative ──────────────────────────────
+/**
+ * Counter-narrative engine.
+ * Triggered by crisis alerts or on-demand.
+ * Returns 3-5 reframing strategies ranked by predicted effectiveness.
+ */
+router.post("/counter-narrative", async (req, res) => {
+  const { keyword, alert_id } = req.body as { keyword: string; alert_id?: string };
+
+  if (!keyword) { res.status(400).json({ error: "keyword is required" }); return; }
+
+  try {
+    const result = await generateCounterNarrative(req.thea!.org.id, keyword, alert_id);
+    res.json(result);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Counter-narrative generation failed";
     res.status(msg.includes("not configured") ? 400 : 502).json({ error: msg });
   }
+});
+
+// ─── POST /api/v1/intelligence/test-message ───────────────────────────────────
+/**
+ * Message resonance testing (Enterprise only).
+ *
+ * For each variant message, queues a dedicated MiroFish simulation to predict
+ * how it will land with the target audience. Returns simulationIds for polling.
+ */
+router.post("/test-message", requireTier("enterprise"), async (req, res) => {
+  const { variants, category, geography } = req.body as {
+    variants: Array<{ label: string; message: string }>;
+    category: string;
+    geography?: string;
+  };
+
+  if (!Array.isArray(variants) || variants.length < 2 || variants.length > 5) {
+    res.status(400).json({ error: "variants must be an array of 2-5 items with label and message" });
+    return;
+  }
+  if (!category) { res.status(400).json({ error: "category is required" }); return; }
+
+  const orgId = req.thea!.org.id;
+  const simulations: Array<{ label: string; simulationId: string; pollUrl: string }> = [];
+
+  for (const variant of variants) {
+    const [report] = await db
+      .insert(analysisReportsTable)
+      .values({
+        orgId,
+        category,
+        status: "pending",
+        rawReport: JSON.stringify({ type: "message-resonance-test", label: variant.label, message: variant.message, geography }),
+      })
+      .returning({ id: analysisReportsTable.id });
+
+    await getQueues().miroFishRuns.add(
+      "message-resonance",
+      {
+        category,
+        triggeredBy: "simulate" as const,
+        scenario: `Message resonance test — variant: "${variant.label}"\n\nMessage:\n${variant.message}`,
+        geography,
+        orgId,
+        reportId: report!.id,
+        provider: "openai",
+      },
+      { priority: 3, attempts: 2 },
+    );
+
+    simulations.push({
+      label: variant.label,
+      simulationId: report!.id,
+      pollUrl: `/api/v1/intelligence/simulate/${report!.id}`,
+    });
+  }
+
+  logger.info({ orgId, variantCount: variants.length, category }, "Message resonance tests queued");
+
+  res.status(202).json({
+    status: "queued",
+    variantCount: variants.length,
+    simulations,
+    message: "Each variant has been queued for simulation. Poll pollUrl for results (typically 5-30 min).",
+  });
 });
 
 router.post("/search", async (req, res) => {

@@ -18,6 +18,7 @@ import billingRouter from "./billing";
 import onboardingRouter from "./onboarding";
 import settingsRouter from "./settings";
 import geoRouter from "./geo";
+import campaignsRouter from "./campaigns";
 
 const router = Router();
 
@@ -40,5 +41,6 @@ router.use("/billing", billingRouter);
 router.use("/onboarding", onboardingRouter);
 router.use("/settings", settingsRouter);
 router.use("/geo", geoRouter);
+router.use("/campaigns", campaignsRouter);
 
 export default router;

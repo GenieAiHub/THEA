@@ -18,3 +18,5 @@ export * from "./entity_mentions";
 export * from "./crisis_scores";
 export * from "./geo_signals";
 export * from "./influencer_scores";
+export * from "./journalists";
+export * from "./campaigns";
