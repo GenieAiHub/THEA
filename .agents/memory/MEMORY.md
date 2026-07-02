@@ -21,4 +21,5 @@
 - [Brave Search collector](brave-search-collector.md) — own-key integration, no Replit proxy; collectBrave(keyword, category, apiKey); worker handles "brave" and "duckduckgo" (alias) cases identically
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
+- [MiroFish real-engine integration](mirofish-integration.md) — What-If drives real OASIS sidecar; poll runner_status NOT status; compose interpolates before profile filter so use ${VAR:-} on opt-in services
 - [THEA branding assets](thea-branding-assets.md) — brand icon source is 1024px; downscale for web favicons/logos; iOS app icon needs a no-alpha flattened variant before App Store build

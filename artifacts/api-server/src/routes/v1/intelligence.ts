@@ -532,7 +532,9 @@ router.post(
         reportId: report!.id,
         provider,
       },
-      { priority: 2, attempts: 2 },
+      // attempts:1 — a full OASIS pipeline is minutes-to-an-hour of real LLM
+      // spend; never auto-retry the whole run on failure.
+      { priority: 2, attempts: 1 },
     );
 
     res.status(202).json({

@@ -1,6 +1,6 @@
 import { createWorker } from "../queues";
 import { buildSeedDocument } from "./seed-builder";
-import { runMiroFishAnalysis } from "./mirofish";
+import { runGptAnalysis, runMiroFishPipeline } from "./mirofish";
 import { parseStructuredReport } from "./report-parser";
 import { scoreTrends } from "./trend-scorer";
 import { aggregateEntityMentions } from "./entity-tracker";
@@ -50,10 +50,20 @@ export function startMiroFishWorker(): void {
           .filter(Boolean)
           .join("\n");
 
+        const simulationRequirement = [
+          `Predict how public sentiment, dominant narratives, trending topics, and ${category} discourse would evolve`,
+          geography ? `in ${geography}` : "",
+          `if the following scenario occurred: ${scenario ?? ""}.`,
+          `Produce a forward-looking prediction report.`,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
         const { document: seedDocument, itemCount } = await buildSeedDocument(category, 48); // wider window for context
         const augmentedDocument = `${scenarioContext}\n\n===== CURRENT INTELLIGENCE FEED =====\n${seedDocument}`;
 
-        const { runId, report } = await runMiroFishAnalysis(augmentedDocument, `${category}-simulate`);
+        // On-demand What-If runs drive the real MiroFish OASIS pipeline (GPT fallback inside).
+        const { runId, report } = await runMiroFishPipeline(augmentedDocument, simulationRequirement, category);
         const parsed = parseStructuredReport(report);
 
         await db
@@ -116,7 +126,8 @@ export function startMiroFishWorker(): void {
         return;
       }
 
-      const { runId, report } = await runMiroFishAnalysis(seedDocument, category);
+      // Hourly/standard runs use the fast GPT-4o path — never the heavy OASIS pipeline.
+      const { runId, report } = await runGptAnalysis(seedDocument, category);
       const parsed = parseStructuredReport(report);
 
       await db

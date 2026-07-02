@@ -93,6 +93,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CRAWLEE_STORAGE_DIR: ${CRAWLEE_STORAGE_DIR:-/tmp/crawlee}
       USE_PLAYWRIGHT: ${USE_PLAYWRIGHT:-false}
+      # Optional MiroFish sidecar (What-If simulator). Empty ⇒ GPT-4o path.
+      MIROFISH_URL: ${MIROFISH_URL:-}
+      MIROFISH_MAX_ROUNDS: ${MIROFISH_MAX_ROUNDS:-10}
     depends_on:
       db:
         condition: service_healthy
@@ -163,9 +166,37 @@ services:
       - "${MARKETS_PORT:-8093}:80"
     networks: [internal]
 
+  # Optional on-demand "What-If" simulation engine (github.com/666ghj/MiroFish,
+  # AGPL-3.0, unmodified upstream image consumed over the internal network only).
+  # Opt-in — only starts with `--profile mirofish`. Powers ONLY the Pro/Enterprise
+  # What-If Simulator; the hourly trend analysis always uses GPT-4o. MiroFish's own
+  # Config.validate() hard-exits without ZEP_API_KEY + an LLM key, so a misconfigured
+  # profile crash-loops with a clear log (we must NOT use `${ZEP_API_KEY:?...}` here —
+  # Compose interpolates the whole file before profile filtering, which would break a
+  # plain `docker compose up -d` that never enables this profile).
+  mirofish:
+    image: ghcr.io/666ghj/mirofish:latest
+    profiles: ["mirofish"]
+    restart: unless-stopped
+    environment:
+      LLM_API_KEY: ${MIROFISH_LLM_API_KEY:-${OPENAI_API_KEY:-}}
+      LLM_BASE_URL: ${MIROFISH_LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL_NAME: ${MIROFISH_LLM_MODEL:-gpt-4o-mini}
+      ZEP_API_KEY: ${ZEP_API_KEY:-}
+    volumes:
+      - mirofish-uploads:/app/backend/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5001/health').read()\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    networks: [internal]
+
 volumes:
   db-data:
   es-data:
+  mirofish-uploads:
 
 networks:
   internal:

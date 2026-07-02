@@ -1,6 +1,6 @@
 export { classifyBatch, classifyPendingItems, checkDailySpendCap } from "./classifier";
 export { generateEmbedding, generateEmbeddingsBatch, embedPendingItems, semanticSearch } from "./embeddings";
-export { runMiroFishAnalysis } from "./mirofish";
+export { runGptAnalysis, runMiroFishPipeline } from "./mirofish";
 export { buildSeedDocument } from "./seed-builder";
 export { parseStructuredReport, parseRawReport } from "./report-parser";
 export { scoreTrends } from "./trend-scorer";
