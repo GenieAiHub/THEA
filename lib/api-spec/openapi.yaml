@@ -33,6 +33,10 @@ tags:
     description: Platform operator admin endpoints
   - name: markets
     description: THEA Markets - public prediction polls generated from trend data
+  - name: members
+    description: Enrolled persons (members/attendees) and their biometric face data
+  - name: access
+    description: Access points, grants, and face-scan identification for physical/service access
 paths:
   /healthz:
     get:
@@ -1377,6 +1381,306 @@ paths:
                 $ref: "#/components/schemas/SimulationResult"
         "401": { description: Unauthorized }
         "404": { description: Simulation not found }
+  /v1/members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List all enrolled members for the org (with face counts)
+      responses:
+        "200":
+          description: Members list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberList"
+        "401": { description: Unauthorized }
+    post:
+      operationId: createMember
+      tags: [members]
+      summary: Create a new member (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemberInput"
+      responses:
+        "201":
+          description: Member created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "400": { description: Invalid input }
+        "403": { description: Requires owner or admin role }
+  /v1/members/{id}:
+    get:
+      operationId: getMember
+      tags: [members]
+      summary: Get a single member with enrolled faces
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Member with faces
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
+        "404": { description: Not found }
+    patch:
+      operationId: updateMember
+      tags: [members]
+      summary: Update member details (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberInput"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "404": { description: Not found }
+    delete:
+      operationId: deleteMember
+      tags: [members]
+      summary: Delete a member and all their face data (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Not found }
+  /v1/members/{id}/consent:
+    post:
+      operationId: recordMemberConsent
+      tags: [members]
+      summary: Record biometric consent for a member (required before face enrollment)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Member with consent recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "404": { description: Not found }
+  /v1/members/{id}/face:
+    post:
+      operationId: enrollMemberFace
+      tags: [members]
+      summary: Enroll a face photo for a member (consent-gated, owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrollFaceInput"
+      responses:
+        "201":
+          description: Face enrolled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FaceEnrollmentResult"
+        "400": { description: imageBase64 required }
+        "409": { description: Biometric consent not recorded }
+        "422": { description: No face detected or invalid image }
+  /v1/members/{id}/face/{faceId}:
+    delete:
+      operationId: deleteMemberFace
+      tags: [members]
+      summary: Delete a specific enrolled face (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: faceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Not found }
+  /v1/access/points:
+    get:
+      operationId: listAccessPoints
+      tags: [access]
+      summary: List access points for the org
+      responses:
+        "200":
+          description: Access points list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessPointList"
+    post:
+      operationId: createAccessPoint
+      tags: [access]
+      summary: Create an access point (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccessPointInput"
+      responses:
+        "201":
+          description: Access point created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessPoint"
+        "400": { description: name required }
+  /v1/access/points/{id}:
+    patch:
+      operationId: updateAccessPoint
+      tags: [access]
+      summary: Update an access point (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAccessPointInput"
+      responses:
+        "200":
+          description: Updated access point
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessPoint"
+        "404": { description: Not found }
+    delete:
+      operationId: deleteAccessPoint
+      tags: [access]
+      summary: Delete an access point (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Not found }
+  /v1/access/grants:
+    get:
+      operationId: listAccessGrants
+      tags: [access]
+      summary: List access grants (optionally filtered by member or access point)
+      parameters:
+        - name: memberId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: accessPointId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Grants list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessGrantList"
+    post:
+      operationId: createAccessGrant
+      tags: [access]
+      summary: Grant a member access to an access point (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGrantInput"
+      responses:
+        "201":
+          description: Grant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessGrant"
+        "400": { description: memberId and accessPointId required }
+        "404": { description: Member or access point not found }
+  /v1/access/grants/{id}:
+    delete:
+      operationId: deleteAccessGrant
+      tags: [access]
+      summary: Revoke an access grant (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Not found }
+  /v1/access/identify:
+    post:
+      operationId: identifyFace
+      tags: [access]
+      summary: Scan a face at an access point and return an access decision (always logged)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentifyInput"
+      responses:
+        "200":
+          description: Access decision (granted or denied)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentifyResult"
+        "400": { description: imageBase64 and accessPointId required, or access point inactive }
+        "404": { description: Access point not found }
+        "422": { description: Invalid image }
+  /v1/access/events:
+    get:
+      operationId: listAccessEvents
+      tags: [access]
+      summary: List recent access events (audit log)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 200 }
+      responses:
+        "200":
+          description: Access events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessEventList"
 
 components:
   securitySchemes:
@@ -2048,3 +2352,197 @@ components:
         sovPercent:       { type: number }
         mediaPickupCount: { type: integer }
         emv:              { type: number, description: "Earned media value in thousands of USD" }
+    Member:
+      type: object
+      required: [id, orgId, fullName, status, createdAt, updatedAt]
+      properties:
+        id:              { type: string, format: uuid }
+        orgId:           { type: string, format: uuid }
+        fullName:        { type: string }
+        email:           { type: string, nullable: true }
+        phone:           { type: string, nullable: true }
+        externalRef:     { type: string, nullable: true }
+        notes:           { type: string, nullable: true }
+        status:          { type: string }
+        consentGivenAt:  { type: string, format: date-time, nullable: true }
+        consentVersion:  { type: string, nullable: true }
+        createdAt:       { type: string, format: date-time }
+        updatedAt:       { type: string, format: date-time }
+    MemberListItem:
+      allOf:
+        - $ref: "#/components/schemas/Member"
+        - type: object
+          required: [faceCount]
+          properties:
+            faceCount: { type: integer }
+    MemberList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberListItem"
+        total: { type: integer }
+    EnrolledFace:
+      type: object
+      required: [id, createdAt]
+      properties:
+        id:        { type: string, format: uuid }
+        quality:   { type: ["number", "null"] }
+        createdAt: { type: string, format: date-time }
+    MemberDetail:
+      allOf:
+        - $ref: "#/components/schemas/Member"
+        - type: object
+          required: [faces]
+          properties:
+            faces:
+              type: array
+              items:
+                $ref: "#/components/schemas/EnrolledFace"
+    CreateMemberInput:
+      type: object
+      required: [fullName]
+      properties:
+        fullName:     { type: string }
+        email:        { type: string }
+        phone:        { type: string }
+        externalRef:  { type: string }
+        notes:        { type: string }
+        consentGiven: { type: boolean, description: "If true, records biometric consent at creation time" }
+    UpdateMemberInput:
+      type: object
+      properties:
+        fullName:    { type: string }
+        email:       { type: string }
+        phone:       { type: string }
+        externalRef: { type: string }
+        notes:       { type: string }
+        status:      { type: string, enum: [active, suspended] }
+    EnrollFaceInput:
+      type: object
+      required: [imageBase64]
+      properties:
+        imageBase64: { type: string, description: "JPEG image as base64 (data URI prefix optional)" }
+    FaceEnrollmentResult:
+      type: object
+      required: [face, embeddingCount]
+      properties:
+        face:
+          $ref: "#/components/schemas/EnrolledFace"
+        embeddingCount: { type: integer }
+    AccessPoint:
+      type: object
+      required: [id, orgId, name, isActive, createdAt, updatedAt]
+      properties:
+        id:          { type: string, format: uuid }
+        orgId:       { type: string, format: uuid }
+        name:        { type: string }
+        description: { type: string, nullable: true }
+        isActive:    { type: boolean }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+    AccessPointList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessPoint"
+        total: { type: integer }
+    CreateAccessPointInput:
+      type: object
+      required: [name]
+      properties:
+        name:        { type: string }
+        description: { type: string }
+    UpdateAccessPointInput:
+      type: object
+      properties:
+        name:        { type: string }
+        description: { type: string }
+        isActive:    { type: boolean }
+    AccessGrant:
+      type: object
+      required: [id, memberId, accessPointId, isActive, createdAt]
+      properties:
+        id:              { type: string, format: uuid }
+        orgId:           { type: string, format: uuid }
+        memberId:        { type: string, format: uuid }
+        accessPointId:   { type: string, format: uuid }
+        isActive:        { type: boolean }
+        validFrom:       { type: string, format: date-time, nullable: true }
+        validUntil:      { type: string, format: date-time, nullable: true }
+        createdAt:       { type: string, format: date-time }
+        memberName:      { type: string, nullable: true }
+        accessPointName: { type: string, nullable: true }
+    AccessGrantList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessGrant"
+        total: { type: integer }
+    CreateGrantInput:
+      type: object
+      required: [memberId, accessPointId]
+      properties:
+        memberId:      { type: string, format: uuid }
+        accessPointId: { type: string, format: uuid }
+    IdentifyInput:
+      type: object
+      required: [imageBase64, accessPointId]
+      properties:
+        imageBase64:   { type: string, description: "JPEG image as base64 (data URI prefix optional)" }
+        accessPointId: { type: string, format: uuid }
+    IdentifyMember:
+      type: object
+      required: [id, fullName]
+      properties:
+        id:       { type: string, format: uuid }
+        fullName: { type: string }
+    IdentifyAccessPoint:
+      type: object
+      required: [id, name]
+      properties:
+        id:   { type: string, format: uuid }
+        name: { type: string }
+    IdentifyResult:
+      type: object
+      required: [decision, reason, accessPoint]
+      properties:
+        decision: { type: string, enum: [granted, denied] }
+        reason:   { type: string, enum: [matched, no_match, no_face_detected, no_grant, member_suspended] }
+        member:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/IdentifyMember"
+        distance: { type: ["number", "null"] }
+        accessPoint:
+          $ref: "#/components/schemas/IdentifyAccessPoint"
+    AccessEvent:
+      type: object
+      required: [id, decision, reason, createdAt]
+      properties:
+        id:              { type: string, format: uuid }
+        decision:        { type: string, enum: [granted, denied] }
+        reason:          { type: string }
+        distance:        { type: ["number", "null"] }
+        createdAt:       { type: string, format: date-time }
+        memberId:        { type: string, format: uuid, nullable: true }
+        memberName:      { type: string, nullable: true }
+        accessPointId:   { type: string, format: uuid, nullable: true }
+        accessPointName: { type: string, nullable: true }
+    AccessEventList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessEvent"
+        total: { type: integer }

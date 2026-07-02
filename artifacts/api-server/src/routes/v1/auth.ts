@@ -58,7 +58,11 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response) =>
   setSessionCookie(res, token, expiresAt);
 
   logger.info({ userId: user.id, orgId: org.id }, "New user registered");
-  res.status(201).json({ data: { user: publicUser(user), org: publicOrg(org) } });
+  // `token` + `expiresAt` are returned for native mobile clients that cannot
+  // use the HttpOnly cookie; web clients keep using the cookie set above.
+  res.status(201).json({
+    data: { user: publicUser(user), org: publicOrg(org), token, expiresAt: expiresAt.toISOString() },
+  });
 });
 
 router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
@@ -82,7 +86,7 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response) => {
 
   const { token, expiresAt } = await createSession(user.id);
   setSessionCookie(res, token, expiresAt);
-  res.json({ data: { user: publicUser(user) } });
+  res.json({ data: { user: publicUser(user), token, expiresAt: expiresAt.toISOString() } });
 });
 
 router.post("/logout", async (req: Request, res: Response) => {

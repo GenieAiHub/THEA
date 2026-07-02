@@ -184,7 +184,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
-  const token = readSessionCookie(req);
+  // Session-token auth: web clients send it as an HttpOnly cookie; native
+  // mobile clients send it as `Authorization: Bearer <sessionToken>` (any
+  // Bearer value that is not a `thea_` API key is treated as a session token).
+  let token = readSessionCookie(req);
+  if (!token && authHeader?.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim() || null;
+  }
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;

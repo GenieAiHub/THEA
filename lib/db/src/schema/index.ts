@@ -22,3 +22,8 @@ export * from "./influencer_scores";
 export * from "./journalists";
 export * from "./campaigns";
 export * from "./webhook_delivery_logs";
+export * from "./members";
+export * from "./face_embeddings";
+export * from "./access_points";
+export * from "./access_grants";
+export * from "./access_events";

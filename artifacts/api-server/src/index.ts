@@ -38,6 +38,7 @@ import { scheduleIntelligenceJobs } from "./lib/intelligence/scheduler";
 import { startEmailDeliveryWorker } from "./lib/emailDeliveryWorker";
 import { scheduleDigests } from "./lib/digestScheduler";
 import { startTelegramBot } from "./lib/telegramBot";
+import { initFaceRecognition } from "./lib/faceRecognition";
 import { logger as bootLogger } from "./lib/logger";
 
 function startMarketGenerationWorker(): void {
@@ -140,5 +141,8 @@ app.listen(port, async (err) => {
       .catch((err) =>
         logger.warn({ err }, "Telegram bot bootstrap failed — will retry on next startup")
       ),
+    initFaceRecognition().catch((err) =>
+      logger.warn({ err }, "Face recognition model load failed — will retry lazily on first request")
+    ),
   ]);
 });

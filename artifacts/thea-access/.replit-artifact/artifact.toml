@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/thea-access/"
+title = "THEA Access"
+version = "1.0.0"
+id = "artifacts/thea-access"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/thea-access/" ]
+localPort = 19661
+
+[services.development]
+run = "pnpm --filter @workspace/thea-access run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/thea-access", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/thea-access", "run", "serve" ]
+
+[services.env]
+PORT = "19661"
+BASE_PATH = "/thea-access/"

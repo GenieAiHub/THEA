@@ -9,6 +9,13 @@ import { rm } from "node:fs/promises";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const localRequire = createRequire(import.meta.url);
+
+// @tensorflow/tfjs' package "main" resolves to dist/tf.node.js which requires the
+// native tfjs-node binding (unavailable on this env). Redirect the bare specifier
+// to the pure-JS UMD build (CPU backend) at build time so face-api + our own code
+// both bundle against it.
+const TFJS_BROWSER = localRequire.resolve("@tensorflow/tfjs/dist/tf.js");
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
@@ -55,7 +62,13 @@ async function buildAll() {
       "typeorm",
       "protobufjs",
       "onnxruntime-node",
-      "@tensorflow/*",
+      // NOTE: do NOT externalize "@tensorflow/tfjs" — it must be bundled with the
+      // build-time alias below so its bad "main" (tf.node.js -> native tfjs-node)
+      // is replaced by the pure-JS CPU build. The wasm backend + (absent) native
+      // node backend stay external so they're required from node_modules at runtime.
+      "@tensorflow/tfjs-node",
+      "@tensorflow/tfjs-node-gpu",
+      "@tensorflow/tfjs-backend-wasm",
       "@prisma/client",
       "@mikro-orm/*",
       "@grpc/*",
@@ -115,8 +128,32 @@ async function buildAll() {
       "pdfkit",
       "pptxgenjs",
     ],
+    alias: {
+      "@tensorflow/tfjs": TFJS_BROWSER,
+    },
     sourcemap: "linked",
     plugins: [
+      // tfjs' UMD build contains a dead-code `require('node-fetch')` (only reached
+      // when the global fetch is absent — Node 20 provides it, and we load models
+      // from disk anyway). tfjs does not declare node-fetch as a resolvable dep, so
+      // esbuild can't bundle it. Stub it ONLY when imported from @tensorflow/* — real
+      // consumers like telegraf keep their bundled node-fetch.
+      {
+        name: "stub-tfjs-node-fetch",
+        setup(pluginBuild) {
+          pluginBuild.onResolve({ filter: /^node-fetch$/ }, (args) => {
+            if (args.importer.includes(`${path.sep}@tensorflow${path.sep}`)) {
+              return { path: args.path, namespace: "tfjs-node-fetch-stub" };
+            }
+            return undefined;
+          });
+          pluginBuild.onLoad({ filter: /.*/, namespace: "tfjs-node-fetch-stub" }, () => ({
+            contents:
+              "const f = (...a) => globalThis.fetch(...a); module.exports = f; module.exports.default = f;",
+            loader: "js",
+          }));
+        },
+      },
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
       esbuildPluginPino({ transports: ["pino-pretty"] })
     ],

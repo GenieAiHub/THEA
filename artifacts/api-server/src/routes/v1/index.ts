@@ -22,6 +22,8 @@ import settingsRouter from "./settings";
 import geoRouter from "./geo";
 import campaignsRouter from "./campaigns";
 import apiKeysRouter from "./api-keys";
+import membersRouter from "./members";
+import accessRouter from "./access";
 
 const router = Router();
 
@@ -57,5 +59,7 @@ router.use("/settings", settingsRouter);
 router.use("/geo", geoRouter);
 router.use("/campaigns", campaignsRouter);
 router.use("/api-keys", apiKeysRouter);
+router.use("/members", membersRouter);
+router.use("/access", accessRouter);
 
 export default router;

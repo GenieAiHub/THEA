@@ -24,6 +24,15 @@ export async function bootstrapPgVector(): Promise<void> {
       WITH (m = 16, ef_construction = 64)
     `);
     logger.info("content_items HNSW index ensured");
+
+    // Face descriptors are matched with EUCLIDEAN (L2) distance, not cosine.
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS face_embeddings_embedding_hnsw_idx
+      ON face_embeddings
+      USING hnsw (embedding vector_l2_ops)
+      WITH (m = 16, ef_construction = 64)
+    `);
+    logger.info("face_embeddings HNSW index ensured");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("could not open extension control file") || msg.includes("not supported")) {
