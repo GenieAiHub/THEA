@@ -1,0 +1,110 @@
+root@vmi3385433:~/thea# sleep 45
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml ps
+echo '--- containers on the shared web network ---'
+docker network inspect web --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}'
+NAME             IMAGE                                                  COMMAND                  SERVICE   CREATED         STATUS                   PORTS
+thea-admin-1     thea-admin                                             "/docker-entrypoint.…"   admin     2 minutes ago   Up 2 minutes             80/tcp
+thea-api-1       thea-api                                               "docker-entrypoint.s…"   api       2 minutes ago   Up 2 minutes (healthy)   5000/tcp
+thea-db-1        pgvector/pgvector:pg16                                 "docker-entrypoint.s…"   db        2 minutes ago   Up 2 minutes (healthy)   5432/tcp
+thea-es-1        docker.elastic.co/elasticsearch/elasticsearch:8.15.3   "/bin/tini -- /usr/l…"   es        2 minutes ago   Up 2 minutes (healthy)   9200/tcp, 9300/tcp
+thea-markets-1   thea-markets                                           "/docker-entrypoint.…"   markets   2 minutes ago   Up 2 minutes             80/tcp
+thea-redis-1     redis:7-alpine                                         "docker-entrypoint.s…"   redis     2 minutes ago   Up 2 minutes (healthy)   6379/tcp
+thea-website-1   thea-website                                           "/docker-entrypoint.…"   website   2 minutes ago   Up 2 minutes             80/tcp
+--- containers on the shared web network ---
+reverse-proxy-caddy-1
+thea-admin-1
+genisys-app-1
+nexus-web
+cliniq-admin-1
+nexus-api
+trustsure-web
+thea-website-1
+genieai-app-1
+agentopia-web-1
+socialvista-app-1
+thea-markets-1
+mlmnode-app-1
+nexus-app
+dseaw-website
+cliniq-web-1
+cryptoplay-web-1
+gnx-app-1
+cliniq-api-1
+nexus-livekit
+firstfly-app-1
+
+root@vmi3385433:~/thea# echo '=== caddy container ==='
+docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}' | grep -i caddy
+echo '=== reverse-proxy dir ==='
+ls -la /root/agentopia/deploy/reverse-proxy/
+echo '=== Caddyfile head (look for import directives) ==='
+head -40 /root/agentopia/deploy/reverse-proxy/Caddyfile
+echo '=== THEA origin cert staged? ==='
+ls -la /root/agentopia/deploy/reverse-proxy/certs/thea/ 2>&1
+=== caddy container ===
+reverse-proxy-caddy-1   caddy:2-alpine  Up 2 days
+polypay-caddy-1 polypay-web     Up 2 days
+=== reverse-proxy dir ===
+total 68
+drwxr-xr-x  3 root root 4096 Jun 30 03:27 .
+drwxr-xr-x  4 root root 4096 Jun 22 01:32 ..
+-rw-r--r--  1 root root   35 Jun 20 15:20 .env
+-rw-r--r--  1 root root  171 Jun 20 22:55 .env.example
+-rw-r--r--  1 root root 4868 Jun 30 03:27 Caddyfile
+-rw-r--r--  1 root root 2479 Jun 22 00:21 Caddyfile.bak.1782080473
+-rw-r--r--  1 root root 2282 Jun 22 03:49 Caddyfile.bak.1782092953
+-rw-r--r--  1 root root 2784 Jun 22 03:51 Caddyfile.bak.1782093102
+-rw-r--r--  1 root root 2411 Jun 24 04:50 Caddyfile.bak.1782269436
+-rw-r--r--  1 root root 2411 Jun 24 05:01 Caddyfile.bak.1782270115
+-rw-r--r--  1 root root 4374 Jun 30 02:51 Caddyfile.bak.1782780714
+-rw-r--r--  1 root root 4517 Jun 30 03:27 Caddyfile.prebak
+drwxr-xr-x 15 root root 4096 Jul  2 21:54 certs
+-rw-r--r--  1 root root 1164 Jun 20 22:55 docker-compose.yml
+=== Caddyfile head (look for import directives) ===
+# Shared Caddy reverse proxy, run BEHIND Cloudflare (SSL/TLS mode: Full (strict)).
+# Each site serves a Cloudflare Origin Certificate (trusted by Cloudflare's edge),
+# so the Cloudflare<->server hop is encrypted end-to-end. Caddy does NOT use
+# Let's Encrypt here — the explicit `tls` directive pins the origin cert and
+# disables ACME (which can't complete while traffic is proxied through Cloudflare).
+#
+# Caddy routes by the request's Host header, so one server IP serves many domains:
+# each project's `web` container is reachable on the shared `web` network under the
+# alias referenced below. Drop each domain's origin cert + key into ./certs/<name>/
+# (mounted read-only at /etc/caddy/certs — gitignored, never committed).
+#
+# RECOMMENDED HARDENING (Authenticated Origin Pulls): lock the origin so ONLY
+# Cloudflare can connect. Otherwise anyone who finds your server IP can hit the
+# origin directly and forge X-Forwarded-For (defeating per-IP rate limiting, which
+# trusts the proxy chain via TRUST_PROXY). To enable, see deploy/README.md
+# "Step 5 — Harden": turn on Authenticated Origin Pulls in Cloudflare, download the
+# origin-pull CA to ./certs/cloudflare/origin-pull-ca.pem, and switch each site's
+# single-line `tls ...` to the commented block form shown below it.
+
+{$AGENTOPIA_DOMAIN} {
+        tls /etc/caddy/certs/agentopia/origin.pem /etc/caddy/certs/agentopia/origin.key
+        # Hardened (Authenticated Origin Pulls) — replace the `tls` line above with:
+        # tls /etc/caddy/certs/agentopia/origin.pem /etc/caddy/certs/agentopia/origin.key {
+        #       client_auth {
+        #               mode require_and_verify
+        #               trust_pool file /etc/caddy/certs/cloudflare/origin-pull-ca.pem
+        #       }
+        # }
+        reverse_proxy agentopia-web:80
+}
+
+# To add another project on this VPS (its own domain, same IP):
+#   1. In that project's docker-compose.proxy.yml, give its `web` service a
+#      unique alias on the external `web` network (e.g. `myapp-web`).
+#   2. Create a Cloudflare Origin Certificate for that domain and save it as
+#      ./certs/myapp/origin.pem + ./certs/myapp/origin.key on the VPS.
+#   3. Add a block here, then reload: `docker compose up -d` in this directory.
+#
+# myapp.example.com {
+#       tls /etc/caddy/certs/myapp/origin.pem /etc/caddy/certs/myapp/origin.key
+=== THEA origin cert staged? ===
+total 16
+drwxr-xr-x  2 root root 4096 Jul  2 21:55 .
+drwxr-xr-x 15 root root 4096 Jul  2 21:54 ..
+-rw-------  1 root root 1704 Jul  2 21:55 origin.key
+-rw-r--r--  1 root root 1663 Jul  2 21:55 origin.pem
+root@vmi3385433:~/thea#
