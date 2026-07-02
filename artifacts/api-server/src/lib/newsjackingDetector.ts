@@ -123,7 +123,7 @@ Be strict: only score >70 if the story genuinely creates a credible opportunity.
             keyword: brandNames[0] ?? focus,
             type: "newsjacking",
             severity: parsed.relevanceScore >= 85 ? "high" : "medium",
-            status: "new",
+            status: "open",
             payload: {
               trendingStory: story.title,
               relevanceScore: parsed.relevanceScore,

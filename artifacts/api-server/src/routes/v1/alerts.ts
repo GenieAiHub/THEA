@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { alertsTable } from "@workspace/db/schema";
-import { desc, eq, and, gt } from "drizzle-orm";
+import { desc, eq, and, gt, or, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
 
 const router = Router();
@@ -12,7 +12,14 @@ router.get("/", async (req, res) => {
   const orgId = req.thea!.org.id;
 
   const conditions: ReturnType<typeof eq>[] = [eq(alertsTable.orgId, orgId)];
-  if (status) conditions.push(eq(alertsTable.status, status));
+  if (status) {
+    // Treat "open" as matching both "open" and legacy "new" rows for backward compat
+    if (status === "open") {
+      conditions.push(inArray(alertsTable.status, ["open", "new"]) as any);
+    } else {
+      conditions.push(eq(alertsTable.status, status));
+    }
+  }
   if (severity) conditions.push(eq(alertsTable.severity, severity));
 
   const alerts = await db
@@ -111,7 +118,7 @@ router.patch("/:id/resolve", requireRole("owner", "admin"), async (req, res) => 
 router.patch("/:id/dismiss", requireRole("owner", "admin", "analyst"), async (req, res) => {
   const [updated] = await db
     .update(alertsTable)
-    .set({ status: "dismissed" as any })
+    .set({ status: "dismissed" })
     .where(and(eq(alertsTable.id, req.params.id as string), eq(alertsTable.orgId, req.thea!.org.id)))
     .returning();
 

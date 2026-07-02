@@ -111,7 +111,7 @@ export async function runJournalistScan(orgId: string): Promise<void> {
           keyword: kw.keyword,
           type: "journalist_signal",
           severity: "low",
-          status: "new",
+          status: "open",
           payload: {
             journalistName: item.author,
             outlet,

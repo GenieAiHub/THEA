@@ -173,7 +173,10 @@ function ClerkProviderWithRoutes() {
             <Route path="/category/:slug" component={CategoryDeepDivePage} />
             <Route path="/alerts/:id" component={AlertDetailPage} />
             <Route path="/settings" component={SettingsPage} />
-            <Route path="/onboarding" component={OnboardingPage} />
+            <Route path="/onboarding">
+              <Show when="signed-in"><OnboardingPage /></Show>
+              <Show when="signed-out"><Redirect to="/sign-in" /></Show>
+            </Route>
             <Route component={NotFound} />
           </Switch>
         </TooltipProvider>

@@ -199,7 +199,7 @@ export async function checkDisinformationForKeyword(
           type: "disinformation",
           severity,
           crisisProbability: Math.round(llmResult.confidence * 100),
-          status: "new",
+          status: "open",
           payload: {
             claim: llmResult.claim,
             reasoning: llmResult.reasoning,

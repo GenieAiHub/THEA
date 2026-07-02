@@ -115,7 +115,7 @@ export async function detectSpikesForOrg(orgId: string): Promise<void> {
         volumeBefore: spike.baselineAvg,
         volumeAfter: spike.currentVolume,
         sentimentShift: crisis.sentimentShift,
-        status: "new",
+        status: "open",
         payload: { crisis, window: `${WINDOW_MINUTES}m`, baseline: `${BASELINE_HOURS}h` },
       })
       .returning();

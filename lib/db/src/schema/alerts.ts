@@ -16,7 +16,7 @@ export const alertsTable = pgTable("alerts", {
   volumeBefore: real("volume_before"),
   volumeAfter: real("volume_after"),
   sentimentShift: real("sentiment_shift"),
-  status: text("status").notNull().default("new"),
+  status: text("status").notNull().default("open"),
   payload: jsonb("payload").default({}),
   resolvedAt: timestamp("resolved_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
