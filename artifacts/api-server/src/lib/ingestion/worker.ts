@@ -20,6 +20,7 @@ import { collectTikTok } from "./collectors/tiktok";
 import { PRECONFIGURED_SOURCES, getSourcesByCategory } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
+import { watchlistKeywordsTable } from "@workspace/db/schema";
 
 function getEnv(key: string): string {
   return process.env[key] ?? "";
@@ -65,7 +66,7 @@ async function getActiveRssSources(category?: string): Promise<RssSource[]> {
 
 export function startContentIngestionWorker(): void {
   createWorker<IngestionJobData>("content-ingestion", async (job) => {
-    const { sourceType, sourceId, category, keyword, urls } = job.data;
+    const { sourceType, sourceId, category, keyword, urls, orgId } = job.data;
     const runId = await startRun(sourceType, sourceId);
     let stats = { fetched: 0, deduplicated: 0, stored: 0 };
 
@@ -174,6 +175,28 @@ export function startContentIngestionWorker(): void {
           if (!crawlUrls_.length) { logger.warn("No URLs provided for web-crawler job"); break; }
           const items = await crawlUrls(crawlUrls_, category ?? "general");
           stats = await ingestItems(items);
+          break;
+        }
+
+        case "watchlist-scan": {
+          if (!orgId) { logger.warn("watchlist-scan job missing orgId — skipping"); break; }
+          const apiKey = getEnv("BING_NEWS_API_KEY");
+          if (!apiKey) { logger.warn("BING_NEWS_API_KEY not set — watchlist-scan skipped"); break; }
+
+          const orgKeywords = await db
+            .select({ keyword: watchlistKeywordsTable.keyword, category: watchlistKeywordsTable.category })
+            .from(watchlistKeywordsTable)
+            .where(and(eq(watchlistKeywordsTable.orgId, orgId), eq(watchlistKeywordsTable.isActive, true)));
+
+          let totalFetched = 0, totalDeduplicated = 0, totalStored = 0;
+          for (const kw of orgKeywords) {
+            const items = await collectBingNews(kw.keyword, apiKey, kw.category ?? "general");
+            // Tag each item with the org ID so it's tenant-scoped
+            const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, orgId } }));
+            const s = await ingestItems(tagged, orgId);
+            totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
+          }
+          stats = { fetched: totalFetched, deduplicated: totalDeduplicated, stored: totalStored };
           break;
         }
 

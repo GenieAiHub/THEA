@@ -17,6 +17,7 @@ import entitiesRouter from "./entities";
 import billingRouter from "./billing";
 import onboardingRouter from "./onboarding";
 import settingsRouter from "./settings";
+import geoRouter from "./geo";
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use("/entities", entitiesRouter);
 router.use("/billing", billingRouter);
 router.use("/onboarding", onboardingRouter);
 router.use("/settings", settingsRouter);
+router.use("/geo", geoRouter);
 
 export default router;

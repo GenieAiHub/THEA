@@ -30,4 +30,5 @@ export interface IngestionJobData {
   category?: string;
   keyword?: string;
   urls?: string[];
+  orgId?: string;
 }

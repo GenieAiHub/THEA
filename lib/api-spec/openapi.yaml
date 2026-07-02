@@ -23,6 +23,8 @@ tags:
     description: Crawler source management and collection run logs
   - name: intelligence
     description: AI-powered intelligence tools (talking points, drafts, simulator)
+  - name: geo
+    description: Geographic heat map intelligence
   - name: reports
     description: Report generation (PDF, PPTX)
   - name: webhooks
@@ -817,6 +819,225 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MarketSettings"
+  /v1/geo/heatmap:
+    get:
+      operationId: getGeoHeatmap
+      tags: [geo]
+      summary: Geographic heat map for a topic
+      description: Returns intensity + mention counts per country/region derived from collected content items.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema: { type: string }
+        - name: timeframe
+          in: query
+          schema: { type: string, enum: [1h, 6h, 24h, 7d], default: 24h }
+        - name: format
+          in: query
+          schema: { type: string, enum: [json, geojson], default: json }
+      responses:
+        "200":
+          description: Heat map data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoHeatmapResult"
+        "400": { description: topic is required }
+        "401": { description: Unauthorized }
+  /v1/watchlist/sov:
+    get:
+      operationId: getShareOfVoice
+      tags: [watchlist]
+      summary: Competitor share-of-voice comparison
+      description: Returns mention counts and share percentages for all brand/competitor keywords vs your tracked terms.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      parameters:
+        - name: timeframe
+          in: query
+          schema: { type: string, enum: [1h, 6h, 24h, 7d], default: 24h }
+      responses:
+        "200":
+          description: Share of voice data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareOfVoiceResult"
+        "401": { description: Unauthorized }
+  /v1/watchlist/{id}/analysis:
+    get:
+      operationId: getKeywordAnalysis
+      tags: [watchlist]
+      summary: Crisis score + spike history for a keyword
+      description: Returns live crisis probability, 24-hour score history, and recent alerts for a specific watchlist keyword.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Keyword analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeywordAnalysisResult"
+        "401": { description: Unauthorized }
+        "404": { description: Keyword not found }
+  /v1/watchlist/scan:
+    post:
+      operationId: triggerWatchlistScan
+      tags: [watchlist]
+      summary: Manually trigger spike detection scan
+      description: Triggers spike detection for the org's watchlist immediately. Requires owner or admin role.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      responses:
+        "202": { description: Scan triggered }
+        "401": { description: Unauthorized }
+        "403": { description: Insufficient role }
+  /v1/intelligence/organic-confidence:
+    get:
+      operationId: getOrganicConfidence
+      tags: [intelligence]
+      summary: Bot detection / organic confidence score for a topic
+      description: Analyses recent content for a topic and returns an organic confidence score (0-100%) and bot/coordination signals.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema: { type: string }
+        - name: timeframe
+          in: query
+          schema: { type: string, enum: [1h, 6h, 24h, 7d], default: 6h }
+      responses:
+        "200":
+          description: Bot detection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganicConfidenceResult"
+        "400": { description: topic is required }
+        "401": { description: Unauthorized }
+  /v1/intelligence/influencers:
+    get:
+      operationId: getInfluencers
+      tags: [intelligence]
+      summary: Top amplifier accounts for a topic
+      description: Returns top accounts by reach score for a topic, ranked by reach × engagement. Flags suspected bots.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema: { type: string }
+        - name: timeframe
+          in: query
+          schema: { type: string, enum: [1h, 6h, 24h, 7d], default: 24h }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Influencer scores
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfluencerListResult"
+        "400": { description: topic is required }
+        "401": { description: Unauthorized }
+  /v1/intelligence/check-disinformation:
+    post:
+      operationId: checkDisinformation
+      tags: [intelligence]
+      summary: LLM-based disinformation check for recent content
+      description: Analyses recent content matching a keyword and flags items with verifiably false claims. Requires admin role and a configured LLM key.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [keyword]
+              properties:
+                keyword: { type: string }
+      responses:
+        "200":
+          description: Disinformation check results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DisinformationCheckResult"
+        "400": { description: keyword is required }
+        "401": { description: Unauthorized }
+        "403": { description: Insufficient role }
+  /v1/intelligence/simulate:
+    post:
+      operationId: createSimulation
+      tags: [intelligence]
+      summary: MiroFish "What If" simulator
+      description: >
+        Queues a What-If MiroFish simulation with an injected hypothetical scenario.
+        Returns a simulation ID for polling. Pro/Enterprise only.
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateInput"
+      responses:
+        "202":
+          description: Simulation queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateQueued"
+        "400": { description: scenario_text and category are required }
+        "401": { description: Unauthorized }
+        "402": { description: Pro or Enterprise plan required }
+  /v1/intelligence/simulate/{id}:
+    get:
+      operationId: getSimulation
+      tags: [intelligence]
+      summary: Poll simulation status and results
+      security:
+        - ClerkJWT: []
+        - AdminToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Simulation result or pending status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+        "401": { description: Unauthorized }
+        "404": { description: Simulation not found }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1146,3 +1367,160 @@ components:
           type: array
           items: { type: string }
         marketsPerRun:    { type: integer, minimum: 1, maximum: 10 }
+    GeoHeatmapEntry:
+      type: object
+      required: [countryCode, intensity, mentionCount]
+      properties:
+        countryCode:    { type: string }
+        region:         { type: ["string", "null"] }
+        intensity:      { type: integer, minimum: 0, maximum: 100 }
+        mentionCount:   { type: integer }
+        avgSentiment:   { type: ["number", "null"] }
+    GeoHeatmapResult:
+      type: object
+      required: [data, topic, timeframe, totalCountries, generatedAt]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoHeatmapEntry"
+        topic:          { type: string }
+        timeframe:      { type: string }
+        totalCountries: { type: integer }
+        generatedAt:    { type: string, format: date-time }
+    SovEntry:
+      type: object
+      required: [keyword, type, mentionCount, sharePercent, trend]
+      properties:
+        keyword:        { type: string }
+        type:           { type: string }
+        mentionCount:   { type: integer }
+        sharePercent:   { type: number }
+        avgSentiment:   { type: ["number", "null"] }
+        trend:          { type: string, enum: [up, down, stable] }
+    ShareOfVoiceResult:
+      type: object
+      required: [entries, totalMentions, timeframe, generatedAt]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/SovEntry"
+        totalMentions:  { type: integer }
+        timeframe:      { type: string }
+        generatedAt:    { type: string, format: date-time }
+    CrisisScoreResult:
+      type: object
+      required: [score, velocityScore, sentimentScore, botScore, mediaPickupScore, spikeRatio]
+      properties:
+        score:              { type: integer, minimum: 0, maximum: 100 }
+        velocityScore:      { type: integer }
+        sentimentScore:     { type: integer }
+        botScore:           { type: integer }
+        mediaPickupScore:   { type: integer }
+        sentimentShift:     { type: number }
+        spikeRatio:         { type: number }
+        volumeCurrent:      { type: number }
+        volumeBaseline:     { type: number }
+    KeywordAnalysisResult:
+      type: object
+      required: [keyword, liveScore, scoreHistory, recentAlerts, generatedAt]
+      properties:
+        keyword:
+          type: object
+        liveScore:
+          $ref: "#/components/schemas/CrisisScoreResult"
+        scoreHistory:
+          type: array
+          items: { type: object }
+        recentAlerts:
+          type: array
+          items: { type: object }
+        generatedAt: { type: string, format: date-time }
+    OrganicConfidenceResult:
+      type: object
+      required: [topic, timeframe, organicConfidence, coordinatedItemRatio, avgBotRisk, highRiskCount, totalAnalyzed]
+      properties:
+        topic:                  { type: string }
+        timeframe:              { type: string }
+        organicConfidence:      { type: integer, minimum: 0, maximum: 100 }
+        coordinatedItemRatio:   { type: number }
+        avgBotRisk:             { type: number }
+        highRiskCount:          { type: integer }
+        totalAnalyzed:          { type: integer }
+        flaggedAccounts:
+          type: array
+          items: { type: string }
+    InfluencerEntry:
+      type: object
+      required: [platform, accountHandle, mentionCount, totalEngagement, reachScore, botRisk, isBotFlagged]
+      properties:
+        platform:         { type: ["string", "null"] }
+        accountHandle:    { type: string }
+        mentionCount:     { type: integer }
+        totalEngagement:  { type: integer }
+        reachScore:       { type: number }
+        botRisk:          { type: number }
+        isBotFlagged:     { type: string, enum: ["true", "false"] }
+    InfluencerListResult:
+      type: object
+      required: [topic, timeframe, count, data]
+      properties:
+        topic:    { type: string }
+        timeframe: { type: string }
+        count:    { type: integer }
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InfluencerEntry"
+    DisinformationCheckResult:
+      type: object
+      required: [keyword, checked, results]
+      properties:
+        keyword:  { type: string }
+        checked:  { type: integer }
+        results:
+          type: array
+          items:
+            type: object
+            required: [itemId, claim, isDisinformation, confidence, reasoning]
+            properties:
+              itemId:           { type: string, format: uuid }
+              claim:            { type: string }
+              isDisinformation: { type: boolean }
+              confidence:       { type: number, minimum: 0, maximum: 1 }
+              reasoning:        { type: string }
+    SimulateInput:
+      type: object
+      required: [scenario_text, category]
+      properties:
+        scenario_text: { type: string, minLength: 20 }
+        category:      { type: string }
+        geography:     { type: string }
+        provider:      { type: string, enum: [openai, gemini, anthropic] }
+    SimulateQueued:
+      type: object
+      required: [simulationId, status, message, pollUrl]
+      properties:
+        simulationId: { type: string, format: uuid }
+        status:       { type: string, enum: [queued] }
+        message:      { type: string }
+        pollUrl:      { type: string }
+    SimulationResult:
+      type: object
+      required: [simulationId, status, category, createdAt]
+      properties:
+        simulationId:       { type: string, format: uuid }
+        status:             { type: string, enum: [pending, running, completed, failed] }
+        category:           { type: string }
+        scenario:           { type: ["string", "null"] }
+        geography:          { type: ["string", "null"] }
+        createdAt:          { type: string, format: date-time }
+        completedAt:        { type: ["string", "null"], format: date-time }
+        message:            { type: string }
+        trendingTopics:     { type: array, items: { type: object } }
+        narrativeSummary:   { type: ["string", "null"] }
+        sentimentOverall:   { type: ["string", "null"] }
+        predictions:        { type: array, items: { type: object } }
+        dominantNarratives: { type: array, items: { type: object } }
+        keyEntities:        { type: array, items: { type: object } }

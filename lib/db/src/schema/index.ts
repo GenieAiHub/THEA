@@ -15,3 +15,6 @@ export * from "./llm_usage_logs";
 export * from "./platform_configs";
 export * from "./prediction_markets";
 export * from "./entity_mentions";
+export * from "./crisis_scores";
+export * from "./geo_signals";
+export * from "./influencer_scores";

@@ -32,6 +32,7 @@ import { createWorker } from "./lib/queues";
 import { generateMarketsNow, getMarketSettings, syncMarketGenerationSchedule } from "./lib/markets";
 import { startContentIngestionWorker, scheduleIngestion, ensurePlatformOrg } from "./lib/ingestion";
 import { startLlmProcessingWorker, startMiroFishWorker, scheduleAnalysis } from "./lib/analysis";
+import { startAlertDispatchWorker } from "./lib/alert-dispatch-worker";
 import { logger as bootLogger } from "./lib/logger";
 
 function startMarketGenerationWorker(): void {
@@ -107,6 +108,7 @@ app.listen(port, async (err) => {
       .then(() => {
         startLlmProcessingWorker();
         startMiroFishWorker();
+        startAlertDispatchWorker();
         return scheduleAnalysis();
       })
       .catch((err) =>

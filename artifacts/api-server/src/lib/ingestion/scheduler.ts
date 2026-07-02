@@ -84,24 +84,21 @@ async function scheduleSerpKeywords(): Promise<void> {
       .select({
         keyword: watchlistKeywordsTable.keyword,
         category: watchlistKeywordsTable.category,
+        orgId: watchlistKeywordsTable.orgId,
       })
       .from(watchlistKeywordsTable)
-      .where(
-        and(
-          eq(watchlistKeywordsTable.isActive, true),
-          eq(watchlistKeywordsTable.orgId, PLATFORM_ORG_ID)
-        )
-      );
+      .where(eq(watchlistKeywordsTable.isActive, true));
 
     if (!keywords.length) {
       logger.info("No active watchlist keywords found — skipping SERP scheduling");
       return;
     }
 
-    for (const { keyword, category } of keywords) {
+    for (const { keyword, category, orgId } of keywords) {
       const slug = keyword.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const orgSlug = orgId.slice(0, 8);
       await contentIngestion.upsertJobScheduler(
-        `serp-keyword-${slug}`,
+        `serp-keyword-${slug}-${orgSlug}`,
         { every: SERP_INTERVAL_MS },
         {
           name: "serp",
@@ -109,15 +106,80 @@ async function scheduleSerpKeywords(): Promise<void> {
             sourceType: "serp",
             keyword,
             category: category ?? "general",
+            orgId,
           },
           opts: { attempts: 2, backoff: { type: "exponential", delay: 30000 } },
         }
       );
     }
 
-    logger.info({ count: keywords.length }, "SERP keyword schedulers registered from watchlist");
+    logger.info({ count: keywords.length }, "SERP keyword schedulers registered from watchlist (all orgs)");
   } catch (err) {
     logger.warn({ err }, "Could not schedule SERP keyword jobs from watchlist_keywords");
+  }
+}
+
+/**
+ * Schedule per-org watchlist collection jobs — runs every 15 minutes.
+ * Each org gets its own job to collect content matching their watchlist terms
+ * from Bing News and SERP across all active keywords.
+ */
+async function scheduleWatchlistCollectionJobs(): Promise<void> {
+  const { contentIngestion } = getQueues();
+  try {
+    // Get distinct org IDs that have active watchlist keywords
+    const orgs = await db
+      .selectDistinct({ orgId: watchlistKeywordsTable.orgId })
+      .from(watchlistKeywordsTable)
+      .where(and(eq(watchlistKeywordsTable.isActive, true)));
+
+    for (const { orgId } of orgs) {
+      const orgSlug = orgId.slice(0, 8);
+      await contentIngestion.upsertJobScheduler(
+        `watchlist-collect-${orgSlug}`,
+        { every: RSS_INTERVAL_MS }, // 15 minutes
+        {
+          name: "watchlist-scan",
+          data: { sourceType: "watchlist-scan", orgId },
+          opts: { attempts: 2, backoff: { type: "exponential", delay: 15000 } },
+        }
+      );
+    }
+
+    logger.info({ orgCount: orgs.length }, "Per-org watchlist collection schedulers registered");
+  } catch (err) {
+    logger.warn({ err }, "Could not schedule per-org watchlist collection jobs");
+  }
+}
+
+/**
+ * Schedule per-org spike analysis — runs every 15 minutes, offset by 5 minutes
+ * from the collection jobs so analysis runs after new data is ingested.
+ */
+async function scheduleWatchlistAnalysisJobs(): Promise<void> {
+  const { alertDispatch } = getQueues();
+  try {
+    const orgs = await db
+      .selectDistinct({ orgId: watchlistKeywordsTable.orgId })
+      .from(watchlistKeywordsTable)
+      .where(and(eq(watchlistKeywordsTable.isActive, true)));
+
+    for (const { orgId } of orgs) {
+      const orgSlug = orgId.slice(0, 8);
+      await alertDispatch.upsertJobScheduler(
+        `watchlist-analysis-${orgSlug}`,
+        { every: RSS_INTERVAL_MS, immediately: false },
+        {
+          name: "spike-analysis",
+          data: { orgId },
+          opts: { attempts: 2, backoff: { type: "fixed", delay: 5000 } },
+        }
+      );
+    }
+
+    logger.info({ orgCount: orgs.length }, "Per-org watchlist spike analysis schedulers registered");
+  } catch (err) {
+    logger.warn({ err }, "Could not schedule watchlist spike analysis jobs");
   }
 }
 
@@ -210,6 +272,8 @@ export async function scheduleIngestion(): Promise<void> {
 
     await scheduleWebCrawlerSources();
     await scheduleSerpKeywords();
+    await scheduleWatchlistCollectionJobs();
+    await scheduleWatchlistAnalysisJobs();
 
     logger.info({ scheduledCategories: allCategories.length }, "Content ingestion schedulers registered");
   } catch (err) {
