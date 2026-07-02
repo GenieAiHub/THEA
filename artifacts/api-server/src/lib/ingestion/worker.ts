@@ -26,6 +26,9 @@ function getEnv(key: string): string {
 }
 
 async function getActiveRssSources(category?: string): Promise<RssSource[]> {
+  const baseline: RssSource[] = category ? getSourcesByCategory(category) : PRECONFIGURED_SOURCES;
+  const seenUrls = new Set(baseline.map((s) => s.url));
+
   try {
     const conditions = [
       eq(crawlerSourcesTable.isActive, true),
@@ -43,20 +46,21 @@ async function getActiveRssSources(category?: string): Promise<RssSource[]> {
       .from(crawlerSourcesTable)
       .where(and(...conditions));
 
-    if (rows.length > 0) {
-      return rows.map((r) => ({
+    const dbSources: RssSource[] = rows
+      .filter((r) => !seenUrls.has(r.url))
+      .map((r) => ({
         name: r.name,
         url: r.url,
         category: r.category,
         language: r.language ?? "en",
         platform: "rss",
       }));
-    }
-  } catch (err) {
-    logger.warn({ err }, "Could not load RSS sources from DB — using preconfigured list");
-  }
 
-  return category ? getSourcesByCategory(category) : PRECONFIGURED_SOURCES;
+    return [...baseline, ...dbSources];
+  } catch (err) {
+    logger.warn({ err }, "Could not load additional RSS sources from DB — using preconfigured list only");
+    return baseline;
+  }
 }
 
 export function startContentIngestionWorker(): void {
