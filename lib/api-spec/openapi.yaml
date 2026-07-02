@@ -521,7 +521,7 @@ paths:
     post:
       operationId: testMessageResonance
       tags: [intelligence]
-      summary: Queue message resonance simulations for 2-5 variants (Enterprise only)
+      summary: Synchronous side-by-side message resonance comparison for 2-5 variants (Enterprise only)
       requestBody:
         required: true
         content:
@@ -529,16 +529,18 @@ paths:
             schema:
               $ref: "#/components/schemas/TestMessageInput"
       responses:
-        "202":
-          description: Simulations queued
+        "200":
+          description: Ranked resonance comparison returned synchronously
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TestMessageQueued"
+                $ref: "#/components/schemas/TestMessageResult"
         "400":
           description: Invalid input
         "402":
           description: Enterprise tier required
+        "502":
+          description: LLM call failed
   /v1/campaigns:
     get:
       operationId: listCampaigns
@@ -1773,32 +1775,49 @@ components:
         message: { type: string, description: "The message text to test" }
     TestMessageInput:
       type: object
-      required: [variants, category]
+      required: [category]
       properties:
+        messages:
+          type: array
+          description: Canonical input — plain string messages (2-5 required)
+          items: { type: string }
+          minItems: 2
+          maxItems: 5
         variants:
           type: array
+          description: Legacy input shape — use messages[] instead
           items:
             $ref: "#/components/schemas/TestMessageVariant"
           minItems: 2
           maxItems: 5
         category:  { type: string }
         geography: { type: string }
-    TestMessageQueued:
+    TestMessageVariantResult:
       type: object
-      required: [status, variantCount, simulations, message]
+      required: [label, sentimentScore, reachScore, supporterPercent, detractorPercent, keyThemes, strengths, weaknesses]
       properties:
-        status:       { type: string, enum: [queued] }
-        variantCount: { type: integer }
-        simulations:
+        label:            { type: string }
+        sentimentScore:   { type: number, minimum: -1, maximum: 1 }
+        reachScore:       { type: number, minimum: 0, maximum: 1 }
+        supporterPercent: { type: number, minimum: 0, maximum: 100 }
+        detractorPercent: { type: number, minimum: 0, maximum: 100 }
+        keyThemes:        { type: array, items: { type: string } }
+        strengths:        { type: array, items: { type: string } }
+        weaknesses:       { type: array, items: { type: string } }
+    TestMessageResult:
+      type: object
+      required: [status, category, variantCount, variants, recommendedLabel, rationale, ranking]
+      properties:
+        status:           { type: string, enum: [completed] }
+        category:         { type: string }
+        geography:        { type: ["string", "null"] }
+        variantCount:     { type: integer }
+        variants:
           type: array
-          items:
-            type: object
-            required: [label, simulationId, pollUrl]
-            properties:
-              label:        { type: string }
-              simulationId: { type: string, format: uuid }
-              pollUrl:      { type: string }
-        message: { type: string }
+          items: { $ref: "#/components/schemas/TestMessageVariantResult" }
+        recommendedLabel: { type: string }
+        rationale:        { type: string }
+        ranking:          { type: array, items: { type: string } }
     Campaign:
       type: object
       required: [id, orgId, name, targetKeywords, startDate, status, createdAt, updatedAt]

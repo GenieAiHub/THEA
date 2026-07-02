@@ -231,10 +231,9 @@ router.post("/test-message", requireTier("enterprise"), async (req, res) => {
 
   if (!category) { res.status(400).json({ error: "category is required" }); return; }
 
-  // Normalise both shapes into a unified variants array
+  // Normalise both input shapes into a unified variants array
   let variants: Array<{ label: string; message: string }>;
   if (Array.isArray(messages) && messages.length > 0) {
-    // Canonical shape: { messages: string[], category, geography? }
     variants = messages.map((msg, i) => ({ label: `Message ${i + 1}`, message: String(msg) }));
   } else if (Array.isArray(legacyVariants) && legacyVariants.length > 0) {
     variants = legacyVariants;
@@ -243,54 +242,94 @@ router.post("/test-message", requireTier("enterprise"), async (req, res) => {
     return;
   }
 
-  if (variants.length < 1 || variants.length > 10) {
-    res.status(400).json({ error: "Between 1 and 10 messages are allowed" });
+  if (variants.length < 2 || variants.length > 5) {
+    res.status(400).json({ error: "Between 2 and 5 message variants are required" });
     return;
   }
 
   const orgId = req.thea!.org.id;
-  const simulations: Array<{ label: string; simulationId: string; pollUrl: string }> = [];
 
-  for (const variant of variants) {
-    const [report] = await db
-      .insert(analysisReportsTable)
-      .values({
-        orgId,
-        category,
-        status: "pending",
-        rawReport: JSON.stringify({ type: "message-resonance-test", label: variant.label, message: variant.message, geography }),
-      })
-      .returning({ id: analysisReportsTable.id });
+  // ── Synchronous LLM-powered side-by-side resonance comparison ──────────────
+  const variantBlock = variants
+    .map((v, i) => `VARIANT ${i + 1} — "${v.label}":\n${v.message}`)
+    .join("\n\n");
 
-    await getQueues().miroFishRuns.add(
-      "message-resonance",
-      {
-        category,
-        triggeredBy: "simulate" as const,
-        scenario: `Message resonance test — variant: "${variant.label}"\n\nMessage:\n${variant.message}`,
-        geography,
-        orgId,
-        reportId: report!.id,
-        provider: "openai",
-      },
-      { priority: 3, attempts: 2 },
-    );
+  const geoContext = geography ? ` The target geography is ${geography}.` : "";
 
-    simulations.push({
-      label: variant.label,
-      simulationId: report!.id,
-      pollUrl: `/api/v1/intelligence/simulate/${report!.id}`,
+  const systemPrompt = `You are an expert communications strategist and audience research analyst.
+Your role is to evaluate message variants for their predicted resonance with a target audience.
+You always return ONLY valid JSON with no markdown, no code fences, no prose outside the JSON object.`;
+
+  const userPrompt = `Evaluate the following ${variants.length} message variants for the category "${category}".${geoContext}
+
+For EACH variant, predict:
+- sentimentScore: audience sentiment (−1.0 = very negative, 0 = neutral, 1.0 = very positive)
+- reachScore: estimated organic reach amplification (0.0 = low, 1.0 = viral)
+- supporterPercent: estimated % of audience who will react positively (0-100)
+- detractorPercent: estimated % of audience who will react negatively (0-100)
+- keyThemes: array of 2-4 themes the message triggers in the audience
+- strengths: array of 1-3 specific strengths
+- weaknesses: array of 1-3 specific weaknesses
+
+Then provide an overall:
+- recommendedLabel: the label of the best-performing variant
+- rationale: 2-3 sentence explanation of why it outperforms the others
+- ranking: array of labels ordered best to worst
+
+${variantBlock}
+
+Return ONLY a JSON object matching this exact schema:
+{
+  "variants": [{ "label": string, "sentimentScore": number, "reachScore": number, "supporterPercent": number, "detractorPercent": number, "keyThemes": string[], "strengths": string[], "weaknesses": string[] }],
+  "recommendedLabel": string,
+  "rationale": string,
+  "ranking": string[]
+}`;
+
+  try {
+    const llmRes = await chat("openai", [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]);
+
+    let parsed: {
+      variants: Array<{ label: string; sentimentScore: number; reachScore: number; supporterPercent: number; detractorPercent: number; keyThemes: string[]; strengths: string[]; weaknesses: string[] }>;
+      recommendedLabel: string;
+      rationale: string;
+      ranking: string[];
+    };
+    try {
+      const clean = llmRes.content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error("LLM returned non-JSON response");
+    }
+
+    // Persist for audit/retrieval
+    await db.insert(analysisReportsTable).values({
+      orgId,
+      category,
+      status: "completed",
+      rawReport: JSON.stringify({ type: "message-resonance-test", variants: parsed.variants, recommendedLabel: parsed.recommendedLabel, rationale: parsed.rationale, ranking: parsed.ranking, geography }),
     });
+
+    logger.info({ orgId, variantCount: variants.length, category, recommended: parsed.recommendedLabel }, "Message resonance test completed");
+
+    res.json({
+      status: "completed",
+      category,
+      geography: geography ?? null,
+      variantCount: variants.length,
+      variants: parsed.variants,
+      recommendedLabel: parsed.recommendedLabel,
+      rationale: parsed.rationale,
+      ranking: parsed.ranking,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Resonance test failed";
+    logger.warn({ err, orgId }, "Message resonance test failed");
+    res.status(502).json({ error: msg });
   }
-
-  logger.info({ orgId, variantCount: variants.length, category }, "Message resonance tests queued");
-
-  res.status(202).json({
-    status: "queued",
-    variantCount: variants.length,
-    simulations,
-    message: "Each variant has been queued for simulation. Poll pollUrl for results (typically 5-30 min).",
-  });
 });
 
 router.post("/search", async (req, res) => {

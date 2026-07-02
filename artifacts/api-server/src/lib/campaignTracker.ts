@@ -208,8 +208,11 @@ export async function computeCampaignBaseline(campaignId: string): Promise<void>
   const days = 14;
   const baselineVolume = Number(stats?.n ?? 0) / days;
 
-  // Baseline SOV — use org's keywords in the 14-day window
-  const { entries: sovEntries } = await computeShareOfVoice(campaign.orgId, 14 * 24).catch(() => ({ entries: [] }));
+  // Baseline SOV — use the campaign's explicit pre-launch date range (not "most recent 14 days")
+  const { entries: sovEntries } = await computeShareOfVoice(campaign.orgId, 14 * 24, {
+    since: baselineStart,
+    until: baselineEnd,
+  }).catch(() => ({ entries: [] as import("./shareOfVoice").SovEntry[] }));
   const baselineSovEntry = sovEntries.find((e) =>
     keywords.some((kw) => kw.toLowerCase() === e.keyword.toLowerCase()),
   );

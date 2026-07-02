@@ -16,14 +16,23 @@ export interface SovEntry {
  *
  * Returns mention counts + share percentages for each brand/competitor keyword,
  * based on content_items collected in the given time window.
+ *
+ * @param orgId      Organisation ID
+ * @param timeframeHours  Rolling window in hours from now (default 24). Ignored when dateRange is provided.
+ * @param dateRange  Explicit start/end dates (e.g. campaign pre-launch baseline window).
  */
 export async function computeShareOfVoice(
   orgId: string,
   timeframeHours = 24,
+  dateRange?: { since: Date; until: Date },
 ): Promise<{ entries: SovEntry[]; totalMentions: number }> {
   const now = new Date();
-  const since = new Date(now.getTime() - timeframeHours * 60 * 60 * 1000);
-  const prevSince = new Date(now.getTime() - timeframeHours * 2 * 60 * 60 * 1000);
+  const since = dateRange?.since ?? new Date(now.getTime() - timeframeHours * 60 * 60 * 1000);
+  const until = dateRange?.until ?? now;
+  const windowMs = until.getTime() - since.getTime();
+  const prevSince = dateRange
+    ? new Date(since.getTime() - windowMs) // same-length window before baseline
+    : new Date(now.getTime() - timeframeHours * 2 * 60 * 60 * 1000);
 
   // Get org's brand, competitor and keyword entries
   const keywords = await db
@@ -57,6 +66,7 @@ export async function computeShareOfVoice(
         and(
           eq(contentItemsTable.orgId, orgId),
           gte(contentItemsTable.collectedAt, since),
+          lt(contentItemsTable.collectedAt, until),
           mentionFilter,
         ),
       );
