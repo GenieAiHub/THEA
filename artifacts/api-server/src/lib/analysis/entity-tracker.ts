@@ -107,13 +107,22 @@ export async function aggregateEntityMentions(
   );
 }
 
+const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
+
 export async function getTopEntities(
   windowHours = 24,
+  orgId?: string,
   category?: string,
   limit = 20
 ): Promise<Array<{ entityName: string; entityType: string; category: string; mentionCount: number; sentimentAvg: number | null }>> {
+  const { or } = await import("drizzle-orm");
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
-  const conditions = [gte(entityMentionsTable.windowStart, since)];
+
+  const orgFilter = orgId
+    ? or(eq(entityMentionsTable.orgId, PLATFORM_ORG_ID), eq(entityMentionsTable.orgId, orgId))!
+    : eq(entityMentionsTable.orgId, PLATFORM_ORG_ID);
+
+  const conditions = [gte(entityMentionsTable.windowStart, since), orgFilter];
   if (category) conditions.push(eq(entityMentionsTable.category, category));
 
   return db
