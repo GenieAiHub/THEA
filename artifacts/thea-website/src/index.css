@@ -191,11 +191,32 @@
   to   { transform: rotate(-360deg); }
 }
 
+/* Soft pulsing glow centred on the eye (replaces the whole-logo glow) */
+.ai-eye-glow {
+  position: absolute;
+  inset: -25%;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(96, 165, 250, 0.55) 0%,
+    rgba(59, 130, 246, 0.22) 40%,
+    rgba(59, 130, 246, 0) 70%
+  );
+  mix-blend-mode: screen;
+  animation: eye-glow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes eye-glow-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%      { opacity: 0.8; transform: scale(1.1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-radar,
   .ai-scanbar,
   .ai-ping,
-  .ai-reticle {
+  .ai-reticle,
+  .ai-eye-glow {
     animation: none;
   }
   .ai-scanbar,

@@ -90,9 +90,13 @@ const Hero = () => {
             transition={{ duration: 1.5, ease: "easeOut" }}
             className="absolute inset-0"
           >
-            <div className="relative w-full h-full logo-pulse">
+            <div className="relative w-full h-full">
               <img src={logo} alt="THEA Logo" className="w-full h-full object-contain" />
-              <div className="ai-scan absolute inset-0 flex items-center justify-center overflow-hidden rounded-full">
+              <div
+                className="ai-scan absolute flex items-center justify-center overflow-hidden rounded-full"
+                style={{ left: "32%", top: "21%", width: "36%", height: "36%" }}
+              >
+                <div className="ai-eye-glow"></div>
                 <div className="ai-radar"></div>
                 <div className="ai-scanbar"></div>
                 <span className="ai-ping"></span>
