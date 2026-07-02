@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/admin/"
+title = "THEA Super Admin"
+version = "1.0.0"
+id = "artifacts/admin-ui"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/admin/" ]
+localPort = 20787
+
+[services.development]
+run = "pnpm --filter @workspace/admin-ui run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/admin-ui", "run", "build" ]
+publicDir = "artifacts/admin-ui/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20787"
+BASE_PATH = "/admin/"

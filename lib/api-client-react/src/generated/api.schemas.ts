@@ -125,6 +125,129 @@ export interface CreateWebhook {
   events?: string[];
 }
 
+export type LlmMessageRole = typeof LlmMessageRole[keyof typeof LlmMessageRole];
+
+
+export const LlmMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+  system: 'system',
+} as const;
+
+export interface LlmMessage {
+  role: LlmMessageRole;
+  content: string;
+}
+
+export type LlmChatInputProvider = typeof LlmChatInputProvider[keyof typeof LlmChatInputProvider];
+
+
+export const LlmChatInputProvider = {
+  openai: 'openai',
+  gemini: 'gemini',
+} as const;
+
+export interface LlmChatInput {
+  provider?: LlmChatInputProvider;
+  model?: string;
+  messages: LlmMessage[];
+}
+
+export interface LlmUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
+export interface LlmReply {
+  provider?: string;
+  model?: string;
+  content?: string;
+  usage?: LlmUsage;
+  durationMs?: number;
+}
+
+export type TalkingPointsInputProvider = typeof TalkingPointsInputProvider[keyof typeof TalkingPointsInputProvider];
+
+
+export const TalkingPointsInputProvider = {
+  openai: 'openai',
+  gemini: 'gemini',
+} as const;
+
+export interface TalkingPointsInput {
+  topic: string;
+  context?: string;
+  provider?: TalkingPointsInputProvider;
+}
+
+export interface TalkingPointsResult {
+  topic?: string;
+  talkingPoints?: string;
+  provider?: string;
+  model?: string;
+}
+
+export type DraftStatementInputProvider = typeof DraftStatementInputProvider[keyof typeof DraftStatementInputProvider];
+
+
+export const DraftStatementInputProvider = {
+  openai: 'openai',
+  gemini: 'gemini',
+} as const;
+
+export interface DraftStatementInput {
+  topic: string;
+  tone?: string;
+  audience?: string;
+  provider?: DraftStatementInputProvider;
+}
+
+export interface StatementResult {
+  topic?: string;
+  statement?: string;
+  provider?: string;
+  model?: string;
+}
+
+export interface PlatformConfig {
+  id?: string;
+  key?: string;
+  category?: string;
+  label?: string;
+  /** @nullable */
+  description?: string | null;
+  isSecret?: boolean;
+  isActive?: boolean;
+  hasValue?: boolean;
+  /** @nullable */
+  value?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlatformConfigInput {
+  value?: string;
+  label?: string;
+  description?: string;
+  category?: string;
+  isSecret?: boolean;
+  isActive?: boolean;
+}
+
+export type BulkConfigInputItemsItem = {
+  key: string;
+  value: string;
+};
+
+export interface BulkConfigInput {
+  items: BulkConfigInputItemsItem[];
+}
+
+export interface AnalysisRunInput {
+  category?: string;
+}
+
 export type ListContentParams = {
 platform?: string;
 category?: string;
@@ -161,26 +284,9 @@ export type ListCategories200 = {
   data?: string[];
 };
 
-export type GetTrendHistoryParams = {
-timeframe?: GetTrendHistoryTimeframe;
-};
-
-export type GetTrendHistoryTimeframe = typeof GetTrendHistoryTimeframe[keyof typeof GetTrendHistoryTimeframe];
-
-
-export const GetTrendHistoryTimeframe = {
-  '24h': '24h',
-  '7d': '7d',
-  '30d': '30d',
-} as const;
-
 export type GetAnalysisHistoryParams = {
 category?: string;
 limit?: number;
-};
-
-export type TriggerAnalysisRunBody = {
-  category?: string;
 };
 
 export type ListAlertsParams = {
@@ -201,5 +307,9 @@ export const ListAlertsSeverity = {
 
 export type ListCollectionRunsParams = {
 limit?: number;
+};
+
+export type AdminListConfigs200 = {
+  data?: PlatformConfig[];
 };
 

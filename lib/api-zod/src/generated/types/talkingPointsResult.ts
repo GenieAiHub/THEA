@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TriggerAnalysisRunBody = {
-  category?: string;
-};
+export interface TalkingPointsResult {
+  topic?: string;
+  talkingPoints?: string;
+  provider?: string;
+  model?: string;
+}

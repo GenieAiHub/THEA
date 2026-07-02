@@ -12,3 +12,4 @@ export * from "./api_keys";
 export * from "./webhook_registrations";
 export * from "./email_preferences";
 export * from "./llm_usage_logs";
+export * from "./platform_configs";

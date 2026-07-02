@@ -6,8 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminListConfigs200';
 export * from './analysisReport';
 export * from './analysisReportList';
+export * from './analysisRunInput';
+export * from './bulkConfigInput';
+export * from './bulkConfigInputItemsItem';
 export * from './contentItem';
 export * from './contentItemList';
 export * from './contentItemListPagination';
@@ -19,9 +23,9 @@ export * from './createWebhook';
 export * from './detailedHealthStatus';
 export * from './detailedHealthStatusServices';
 export * from './detailedHealthStatusStatus';
+export * from './draftStatementInput';
+export * from './draftStatementInputProvider';
 export * from './getAnalysisHistoryParams';
-export * from './getTrendHistoryParams';
-export * from './getTrendHistoryTimeframe';
 export * from './healthStatus';
 export * from './listAlertsParams';
 export * from './listAlertsSeverity';
@@ -30,6 +34,17 @@ export * from './listCollectionRunsParams';
 export * from './listContentParams';
 export * from './listTrendsParams';
 export * from './listTrendsTimeframe';
+export * from './llmChatInput';
+export * from './llmChatInputProvider';
+export * from './llmMessage';
+export * from './llmMessageRole';
+export * from './llmReply';
+export * from './llmUsage';
+export * from './platformConfig';
+export * from './platformConfigInput';
+export * from './statementResult';
+export * from './talkingPointsInput';
+export * from './talkingPointsInputProvider';
+export * from './talkingPointsResult';
 export * from './trendScore';
 export * from './trendScoreList';
-export * from './triggerAnalysisRunBody';

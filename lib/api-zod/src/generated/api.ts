@@ -140,12 +140,6 @@ export const GetTrendHistoryParams = zod.object({
   "topic": zod.coerce.string()
 })
 
-export const getTrendHistoryQueryTimeframeDefault = `24h`;
-
-export const GetTrendHistoryQueryParams = zod.object({
-  "timeframe": zod.enum(['24h', '7d', '30d']).default(getTrendHistoryQueryTimeframeDefault)
-})
-
 export const GetTrendHistoryResponse = zod.unknown()
 
 
@@ -352,6 +346,164 @@ export const DeleteWebhookResponse = zod.void()
 
 
 /**
+ * @summary Send a chat message to GPT or Gemini
+ */
+export const llmChatBodyProviderDefault = `openai`;
+
+export const LlmChatBody = zod.object({
+  "provider": zod.enum(['openai', 'gemini']).default(llmChatBodyProviderDefault),
+  "model": zod.string().optional(),
+  "messages": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant', 'system']),
+  "content": zod.string()
+}))
+})
+
+export const LlmChatResponse = zod.object({
+  "provider": zod.string().optional(),
+  "model": zod.string().optional(),
+  "content": zod.string().optional(),
+  "usage": zod.object({
+  "promptTokens": zod.number().optional(),
+  "completionTokens": zod.number().optional(),
+  "totalTokens": zod.number().optional()
+}).optional(),
+  "durationMs": zod.number().optional()
+})
+
+
+/**
+ * @summary Generate talking points for a topic using AI
+ */
+export const GenerateTalkingPointsBody = zod.object({
+  "topic": zod.string(),
+  "context": zod.string().optional(),
+  "provider": zod.enum(['openai', 'gemini']).optional()
+})
+
+export const GenerateTalkingPointsResponse = zod.object({
+  "topic": zod.string().optional(),
+  "talkingPoints": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "model": zod.string().optional()
+})
+
+
+/**
+ * @summary Draft a public statement on a topic using AI
+ */
+export const DraftStatementBody = zod.object({
+  "topic": zod.string(),
+  "tone": zod.string().optional(),
+  "audience": zod.string().optional(),
+  "provider": zod.enum(['openai', 'gemini']).optional()
+})
+
+export const DraftStatementResponse = zod.object({
+  "topic": zod.string().optional(),
+  "statement": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "model": zod.string().optional()
+})
+
+
+/**
+ * @summary List all platform configuration keys (secrets masked)
+ */
+export const AdminListConfigsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid().optional(),
+  "key": zod.string().optional(),
+  "category": zod.string().optional(),
+  "label": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "isSecret": zod.boolean().optional(),
+  "isActive": zod.boolean().optional(),
+  "hasValue": zod.boolean().optional(),
+  "value": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Bulk upsert multiple config values
+ */
+export const AdminBulkUpsertConfigsBody = zod.object({
+  "items": zod.array(zod.object({
+  "key": zod.string(),
+  "value": zod.string()
+}))
+})
+
+export const AdminBulkUpsertConfigsResponse = zod.unknown()
+
+
+/**
+ * @summary Get a single platform config
+ */
+export const AdminGetConfigParams = zod.object({
+  "key": zod.coerce.string()
+})
+
+export const AdminGetConfigResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "key": zod.string().optional(),
+  "category": zod.string().optional(),
+  "label": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "isSecret": zod.boolean().optional(),
+  "isActive": zod.boolean().optional(),
+  "hasValue": zod.boolean().optional(),
+  "value": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Create or update a platform config value
+ */
+export const AdminUpsertConfigParams = zod.object({
+  "key": zod.coerce.string()
+})
+
+export const AdminUpsertConfigBody = zod.object({
+  "value": zod.string().optional(),
+  "label": zod.string().optional(),
+  "description": zod.string().optional(),
+  "category": zod.string().optional(),
+  "isSecret": zod.boolean().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const AdminUpsertConfigResponse = zod.object({
+  "id": zod.string().uuid().optional(),
+  "key": zod.string().optional(),
+  "category": zod.string().optional(),
+  "label": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "isSecret": zod.boolean().optional(),
+  "isActive": zod.boolean().optional(),
+  "hasValue": zod.boolean().optional(),
+  "value": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a platform config entry
+ */
+export const AdminDeleteConfigParams = zod.object({
+  "key": zod.coerce.string()
+})
+
+export const AdminDeleteConfigResponse = zod.void()
+
+
+/**
  * @summary List all organizations (admin only)
  */
 export const AdminListOrgsResponse = zod.unknown()
@@ -379,12 +531,6 @@ export const AdminGetStatsResponse = zod.unknown()
  * @summary Generate a white-label PDF report (Phase 8)
  */
 export const GeneratePdfReportResponse = zod.void()
-
-
-/**
- * @summary Generate talking points for a keyword (Phase 6)
- */
-export const GenerateTalkingPointsResponse = zod.void()
 
 
 /**

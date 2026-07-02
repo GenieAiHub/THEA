@@ -29,6 +29,7 @@ if (missing.length > 0) {
 // ─── Startup bootstrap ────────────────────────────────────────────────────────
 import { bootstrapPgVector } from "./lib/pgvector";
 import { ensureContentItemsIndex } from "./lib/elasticsearch";
+import { seedPlatformConfigs } from "./routes/v1/admin_configs";
 
 // ─── Start HTTP server ────────────────────────────────────────────────────────
 const port = Number(process.env["PORT"]!);
@@ -53,6 +54,9 @@ app.listen(port, async (err) => {
     ),
     ensureContentItemsIndex().catch((err) =>
       logger.warn({ err }, "Elasticsearch index bootstrap failed — will retry on next startup")
+    ),
+    seedPlatformConfigs().catch((err) =>
+      logger.warn({ err }, "Platform config seed failed — will retry on next startup")
     ),
   ]);
 });

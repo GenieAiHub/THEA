@@ -9,6 +9,7 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
+runButton = "Project"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -26,3 +27,7 @@ channel = "stable-25_05"
 [userenv.development]
 REDIS_URL = "redis://localhost:6379"
 ELASTICSEARCH_URL = "http://localhost:9200"
+
+[userenv.shared]
+PLATFORM_ENCRYPTION_KEY = "e53eb1318543e51493e77cf78f872127303e61379b7cbe4d83c351e5ffb680e4"
+ADMIN_INTERNAL_TOKEN = "thea_admin_d83fa038926385e909596c0827f1dd06d2e13c31"

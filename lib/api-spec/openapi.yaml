@@ -164,9 +164,6 @@ paths:
           in: path
           required: true
           schema: { type: string }
-        - name: timeframe
-          in: query
-          schema: { type: string, enum: [24h, 7d, 30d], default: 24h }
       responses:
         "200":
           description: Trend score history
@@ -221,10 +218,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                category:
-                  type: string
+              $ref: "#/components/schemas/AnalysisRunInput"
       responses:
         "202":
           description: Analysis run queued
@@ -412,6 +406,155 @@ paths:
       responses:
         "204":
           description: Deleted
+  /v1/intelligence/chat:
+    post:
+      operationId: llmChat
+      tags: [intelligence]
+      summary: Send a chat message to GPT or Gemini
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmChatInput"
+      responses:
+        "200":
+          description: LLM response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmReply"
+        "400":
+          description: API key not configured or bad request
+        "502":
+          description: LLM provider error
+  /v1/intelligence/talking-points:
+    post:
+      operationId: generateTalkingPoints
+      tags: [intelligence]
+      summary: Generate talking points for a topic using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TalkingPointsInput"
+      responses:
+        "200":
+          description: Talking points
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TalkingPointsResult"
+        "400":
+          description: API key not configured
+  /v1/intelligence/draft-statement:
+    post:
+      operationId: draftStatement
+      tags: [intelligence]
+      summary: Draft a public statement on a topic using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftStatementInput"
+      responses:
+        "200":
+          description: Drafted statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatementResult"
+        "400":
+          description: API key not configured
+  /v1/admin/configs:
+    get:
+      operationId: adminListConfigs
+      tags: [admin]
+      summary: List all platform configuration keys (secrets masked)
+      responses:
+        "200":
+          description: Platform configs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PlatformConfig"
+    post:
+      operationId: adminBulkUpsertConfigs
+      tags: [admin]
+      summary: Bulk upsert multiple config values
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkConfigInput"
+      responses:
+        "200":
+          description: Updated configs
+  /v1/admin/configs/{key}:
+    get:
+      operationId: adminGetConfig
+      tags: [admin]
+      summary: Get a single platform config
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Config entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformConfig"
+        "404":
+          description: Not found
+    put:
+      operationId: adminUpsertConfig
+      tags: [admin]
+      summary: Create or update a platform config value
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformConfigInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformConfig"
+        "201":
+          description: Created
+    delete:
+      operationId: adminDeleteConfig
+      tags: [admin]
+      summary: Delete a platform config entry
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
   /v1/admin/orgs:
     get:
       operationId: adminListOrgs
@@ -449,14 +592,6 @@ paths:
       operationId: generatePdfReport
       tags: [reports]
       summary: Generate a white-label PDF report (Phase 8)
-      responses:
-        "501":
-          description: Not yet implemented
-  /v1/intelligence/talking-points:
-    post:
-      operationId: generateTalkingPoints
-      tags: [intelligence]
-      summary: Generate talking points for a keyword (Phase 6)
       responses:
         "501":
           description: Not yet implemented
@@ -592,3 +727,102 @@ components:
         events:
           type: array
           items: { type: string }
+    LlmMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:    { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+    LlmChatInput:
+      type: object
+      required: [messages]
+      properties:
+        provider: { type: string, enum: [openai, gemini], default: openai }
+        model:    { type: string }
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/LlmMessage"
+    LlmUsage:
+      type: object
+      properties:
+        promptTokens:     { type: integer }
+        completionTokens: { type: integer }
+        totalTokens:      { type: integer }
+    LlmReply:
+      type: object
+      properties:
+        provider:  { type: string }
+        model:     { type: string }
+        content:   { type: string }
+        usage:
+          $ref: "#/components/schemas/LlmUsage"
+        durationMs: { type: integer }
+    TalkingPointsInput:
+      type: object
+      required: [topic]
+      properties:
+        topic:    { type: string }
+        context:  { type: string }
+        provider: { type: string, enum: [openai, gemini] }
+    TalkingPointsResult:
+      type: object
+      properties:
+        topic:         { type: string }
+        talkingPoints: { type: string }
+        provider:      { type: string }
+        model:         { type: string }
+    DraftStatementInput:
+      type: object
+      required: [topic]
+      properties:
+        topic:    { type: string }
+        tone:     { type: string }
+        audience: { type: string }
+        provider: { type: string, enum: [openai, gemini] }
+    StatementResult:
+      type: object
+      properties:
+        topic:     { type: string }
+        statement: { type: string }
+        provider:  { type: string }
+        model:     { type: string }
+    PlatformConfig:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        key:         { type: string }
+        category:    { type: string }
+        label:       { type: string }
+        description: { type: ["string", "null"] }
+        isSecret:    { type: boolean }
+        isActive:    { type: boolean }
+        hasValue:    { type: boolean }
+        value:       { type: ["string", "null"] }
+        createdAt:   { type: string, format: date-time }
+        updatedAt:   { type: string, format: date-time }
+    PlatformConfigInput:
+      type: object
+      properties:
+        value:       { type: string }
+        label:       { type: string }
+        description: { type: string }
+        category:    { type: string }
+        isSecret:    { type: boolean }
+        isActive:    { type: boolean }
+    BulkConfigInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [key, value]
+            properties:
+              key:   { type: string }
+              value: { type: string }
+    AnalysisRunInput:
+      type: object
+      properties:
+        category: { type: string }
