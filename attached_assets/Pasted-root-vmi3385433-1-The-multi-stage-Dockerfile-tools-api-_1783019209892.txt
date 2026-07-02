@@ -1,0 +1,137 @@
+root@vmi3385433:~# # 1) The multi-stage Dockerfile (tools/api/web targets)
+echo '======== Dockerfile ========'; cat /root/agentopia/Dockerfile
+======== Dockerfile ========
+# syntax=docker/dockerfile:1.7
+# ---------------------------------------------------------------------------
+# Multi-stage build for the Agentopia pnpm monorepo.
+#
+# Build targets (selected by docker-compose `target:`):
+#   - api    : Express API server (single esbuild bundle; no runtime node_modules)
+#   - web    : nginx serving the built React SPA + reverse-proxying /api to `api`
+#   - tools  : full workspace image for DB migrations + seed/bootstrap scripts
+# ---------------------------------------------------------------------------
+
+############################
+# Base: Node 24 + pnpm
+############################
+FROM node:24-slim AS base
+ENV PNPM_HOME="/pnpm" \
+    PATH="/pnpm:$PATH"
+RUN corepack enable
+WORKDIR /app
+
+############################
+# deps: install the whole workspace once (shared by every build stage)
+############################
+FROM base AS deps
+# Build toolchain so any package with a native/postinstall step installs cleanly.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN pnpm install --frozen-lockfile
+
+############################
+# build-api: bundle the API server into dist/index.mjs
+############################
+FROM deps AS build-api
+RUN pnpm --filter @workspace/api-server run build
+
+############################
+# build-web: build the React SPA (BASE_PATH is baked in at build time)
+############################
+FROM deps AS build-web
+ARG BASE_PATH=/
+# vite.config.ts validates PORT at load even for `build`; value is irrelevant.
+ENV PORT=8080 \
+    BASE_PATH=${BASE_PATH} \
+    NODE_ENV=production
+RUN pnpm --filter @workspace/agentopia run build
+
+############################
+# api (runtime): slim — esbuild already bundled all dependencies
+############################
+FROM base AS api
+ENV NODE_ENV=production
+WORKDIR /app/artifacts/api-server
+COPY --from=build-api /app/artifacts/api-server/dist ./dist
+EXPOSE 8080
+CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
+
+############################
+# tools: DB migrations + seed/bootstrap scripts (full workspace + dev deps)
+############################
+FROM deps AS tools
+# Default command pushes the Drizzle schema; compose overrides it for seeds.
+CMD ["pnpm", "--filter", "@workspace/db", "run", "push"]
+
+############################
+# web (runtime): nginx static + /api reverse proxy
+############################
+FROM nginx:1.27-alpine AS web
+COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build-web /app/artifacts/agentopia/dist/public /usr/share/nginx/html
+EXPOSE 80
+root@vmi3385433:~# # 2) Its nginx config (SPA + /api proxy) and .dockerignore
+echo '======== nginx confs ========'
+find /root/agentopia -maxdepth 3 -iname '*.conf' -not -path '*/node_modules/*' -print -exec echo '--- {} ---' \; -exec cat {} \;
+echo '======== .dockerignore ========'; cat /root/agentopia/.dockerignore 2>/dev/null || echo '(none)'
+======== nginx confs ========
+======== .dockerignore ========
+.git
+.gitignore
+**/node_modules
+**/dist
+**/.vite
+**/*.tsbuildinfo
+.local
+.agents
+**/*.log
+.env
+.env.*
+.DS_Store
+root@vmi3385433:~# # 3) How code reaches the box + the env template
+echo '=== git remote ==='; git -C /root/agentopia remote -v 2>/dev/null || echo 'no git repo (code copied another way)'
+echo '=== dir ==='; ls -la /root/agentopia
+echo '=== .env.example ==='; cat /root/agentopia/.env.example 2>/dev/null || echo '(none)'
+=== git remote ===
+origin  https://github.com/GenieAiHub/agentopia (fetch)
+origin  https://github.com/GenieAiHub/agentopia (push)
+=== dir ===
+total 12548
+drwxr-xr-x 13 root root     4096 Jun 23 01:00 .
+drwx------ 20 root root     4096 Jul  2 20:50 ..
+drwxr-xr-x  3 root root     4096 Jun 22 23:12 .agents
+-rw-r--r--  1 root root      112 Jun 20 14:16 .dockerignore
+-rw-r--r--  1 root root      857 Jun 20 15:20 .env
+-rw-r--r--  1 root root     3047 Jun 20 22:55 .env.docker.example
+drwxr-xr-x  8 root root     4096 Jun 23 01:00 .git
+-rw-r--r--  1 root root      668 Jun 20 13:42 .gitignore
+drwxr-xr-x  3 root root     4096 Jun 20 22:44 .local
+-rw-r--r--  1 root root       56 Jun 20 13:42 .npmrc
+-rw-r--r--  1 root root     1041 Jun 23 01:00 .replit
+-rw-r--r--  1 root root      201 Jun 20 13:42 .replitignore
+-rw-r--r--  1 root root     2608 Jun 20 14:16 Dockerfile
+-rw-r--r--  1 root root    25276 Jun 20 13:42 agentopia_vision_document.html
+-rw-r--r--  1 root root    13273 Jun 20 13:42 agentopia_vision_document.md
+drwxr-xr-x  5 root root     4096 Jun 20 13:42 artifacts
+drwxr-xr-x  3 root root     4096 Jun 23 00:18 attached_assets
+drwxr-xr-x  4 root root     4096 Jun 22 01:32 deploy
+-rw-r--r--  1 root root     1273 Jun 20 22:55 docker-compose.proxy.yml
+-rw-r--r--  1 root root     4086 Jun 20 14:16 docker-compose.yml
+drwxr-xr-x  2 root root     4096 Jun 20 22:55 docs
+drwxr-xr-x 10 root root     4096 Jun 20 22:55 lib
+drwxr-xr-x  5 root root     4096 Jun 20 23:17 node_modules
+drwxr-xr-x  5 root root     4096 Jun 20 22:55 onchain
+-rw-r--r--  1 root root      798 Jun 22 01:32 package.json
+-rw-r--r--  1 root root   316164 Jun 20 22:55 pnpm-lock.yaml
+-rw-r--r--  1 root root     4634 Jun 20 22:55 pnpm-workspace.yaml
+-rw-r--r--  1 root root    11584 Jun 20 22:55 replit.md
+-rw-r--r--  1 root root       43 Jun 22 01:29 replit.nix
+drwxr-xr-x  4 root root     4096 Jun 20 23:18 scripts
+-rw-r--r--  1 root root      692 Jun 20 13:42 tsconfig.base.json
+-rw-r--r--  1 root root      349 Jun 20 22:55 tsconfig.json
+-rw-r--r--  1 root root 12352262 Jun 22 01:29 zipFile.zip
+=== .env.example ===
+(none)
+root@vmi3385433:~#
