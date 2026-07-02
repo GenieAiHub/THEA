@@ -1,0 +1,366 @@
+root@vmi3385433:~# # 4) A clean template project on the shared net (agentopia = web+api+db) — its proxy snippet + compose
+cat /root/agentopia/deploy/reverse-proxy/Caddyfile
+echo "===== compose ====="
+find /root/agentopia -maxdepth 3 \( -name 'docker-compose*.y*ml' -o -name 'compose*.y*ml' \) -print -exec echo '----- {} -----' \; -exec cat {} \;
+# Shared Caddy reverse proxy, run BEHIND Cloudflare (SSL/TLS mode: Full (strict)).
+# Each site serves a Cloudflare Origin Certificate (trusted by Cloudflare's edge),
+# so the Cloudflare<->server hop is encrypted end-to-end. Caddy does NOT use
+# Let's Encrypt here — the explicit `tls` directive pins the origin cert and
+# disables ACME (which can't complete while traffic is proxied through Cloudflare).
+#
+# Caddy routes by the request's Host header, so one server IP serves many domains:
+# each project's `web` container is reachable on the shared `web` network under the
+# alias referenced below. Drop each domain's origin cert + key into ./certs/<name>/
+# (mounted read-only at /etc/caddy/certs — gitignored, never committed).
+#
+# RECOMMENDED HARDENING (Authenticated Origin Pulls): lock the origin so ONLY
+# Cloudflare can connect. Otherwise anyone who finds your server IP can hit the
+# origin directly and forge X-Forwarded-For (defeating per-IP rate limiting, which
+# trusts the proxy chain via TRUST_PROXY). To enable, see deploy/README.md
+# "Step 5 — Harden": turn on Authenticated Origin Pulls in Cloudflare, download the
+# origin-pull CA to ./certs/cloudflare/origin-pull-ca.pem, and switch each site's
+# single-line `tls ...` to the commented block form shown below it.
+
+{$AGENTOPIA_DOMAIN} {
+        tls /etc/caddy/certs/agentopia/origin.pem /etc/caddy/certs/agentopia/origin.key
+        # Hardened (Authenticated Origin Pulls) — replace the `tls` line above with:
+        # tls /etc/caddy/certs/agentopia/origin.pem /etc/caddy/certs/agentopia/origin.key {
+        #       client_auth {
+        #               mode require_and_verify
+        #               trust_pool file /etc/caddy/certs/cloudflare/origin-pull-ca.pem
+        #       }
+        # }
+        reverse_proxy agentopia-web:80
+}
+
+# To add another project on this VPS (its own domain, same IP):
+#   1. In that project's docker-compose.proxy.yml, give its `web` service a
+#      unique alias on the external `web` network (e.g. `myapp-web`).
+#   2. Create a Cloudflare Origin Certificate for that domain and save it as
+#      ./certs/myapp/origin.pem + ./certs/myapp/origin.key on the VPS.
+#   3. Add a block here, then reload: `docker compose up -d` in this directory.
+#
+# myapp.example.com {
+#       tls /etc/caddy/certs/myapp/origin.pem /etc/caddy/certs/myapp/origin.key
+#       reverse_proxy myapp-web:80
+# }
+
+
+dseaw.org, www.dseaw.org {
+        tls /etc/caddy/certs/dseaw.crt /etc/caddy/certs/dseaw.key
+        reverse_proxy dseaw-website:80
+}
+
+socialvista.co.in, www.socialvista.co.in {
+    tls /etc/caddy/certs/socialvista/origin.pem /etc/caddy/certs/socialvista/origin.key
+    reverse_proxy socialvista-web:5000
+}
+
+trustsure.id {
+    tls /etc/caddy/certs/trustsure/origin.pem /etc/caddy/certs/trustsure/origin.key
+    reverse_proxy trustsure-web:80
+}
+
+gnx.co.in, www.gnx.co.in {
+    tls /etc/caddy/certs/gnx/origin.pem /etc/caddy/certs/gnx/origin.key
+    reverse_proxy gnx-web:8080
+}
+
+genieai.finance, www.genieai.finance, tenants.genieai.finance {
+    tls /etc/caddy/certs/genieai/origin.pem /etc/caddy/certs/genieai/origin.key
+    reverse_proxy genieai-web:8080
+}
+
+cgplay.games {
+    tls /etc/caddy/certs/cryptoplay/origin.pem /etc/caddy/certs/cryptoplay/origin.key
+    reverse_proxy cryptoplay-web:80
+}
+
+mlmnode.tech, www.mlmnode.tech {
+        tls /etc/caddy/certs/mlmnode/origin.pem /etc/caddy/certs/mlmnode/origin.key
+        reverse_proxy mlmnode-web:3000
+}
+
+nodes.mlmnode.tech {
+        tls /etc/caddy/certs/mlmnode/origin.pem /etc/caddy/certs/mlmnode/origin.key
+        reverse_proxy mlmnode-web:3000
+}
+
+cliniq.li {
+        tls /etc/caddy/certs/cliniq/origin.pem /etc/caddy/certs/cliniq/origin.key
+
+        encode gzip zstd
+
+        request_body {
+                max_size 60MB
+        }
+
+        handle /api/* {
+                reverse_proxy cliniq-api:8080
+        }
+
+        redir /admin /admin/
+        handle_path /admin/* {
+                reverse_proxy cliniq-admin:80
+        }
+
+        handle {
+                reverse_proxy cliniq-web:80
+        }
+}
+
+firstflyai.com, www.firstflyai.com {
+        tls /etc/caddy/certs/firstfly/origin.pem /etc/caddy/certs/firstfly/origin.key
+
+        encode gzip zstd
+
+        request_body {
+                max_size 60MB
+        }
+
+        reverse_proxy firstfly-web:8080
+}
+
+
+genisys.ind.in, www.genisys.ind.in {
+        tls /etc/caddy/certs/genisys/origin.pem /etc/caddy/certs/genisys/origin.key
+
+        encode gzip zstd
+
+        request_body {
+                max_size 10MB
+        }
+
+        reverse_proxy genisys-web:8080
+}
+
+livekit.nexushub.network {
+    tls /etc/caddy/certs/nexus/origin.pem /etc/caddy/certs/nexus/origin.key
+    reverse_proxy nexus-livekit:7880
+}
+
+nexushub.network {
+        tls /etc/caddy/certs/nexus/origin.pem /etc/caddy/certs/nexus/origin.key
+        encode gzip zstd
+        reverse_proxy nexus-web:80
+}
+
+app.nexushub.network {
+        tls /etc/caddy/certs/nexus/origin.pem /etc/caddy/certs/nexus/origin.key
+        encode gzip zstd
+        handle /api/* {
+                reverse_proxy nexus-api:3000
+        }
+        handle {
+                reverse_proxy nexus-app:80
+        }
+}
+===== compose =====
+/root/agentopia/deploy/reverse-proxy/docker-compose.yml
+----- /root/agentopia/deploy/reverse-proxy/docker-compose.yml -----
+# Shared reverse proxy for ALL your projects on this VPS, run behind Cloudflare.
+# Each site serves a Cloudflare Origin Certificate (see ./Caddyfile + ./certs);
+# set Cloudflare's SSL/TLS mode to Full (strict) for end-to-end encryption.
+#
+# One-time setup on the VPS:
+#   1. Point each project's domain (A record, Proxied/orange) at this server's IP.
+#   2. Set AGENTOPIA_DOMAIN (and any other project domains) in ./.env.
+#   3. Save each domain's origin cert + key under ./certs/<name>/ (gitignored).
+#   4. docker compose up -d
+#
+# This creates the external `web` network that each project attaches to via its
+# docker-compose.proxy.yml override.
+name: reverse-proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      AGENTOPIA_DOMAIN: ${AGENTOPIA_DOMAIN:?set AGENTOPIA_DOMAIN in deploy/reverse-proxy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/etc/caddy/certs:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - web
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  web:
+    name: web
+    driver: bridge
+/root/agentopia/docker-compose.proxy.yml
+----- /root/agentopia/docker-compose.proxy.yml -----
+# Override that places this project behind the shared reverse proxy started from
+# deploy/reverse-proxy (Caddy serving a Cloudflare Origin Certificate behind the
+# Cloudflare edge). Bring up the shared proxy
+# first (it creates the external `web` network), then:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --build
+#
+# Requires Docker Compose v2.24+ for `!reset` (check: docker compose version).
+services:
+  api:
+    environment:
+      # Proxy hops in front of the app when using the shared proxy:
+      #   - direct (Caddy -> nginx):                   TRUST_PROXY=2 (default below)
+      #   - behind Cloudflare (CF -> Caddy -> nginx):  set TRUST_PROXY=3 in .env
+      # Cloudflare appends the real visitor IP to X-Forwarded-For, so counting all
+      # hops lets rate limiting / logging key on the actual client, not an edge IP.
+      TRUST_PROXY: "${TRUST_PROXY:-2}"
+
+  web:
+    # No published host port: the shared proxy terminates TLS and routes traffic
+    # to this container over the `web` network.
+    ports: !reset []
+    networks:
+      internal: {}
+      web:
+        # Stable alias the shared Caddyfile targets (`reverse_proxy agentopia-web:80`).
+        aliases:
+          - agentopia-web
+
+networks:
+  web:
+    external: true
+/root/agentopia/docker-compose.yml
+----- /root/agentopia/docker-compose.yml -----
+name: agentopia
+
+# Shared environment for the API + tools containers. DATABASE_URL points at the
+# local `db` service and is derived from the POSTGRES_* values so it can never
+# drift out of sync. Set DATABASE_URL explicitly in .env to override (e.g. when
+# your password contains URL-special characters like @ : / # ?).
+x-app-env: &app-env
+  DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-agentopia}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-agentopia}}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+  SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+  SOLANA_CLUSTER: ${SOLANA_CLUSTER:-devnet}
+  VOLT_MINT_ADDRESS: ${VOLT_MINT_ADDRESS:-}
+  USDT_MINT_ADDRESS: ${USDT_MINT_ADDRESS:-}
+  VOLT_TREASURY_SECRET_KEY: ${VOLT_TREASURY_SECRET_KEY:-}
+  VOLT_VAULT_SECRET_KEY: ${VOLT_VAULT_SECRET_KEY:-}
+  COFOUNDER_SALARY_USDT: ${COFOUNDER_SALARY_USDT:-5000}
+  GENESIS_COFOUNDER_CODE: ${GENESIS_COFOUNDER_CODE:-}
+
+services:
+  # ----- Local PostgreSQL (data persisted in the db-data volume) -----
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agentopia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-agentopia}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentopia} -d ${POSTGRES_DB:-agentopia}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      internal: {}
+
+  # ----- One-shot schema push; runs to completion before the API starts -----
+  migrate:
+    build:
+      context: .
+      target: tools
+    image: agentopia-tools
+    environment:
+      <<: *app-env
+    command: ["pnpm", "--filter", "@workspace/db", "run", "push"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      internal: {}
+
+  # ----- Express API server (mounts all routes under /api) -----
+  api:
+    build:
+      context: .
+      target: api
+    image: agentopia-api
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      NODE_ENV: production
+      PORT: "8080"
+      # Proxy hops in front of the app: nginx-only (standalone) = 1; behind the
+      # shared Caddy too = 2 (set by docker-compose.proxy.yml).
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GENESIS_AUTONOMY_ENABLED: ${GENESIS_AUTONOMY_ENABLED:-false}
+      GENESIS_AUTONOMY_INTERVAL_HOURS: ${GENESIS_AUTONOMY_INTERVAL_HOURS:-6}
+      GENESIS_SELF_HEAL_INTERVAL_MINUTES: ${GENESIS_SELF_HEAL_INTERVAL_MINUTES:-15}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8080/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      internal: {}
+
+  # ----- nginx: serves the SPA and proxies /api to the api service -----
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        BASE_PATH: ${BASE_PATH:-/}
+    image: agentopia-web
+    restart: unless-stopped
+    environment:
+      API_HOST: api
+      API_PORT: "8080"
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    networks:
+      internal: {}
+
+  # ----- Management container for seeds / economy bootstrap (run on demand) -----
+  # Usage: docker compose --profile tools run --rm tools <command>
+  tools:
+    build:
+      context: .
+      target: tools
+    image: agentopia-tools
+    profiles: ["tools"]
+    environment:
+      <<: *app-env
+    volumes:
+      # Persist generated economy keys (.local/state/volt/keys.json) on the host
+      # so they survive `--rm` and faucet-funding reruns of bootstrap-volt.
+      - ./.local:/app/.local
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      internal: {}
+
+volumes:
+  db-data:
+
+networks:
+  internal: {}
+root@vmi3385433:~#
