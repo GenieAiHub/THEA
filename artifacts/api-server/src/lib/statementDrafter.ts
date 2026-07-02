@@ -34,17 +34,44 @@ const TYPE_FORMATS: Record<StatementType, string> = {
 /**
  * Draft a public statement or press release using AI.
  *
- * If alertId is provided, fetches crisis context to inform the draft.
+ * Accepts either (keyword) or (alertId) or both.
+ * When only alertId is supplied, the keyword is resolved from the alert.
  * Draft is stored in analysis_reports for retrieval and re-generation.
  */
 export async function draftStatement(
   orgId: string,
-  keyword: string,
+  keywordInput: string | undefined,
   tone: StatementTone,
   type: StatementType,
   alertId?: string,
   feedback?: string,
 ): Promise<StatementResult> {
+  // ── Resolve keyword from alert if not explicitly provided ────────────────────
+  let resolvedAlertContext = "";
+  let keyword = keywordInput ?? "";
+
+  if (alertId) {
+    const [alert] = await db
+      .select({
+        severity: alertsTable.severity,
+        crisisProbability: alertsTable.crisisProbability,
+        type: alertsTable.type,
+        keyword: alertsTable.keyword,
+      })
+      .from(alertsTable)
+      .where(and(eq(alertsTable.id, alertId), eq(alertsTable.orgId, orgId)));
+
+    if (alert) {
+      // Use alert's keyword if caller didn't provide one
+      if (!keyword && alert.keyword) keyword = alert.keyword;
+      resolvedAlertContext = `\nActive alert: type=${alert.type}, severity=${alert.severity}, crisis_probability=${alert.crisisProbability}%`;
+    }
+  }
+
+  if (!keyword) {
+    throw new Error("keyword is required when alert_id is not provided or has no associated keyword");
+  }
+
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const pattern = `%${keyword.replace(/[%_]/g, "\\$&")}%`;
 
@@ -72,18 +99,7 @@ export async function draftStatement(
     .map((item) => `- ${item.title ?? "(no title)"} [${item.platform}, sentiment: ${Number(item.sentimentScore ?? 0).toFixed(2)}]`)
     .join("\n");
 
-  // Fetch alert context
-  let alertContext = "";
-  if (alertId) {
-    const [alert] = await db
-      .select({ severity: alertsTable.severity, crisisProbability: alertsTable.crisisProbability, type: alertsTable.type })
-      .from(alertsTable)
-      .where(and(eq(alertsTable.id, alertId), eq(alertsTable.orgId, orgId)));
-
-    if (alert) {
-      alertContext = `\nActive alert: type=${alert.type}, severity=${alert.severity}, crisis_probability=${alert.crisisProbability}%`;
-    }
-  }
+  const alertContext = resolvedAlertContext;
 
   const systemPrompt = `You are a senior communications director and speechwriter.
 Draft a ${type.replace("_", " ")} in response to a developing situation.

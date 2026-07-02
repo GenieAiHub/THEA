@@ -46,7 +46,8 @@ async function computeItemEmv(sourceUrl: string, sentimentScore: number | null):
   const cpm = source?.cpmBenchmark ?? DEFAULT_CPM;
   const relevance = Math.min(1, 0.5 + Math.abs(Number(sentimentScore ?? 0.3)));
 
-  return (reach * relevance * cpm) / 1_000_000; // EMV in thousands of dollars
+  // EMV formula: reach × relevance × CPM / 1000 = ad equivalent value in USD
+  return (reach * relevance * cpm) / 1_000;
 }
 
 /**
@@ -207,6 +208,13 @@ export async function computeCampaignBaseline(campaignId: string): Promise<void>
   const days = 14;
   const baselineVolume = Number(stats?.n ?? 0) / days;
 
+  // Baseline SOV — use org's keywords in the 14-day window
+  const { entries: sovEntries } = await computeShareOfVoice(campaign.orgId, 14 * 24).catch(() => ({ entries: [] }));
+  const baselineSovEntry = sovEntries.find((e) =>
+    keywords.some((kw) => kw.toLowerCase() === e.keyword.toLowerCase()),
+  );
+  const baselineSov = baselineSovEntry?.sharePercent ?? 0;
+
   await db
     .update(campaignsTable)
     .set({
@@ -214,11 +222,12 @@ export async function computeCampaignBaseline(campaignId: string): Promise<void>
       baselinePeriodEnd: baselineEnd,
       baselineKeywordVolume: baselineVolume,
       baselineSentiment: Number(stats?.avgSentiment ?? 0),
+      baselineSov,
       updatedAt: new Date(),
     })
     .where(eq(campaignsTable.id, campaignId));
 
-  logger.info({ campaignId, baselineVolume: baselineVolume.toFixed(1) }, "Campaign baseline computed");
+  logger.info({ campaignId, baselineVolume: baselineVolume.toFixed(1), baselineSov }, "Campaign baseline computed");
 }
 
 /**

@@ -109,7 +109,8 @@ router.post("/draft-statement", async (req, res) => {
     }
 
     const kw = keyword ?? topic;
-    if (!kw) { res.status(400).json({ error: "keyword is required" }); return; }
+    // Allow alert_id alone (no keyword) — draftStatement resolves keyword from the alert
+    if (!kw && !alert_id) { res.status(400).json({ error: "keyword or alert_id is required" }); return; }
 
     const validTones: StatementTone[] = ["formal", "empathetic", "assertive"];
     const validTypes: StatementType[] = ["press_release", "social_post", "internal_memo"];
@@ -122,6 +123,49 @@ router.post("/draft-statement", async (req, res) => {
     const msg = err instanceof Error ? err.message : "Failed to draft statement";
     res.status(msg.includes("not found") ? 404 : msg.includes("not configured") ? 400 : 502).json({ error: msg });
   }
+});
+
+// ─── GET /api/v1/intelligence/draft-statement/:draftId/download ───────────────
+/**
+ * Download a previously generated draft as plain text or DOCX.
+ *
+ * GET /api/v1/intelligence/draft-statement/:draftId/download?format=txt (default)
+ * GET /api/v1/intelligence/draft-statement/:draftId/download?format=docx
+ */
+router.get("/draft-statement/:draftId/download", async (req, res) => {
+  const { draftId } = req.params as { draftId: string };
+  const format = (req.query.format as string ?? "txt").toLowerCase();
+
+  const [report] = await db
+    .select()
+    .from(analysisReportsTable)
+    .where(and(eq(analysisReportsTable.id, draftId), eq(analysisReportsTable.orgId, req.thea!.org.id)));
+
+  if (!report) {
+    res.status(404).json({ error: "Draft not found" });
+    return;
+  }
+
+  const data = JSON.parse(report.rawReport ?? "{}") as { draft?: string; keyword?: string; type?: string };
+  const draft = data.draft ?? "";
+  const safeFilename = `statement-${(data.keyword ?? "draft").replace(/[^a-z0-9]/gi, "-").slice(0, 40)}-${draftId.slice(0, 8)}`;
+
+  if (format === "docx") {
+    // Lightweight DOCX generation without external library: create a minimal Word XML document
+    const wordXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>${draft.split(/\n/).map((line) => `<w:p><w:r><w:t xml:space="preserve">${line.replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c] ?? c))}</w:t></w:r></w:p>`).join("")}
+<w:sectPr/></w:body></w:document>`;
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}.docx"`);
+    res.send(Buffer.from(wordXml, "utf-8"));
+    return;
+  }
+
+  // Default: plain text
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}.txt"`);
+  res.send(draft);
 });
 
 // ─── POST /api/v1/intelligence/counter-narrative ──────────────────────────────

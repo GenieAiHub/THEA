@@ -472,6 +472,29 @@ paths:
                 $ref: "#/components/schemas/StatementResult"
         "400":
           description: API key not configured
+  /v1/intelligence/draft-statement/{draftId}/download:
+    get:
+      operationId: downloadDraftStatement
+      tags: [intelligence]
+      summary: Download a generated statement draft as plain text or DOCX
+      parameters:
+        - name: draftId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: format
+          in: query
+          schema: { type: string, enum: [txt, docx], default: txt }
+      responses:
+        "200":
+          description: File download
+          content:
+            text/plain:
+              schema: { type: string }
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema: { type: string, format: binary }
+        "404":
+          description: Draft not found
   /v1/intelligence/counter-narrative:
     post:
       operationId: generateCounterNarrative

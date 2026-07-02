@@ -50,8 +50,9 @@ export async function generateTalkingPoints(
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const pattern = `%${keyword.replace(/[%_]/g, "\\$&")}%`;
 
-  // ── Fetch top 30 content items by recency + engagement ──────────────────────
-  const items = await db
+  // ── Fetch top items by recency + engagement ──────────────────────────────────
+  // Pull 60 recent items, then re-rank by composite score (engagement + recency)
+  const rawItems = await db
     .select({
       title: contentItemsTable.title,
       body: contentItemsTable.body,
@@ -61,6 +62,7 @@ export async function generateTalkingPoints(
       publishedAt: contentItemsTable.publishedAt,
       author: contentItemsTable.author,
       sourceUrl: contentItemsTable.sourceUrl,
+      collectedAt: contentItemsTable.collectedAt,
     })
     .from(contentItemsTable)
     .where(
@@ -71,9 +73,29 @@ export async function generateTalkingPoints(
       ),
     )
     .orderBy(
+      desc(
+        sql`coalesce((${contentItemsTable.engagementMetrics}->>'likes')::numeric, 0) +
+            coalesce((${contentItemsTable.engagementMetrics}->>'shares')::numeric, 0) +
+            coalesce((${contentItemsTable.engagementMetrics}->>'comments')::numeric, 0)`,
+      ),
       desc(contentItemsTable.publishedAt),
     )
-    .limit(30);
+    .limit(60);
+
+  // Re-rank by composite score: engagement (60%) + recency (40%)
+  const nowMs = Date.now();
+  const maxAgeMs = 48 * 60 * 60 * 1000;
+  const scoredItems = rawItems
+    .map((item) => {
+      const eng = (item.engagementMetrics as Record<string, number> | null) ?? {};
+      const engScore = ((eng.likes ?? 0) + (eng.shares ?? 0) * 2 + (eng.comments ?? 0)) / 1000;
+      const ageMs = nowMs - (item.publishedAt?.getTime() ?? item.collectedAt?.getTime() ?? nowMs);
+      const recencyScore = Math.max(0, 1 - ageMs / maxAgeMs);
+      return { ...item, _score: engScore * 0.6 + recencyScore * 0.4 };
+    })
+    .sort((a, b) => b._score - a._score);
+
+  const items = scoredItems.slice(0, 30);
 
   const contextSnippets = items
     .slice(0, 20)

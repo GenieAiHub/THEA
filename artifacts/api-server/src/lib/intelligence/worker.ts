@@ -16,8 +16,9 @@ import { runJournalistScanAllOrgs } from "../journalistTracker";
 import { detectNewsjackingOpportunities } from "../newsjackingDetector";
 import { measureAllActiveCampaigns } from "../campaignTracker";
 import { runWeeklyCompetitiveBriefings } from "../competitiveNarrativeBriefing";
+import { generateCounterNarrative } from "../counterNarrative";
 import { db } from "@workspace/db";
-import { organizationsTable } from "@workspace/db/schema";
+import { organizationsTable, analysisReportsTable } from "@workspace/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import { logger } from "../logger";
 
@@ -60,6 +61,26 @@ export function startIntelligenceWorker(): void {
         case "competitive-briefing": {
           logger.info("Running weekly competitive narrative briefings");
           await runWeeklyCompetitiveBriefings();
+          break;
+        }
+
+        case "counter-narrative": {
+          // Automatically triggered when a high/critical spike alert fires
+          const { keyword, alertId } = bullJob.data as { job: string; orgId?: string; keyword?: string; alertId?: string };
+          if (!orgId || !keyword) {
+            logger.warn({ jobId: bullJob.id }, "counter-narrative job missing orgId or keyword — skipping");
+            break;
+          }
+          logger.info({ orgId, keyword, alertId }, "Auto-generating counter-narrative for spike alert");
+          const result = await generateCounterNarrative(orgId, keyword, alertId);
+          // Store as analysis report for retrieval via GET /api/v1/intelligence/simulate/:id pattern
+          await db.insert(analysisReportsTable).values({
+            orgId,
+            category: keyword,
+            status: "completed",
+            rawReport: JSON.stringify({ type: "counter-narrative", alertId, ...result }),
+          }).catch((err) => logger.warn({ err }, "Failed to persist counter-narrative result"));
+          logger.info({ orgId, keyword, strategiesCount: result.strategies.length }, "Counter-narrative auto-generated");
           break;
         }
 

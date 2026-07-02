@@ -137,6 +137,15 @@ export async function detectSpikesForOrg(orgId: string): Promise<void> {
       },
       { priority: severity === "critical" ? 1 : severity === "high" ? 2 : 5 },
     );
+
+    // ── Auto-trigger counter-narrative for high/critical alerts ────────────────
+    if (severity === "critical" || severity === "high") {
+      await getQueues().intelligenceJobs.add(
+        "counter-narrative-auto",
+        { job: "counter-narrative", orgId, keyword: spike.keyword, alertId: alert.id },
+        { priority: severity === "critical" ? 2 : 4, attempts: 2 },
+      ).catch((err) => logger.warn({ err, orgId, alertId: alert.id }, "Failed to queue counter-narrative job"));
+    }
   }
 
   if (spikes.length > 0 || keywords.length > 0) {
