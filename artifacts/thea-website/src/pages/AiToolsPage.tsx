@@ -9,9 +9,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, MessageSquare, Mic, FileText, Activity, Copy, Check, Download, RefreshCw } from "lucide-react";
+import { Loader2, MessageSquare, Mic, FileText, Activity, Copy, Check, Download, RefreshCw, TrendingUp, AlertTriangle, Shield, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+
+interface SimReport {
+  sentimentTrajectory: string;
+  riskVectors: string;
+  responsePosture: string;
+  stakeholderImpact: string;
+  raw: string;
+}
+
+const SIM_STEPS = [
+  "Initializing simulation context…",
+  "Analyzing live narrative signals…",
+  "Generating sentiment trajectory…",
+  "Building risk matrix…",
+  "Compiling recommendations…",
+  "Finalizing report…",
+];
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -106,8 +123,10 @@ export default function AiToolsPage() {
   // Simulator
   const [simTopic, setSimTopic] = useState("");
   const [simScenario, setSimScenario] = useState("");
-  const [simResult, setSimResult] = useState("");
+  const [simScenarioType, setSimScenarioType] = useState("escalation");
+  const [simResult, setSimResult] = useState<SimReport | null>(null);
   const [simLoading, setSimLoading] = useState(false);
+  const [simStep, setSimStep] = useState(0);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -160,17 +179,59 @@ export default function AiToolsPage() {
     e.preventDefault();
     if (!simTopic) return;
     setSimLoading(true);
+    setSimResult(null);
+    setSimStep(0);
+
+    const stepInterval = setInterval(() => {
+      setSimStep((s) => Math.min(s + 1, SIM_STEPS.length - 1));
+    }, 600);
+
     try {
       const res = await llmChat.mutateAsync({
         data: {
           messages: [{
             role: "user",
-            content: `You are a narrative intelligence analyst. Run a "what-if" scenario simulation.\n\nTopic: ${simTopic}\nScenario: ${simScenario || "escalation of public attention"}\n\nProvide:\n1. Predicted sentiment trajectory (24h, 7d, 30d)\n2. Key risk vectors\n3. Recommended response posture\n4. Stakeholder impact assessment`,
+            content: `You are a narrative intelligence analyst. Produce a structured what-if scenario simulation report.
+
+Topic: ${simTopic}
+Scenario type: ${simScenarioType}
+Hypothesis: ${simScenario || "escalation of public attention to this topic"}
+
+Reply with EXACTLY these four labelled sections — no other text outside them:
+
+SENTIMENT_TRAJECTORY:
+Describe the predicted sentiment arc over 24h, 7 days, and 30 days. Include trajectory direction, peak risk window, and likely rebound point.
+
+RISK_VECTORS:
+List the 3-5 most significant risk vectors with brief explanation of each. Use a numbered list.
+
+RESPONSE_POSTURE:
+Recommend the optimal communications posture and key actions to take immediately, within 48h, and within 7 days.
+
+STAKEHOLDER_IMPACT:
+Assess the impact on each of: media, investors, employees, regulators/government, and general public. Rate each: Low / Medium / High.`,
           }],
         },
       });
-      setSimResult(res.content || "Simulation complete — no output returned.");
+
+      clearInterval(stepInterval);
+      setSimStep(SIM_STEPS.length - 1);
+
+      const raw = res.content || "";
+      const extract = (key: string) => {
+        const re = new RegExp(`${key}:\\n([\\s\\S]*?)(?=\\n[A-Z_]+:|$)`, "i");
+        return raw.match(re)?.[1]?.trim() || "";
+      };
+
+      setSimResult({
+        sentimentTrajectory: extract("SENTIMENT_TRAJECTORY"),
+        riskVectors: extract("RISK_VECTORS"),
+        responsePosture: extract("RESPONSE_POSTURE"),
+        stakeholderImpact: extract("STAKEHOLDER_IMPACT"),
+        raw,
+      });
     } catch {
+      clearInterval(stepInterval);
       toast({ title: "Simulation failed", variant: "destructive" });
     } finally {
       setSimLoading(false);
@@ -437,27 +498,45 @@ export default function AiToolsPage() {
                   What-If Scenario Simulator
                 </CardTitle>
                 <CardDescription className="text-slate-400">
-                  Model how a topic or narrative might evolve under different conditions. The AI projects sentiment trajectories, risk vectors, and recommended responses.
+                  Model how a narrative evolves under a chosen scenario. The engine runs a multi-stage analysis producing structured projections across sentiment, risk, response, and stakeholders.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <form onSubmit={handleSimulate} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-400 text-xs">Topic / Entity to Simulate *</Label>
-                    <Input
-                      placeholder="e.g. CEO resignation, product recall, data breach..."
-                      value={simTopic}
-                      onChange={(e) => setSimTopic(e.target.value)}
-                      className="bg-slate-950 border-slate-800 text-slate-200"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-400 text-xs">Topic / Entity to Simulate *</Label>
+                      <Input
+                        placeholder="e.g. CEO resignation, product recall…"
+                        value={simTopic}
+                        onChange={(e) => setSimTopic(e.target.value)}
+                        className="bg-slate-950 border-slate-800 text-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-400 text-xs">Scenario Type</Label>
+                      <Select value={simScenarioType} onValueChange={setSimScenarioType}>
+                        <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
+                          <SelectItem value="escalation">Escalation</SelectItem>
+                          <SelectItem value="viral-spread">Viral Spread</SelectItem>
+                          <SelectItem value="media-investigation">Media Investigation</SelectItem>
+                          <SelectItem value="regulatory-action">Regulatory Action</SelectItem>
+                          <SelectItem value="competitor-attack">Competitor Attack</SelectItem>
+                          <SelectItem value="social-backlash">Social Backlash</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-slate-400 text-xs">Scenario / Hypothesis</Label>
+                    <Label className="text-slate-400 text-xs">Hypothesis (optional)</Label>
                     <Textarea
-                      placeholder="Describe the what-if scenario. e.g. 'A major news outlet publishes a critical investigative piece...'"
+                      placeholder="Describe the specific scenario, e.g. 'A major outlet publishes a critical exposé…'"
                       value={simScenario}
                       onChange={(e) => setSimScenario(e.target.value)}
-                      rows={3}
+                      rows={2}
                       className="bg-slate-950 border-slate-800 text-slate-200 resize-none"
                     />
                   </div>
@@ -466,17 +545,85 @@ export default function AiToolsPage() {
                     Run Simulation
                   </Button>
                 </form>
-                {simResult && (
-                  <div className="space-y-2">
+
+                {/* Multi-step progress */}
+                {simLoading && (
+                  <div className="space-y-3 p-4 bg-slate-950 rounded-lg border border-purple-900/30">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-purple-400 mb-3">Simulation in progress</p>
+                    {SIM_STEPS.map((step, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                          i < simStep ? "bg-purple-600" : i === simStep ? "bg-purple-600/40 ring-2 ring-purple-500/50" : "bg-slate-800"
+                        }`}>
+                          {i < simStep ? (
+                            <Check className="w-3 h-3 text-white" />
+                          ) : i === simStep ? (
+                            <Loader2 className="w-3 h-3 text-purple-300 animate-spin" />
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-slate-600" />
+                          )}
+                        </div>
+                        <span className={`text-sm ${i <= simStep ? "text-slate-200" : "text-slate-600"}`}>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Structured report */}
+                {simResult && !simLoading && (
+                  <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Simulation Output</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Simulation Report — {simTopic}</span>
                       <div className="flex gap-2">
-                        <CopyButton text={simResult} />
-                        <DownloadButton text={simResult} filename={`simulation-${simTopic.replace(/\s+/g, "-")}.txt`} />
+                        <CopyButton text={simResult.raw} />
+                        <DownloadButton text={simResult.raw} filename={`simulation-${simTopic.replace(/\s+/g, "-")}.txt`} />
                       </div>
                     </div>
-                    <div className="p-4 bg-slate-950 rounded-lg border border-purple-900/30 text-slate-300 whitespace-pre-wrap text-sm leading-relaxed">
-                      {simResult}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Sentiment Trajectory */}
+                      <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-blue-400" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-blue-400">Sentiment Trajectory</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                          {simResult.sentimentTrajectory || simResult.raw}
+                        </p>
+                      </div>
+
+                      {/* Risk Vectors */}
+                      <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-amber-400">Risk Vectors</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                          {simResult.riskVectors}
+                        </p>
+                      </div>
+
+                      {/* Response Posture */}
+                      <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">Response Posture</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                          {simResult.responsePosture}
+                        </p>
+                      </div>
+
+                      {/* Stakeholder Impact */}
+                      <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-purple-400" />
+                          <span className="text-xs font-semibold uppercase tracking-wide text-purple-400">Stakeholder Impact</span>
+                        </div>
+                        <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                          {simResult.stakeholderImpact}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}

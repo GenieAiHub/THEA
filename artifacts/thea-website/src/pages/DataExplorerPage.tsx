@@ -21,6 +21,18 @@ import {
 } from "@tanstack/react-table";
 
 const PLATFORMS = ["all", "twitter", "reddit", "news", "blog", "facebook", "instagram", "other"];
+
+const PLATFORM_ICONS: Record<string, string> = {
+  twitter: "🐦",
+  reddit: "🔶",
+  news: "📰",
+  blog: "✍️",
+  facebook: "📘",
+  instagram: "📸",
+  youtube: "▶️",
+  linkedin: "💼",
+  other: "🌐",
+};
 const LANGUAGES = ["all", "en", "es", "fr", "de", "pt", "zh", "ar", "ja", "ko", "ru", "it"];
 
 function exportCSV(data: any[]) {
@@ -120,12 +132,19 @@ export default function DataExplorerPage() {
       enableSorting: true,
     }),
     columnHelper.accessor("platform", {
-      header: "Platform",
-      cell: (info) => (
-        <Badge variant="outline" className="bg-slate-950 text-slate-400 border-slate-800 text-xs capitalize">
-          {info.getValue() || "unknown"}
-        </Badge>
-      ),
+      header: "Source",
+      cell: (info) => {
+        const p = (info.getValue() as string) || "other";
+        const icon = PLATFORM_ICONS[p.toLowerCase()] ?? "🌐";
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-base leading-none" role="img" aria-label={p}>{icon}</span>
+            <Badge variant="outline" className="bg-slate-950 text-slate-400 border-slate-800 text-xs capitalize">
+              {p}
+            </Badge>
+          </div>
+        );
+      },
       enableSorting: true,
     }),
     columnHelper.accessor("sentimentScore", {

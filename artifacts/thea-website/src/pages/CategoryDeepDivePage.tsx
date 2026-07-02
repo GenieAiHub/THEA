@@ -25,6 +25,9 @@ import {
   Bar,
   Cell,
 } from "recharts";
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
+
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 type Timeframe = "24h" | "7d" | "30d";
 
@@ -38,14 +41,22 @@ export default function CategoryDeepDivePage() {
       query: { enabled: !!category, queryKey: ["/api/v1/analysis/category", category] },
     });
 
+  const timeframeStartDate = useMemo(() => {
+    const now = new Date();
+    if (timeframe === "24h") now.setHours(now.getHours() - 24);
+    else if (timeframe === "7d") now.setDate(now.getDate() - 7);
+    else now.setDate(now.getDate() - 30);
+    return now.toISOString();
+  }, [timeframe]);
+
   const { data: trendsData, isLoading: loadingTrends } = useListTrends<any>({
     category,
     limit: 50,
   });
 
   const { data: contentData, isLoading: loadingContent } = useListContent(
-    { category, limit: 30 } as any,
-    { query: { enabled: !!category, queryKey: ["/api/v1/content", { category }] } }
+    { category, limit: 100, startDate: timeframeStartDate } as any,
+    { query: { enabled: !!category, queryKey: ["/api/v1/content", { category, timeframe }] } }
   );
 
   const { data: historyData, isLoading: loadingHistory } =
@@ -347,46 +358,64 @@ export default function CategoryDeepDivePage() {
               <CardHeader>
                 <CardTitle className="text-slate-100 text-base flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-teal-400" />
-                  Geographic Distribution
+                  Geographic Heat Map
                 </CardTitle>
-                <CardDescription className="text-slate-400">Content origin by country code for {category}</CardDescription>
+                <CardDescription className="text-slate-400">
+                  Content origin for {category} · {timeframe} window · darker = more items
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingContent ? (
-                  <Skeleton className="h-64 w-full bg-slate-800" />
-                ) : geoData.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={geoData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                        <XAxis type="number" stroke="#475569" fontSize={11} />
-                        <YAxis type="category" dataKey="country" stroke="#475569" fontSize={11} width={70} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "#f8fafc", fontSize: 12 }}
-                          formatter={(val: number) => [val, "Items"]}
-                        />
-                        <Bar dataKey="count" radius={[0, 3, 3, 0]}>
-                          {geoData.map((_: any, idx: number) => (
-                            <Cell key={idx} fill={`hsl(${170 + idx * 12}, 65%, ${55 - idx * 1.5}%)`} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <Skeleton className="h-72 w-full bg-slate-800" />
                 ) : (
-                  <div className="h-64 flex items-center justify-center">
-                    <p className="text-slate-500 text-center">No geographic data available for this category.</p>
-                  </div>
-                )}
-                {geoData.length > 0 && (
-                  <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-2">
-                    {geoData.slice(0, 10).map((g) => (
-                      <div key={g.country} className="text-center p-2 rounded-lg bg-slate-950 border border-slate-800">
-                        <p className="font-mono text-xs font-bold text-teal-400">{g.country}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{g.count} items</p>
+                  <>
+                    <div className="h-72 bg-slate-950 rounded-lg overflow-hidden border border-slate-800">
+                      <ComposableMap
+                        projectionConfig={{ scale: 145, center: [0, 10] }}
+                        style={{ width: "100%", height: "100%" }}
+                      >
+                        <Geographies geography={GEO_URL}>
+                          {({ geographies }: { geographies: any[] }) =>
+                            geographies.map((geo: any) => {
+                              const cc = geo.properties?.ISO_A2 || geo.properties?.A2 || "";
+                              const hit = geoData.find((g) => g.country.toUpperCase() === cc.toUpperCase());
+                              const maxCount = Math.max(...geoData.map((g) => g.count), 1);
+                              const intensity = hit ? hit.count / maxCount : 0;
+                              const fill = hit
+                                ? `hsl(${195 - intensity * 60}, 80%, ${60 - intensity * 30}%)`
+                                : "#1e293b";
+                              return (
+                                <Geography
+                                  key={geo.rsmKey}
+                                  geography={geo}
+                                  fill={fill}
+                                  stroke="#0f172a"
+                                  strokeWidth={0.5}
+                                  style={{
+                                    default: { outline: "none" },
+                                    hover: { fill: "#3b82f6", outline: "none" },
+                                    pressed: { outline: "none" },
+                                  }}
+                                />
+                              );
+                            })
+                          }
+                        </Geographies>
+                      </ComposableMap>
+                    </div>
+                    {geoData.length > 0 ? (
+                      <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {geoData.slice(0, 10).map((g) => (
+                          <div key={g.country} className="text-center p-2 rounded-lg bg-slate-950 border border-slate-800">
+                            <p className="font-mono text-xs font-bold text-teal-400">{g.country}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{g.count} items</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    ) : (
+                      <p className="text-slate-500 text-center text-sm mt-4">No geographic data for this timeframe.</p>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>

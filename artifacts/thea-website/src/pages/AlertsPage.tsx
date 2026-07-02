@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Filter, ExternalLink } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Filter, ExternalLink, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -28,6 +28,7 @@ export default function AlertsPage() {
   const [severityFilter, setSeverityFilter] = useState<Severity>("all");
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
 
   const { data: alertsData, isLoading } = useListAlerts<any>({
     status: showResolved ? undefined : "open",
@@ -49,6 +50,21 @@ export default function AlertsPage() {
       toast({ title: "Failed to resolve alert", variant: "destructive" });
     } finally {
       setResolvingId(null);
+    }
+  };
+
+  const handleDismiss = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissingId(id);
+    try {
+      const res = await fetch(`/api/v1/alerts/${id}/dismiss`, { method: "PATCH", credentials: "include" });
+      if (!res.ok) throw new Error("dismiss failed");
+      queryClient.invalidateQueries({ queryKey: getListAlertsQueryKey() });
+      toast({ title: "Alert dismissed" });
+    } catch {
+      toast({ title: "Failed to dismiss alert", variant: "destructive" });
+    } finally {
+      setDismissingId(null);
     }
   };
 
@@ -158,18 +174,32 @@ export default function AlertsPage() {
                         </Button>
                       </Link>
                       {alert.status === "open" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-slate-700 text-slate-300 hover:text-white hover:bg-emerald-500/20 hover:border-emerald-500/50"
-                          onClick={(e) => handleResolve(alert.id, e)}
-                          disabled={resolvingId === alert.id}
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                          Resolve
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-slate-700 text-slate-300 hover:text-white hover:bg-emerald-500/20 hover:border-emerald-500/50"
+                            onClick={(e) => handleResolve(alert.id, e)}
+                            disabled={resolvingId === alert.id}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                            Resolve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-slate-500 hover:text-amber-400 hover:bg-amber-500/10"
+                            onClick={(e) => handleDismiss(alert.id, e)}
+                            disabled={dismissingId === alert.id}
+                            title="Dismiss alert"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </>
                       ) : (
-                        <Badge variant="outline" className="bg-slate-800 text-slate-400 border-slate-700">Resolved</Badge>
+                        <Badge variant="outline" className={alert.status === "dismissed" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}>
+                          {alert.status === "dismissed" ? "Dismissed" : "Resolved"}
+                        </Badge>
                       )}
                       {isExpanded
                         ? <ChevronUp className="w-5 h-5 text-slate-500" />

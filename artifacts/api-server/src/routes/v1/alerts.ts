@@ -107,4 +107,19 @@ router.patch("/:id/resolve", requireRole("owner", "admin"), async (req, res) => 
   res.json(updated);
 });
 
+/** Dismiss an alert (moves to dismissed status without escalation) */
+router.patch("/:id/dismiss", requireRole("owner", "admin", "analyst"), async (req, res) => {
+  const [updated] = await db
+    .update(alertsTable)
+    .set({ status: "dismissed" as any })
+    .where(and(eq(alertsTable.id, req.params.id as string), eq(alertsTable.orgId, req.thea!.org.id)))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Alert not found" });
+    return;
+  }
+  res.json(updated);
+});
+
 export default router;
