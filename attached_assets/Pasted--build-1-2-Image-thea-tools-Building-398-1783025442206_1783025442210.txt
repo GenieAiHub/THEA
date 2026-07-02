@@ -1,0 +1,26 @@
+[+] build 1/2
+ ⠙ Image thea-tools Building                                                      398.3s
+ ✔ Image thea-api   Built                                                         398.3s
+[+] up 4/4
+ ✔ Container thea-db-1      Healthy                                                32.7s
+ ✔ Container thea-redis-1   Healthy                                                32.7s
+ ✔ Container thea-api-1     Started                                                40.1s
+ ✔ Container thea-migrate-1 Exited                                                  8.0s
+NAME             IMAGE                                                  COMMAND                  SERVICE   CREATED          STATUS                                     PORTS
+thea-admin-1     thea-admin                                             "/docker-entrypoint.…"   admin     20 minutes ago   Up 20 minutes                              80/tcp
+thea-api-1       thea-api                                               "docker-entrypoint.s…"   api       41 seconds ago   Up Less than a second (health: starting)   5000/tcp
+thea-db-1        pgvector/pgvector:pg16                                 "docker-entrypoint.s…"   db        20 minutes ago   Up 20 minutes (healthy)                    5432/tcp
+thea-es-1        docker.elastic.co/elasticsearch/elasticsearch:8.15.3   "/bin/tini -- /usr/l…"   es        20 minutes ago   Up 20 minutes (healthy)                    9200/tcp, 9300/tcp
+thea-markets-1   thea-markets                                           "/docker-entrypoint.…"   markets   20 minutes ago   Up 20 minutes                              80/tcp
+thea-redis-1     redis:7-alpine                                         "docker-entrypoint.s…"   redis     20 minutes ago   Up 20 minutes (healthy)                    6379/tcp
+thea-website-1   thea-website                                           "/docker-entrypoint.…"   website   20 minutes ago   Up 20 minutes                              80/tcp
+root@vmi3385433:~/thea# for h in thea.quest admin.thea.quest markets.thea.quest; do
+  printf '%-20s -> ' "$h"; curl -sS "https://$h/" -o /dev/null -w '%{http_code}\n'
+done
+curl -sS https://thea.quest/api/healthz -w '\n%{http_code}\n'
+thea.quest           -> 200
+admin.thea.quest     -> 200
+markets.thea.quest   -> 200
+{"status":"ok"}
+200
+root@vmi3385433:~/thea#
