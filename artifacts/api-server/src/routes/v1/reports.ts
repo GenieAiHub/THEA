@@ -10,18 +10,16 @@ import pptxgen from "pptxgenjs";
 const router = Router();
 router.use(requireAuth);
 
-const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
-
 async function getReportData(orgId: string, category?: string) {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const conditions: ReturnType<typeof eq>[] = [eq(trendScoresTable.orgId, PLATFORM_ORG_ID as any), gte(trendScoresTable.scoredAt, since) as any];
-  if (category) conditions.push(eq(trendScoresTable.category, category) as any);
+  const trendConditions: ReturnType<typeof eq>[] = [eq(trendScoresTable.orgId, orgId as any), gte(trendScoresTable.scoredAt, since) as any];
+  if (category) trendConditions.push(eq(trendScoresTable.category, category) as any);
 
   const [org, trends, latestReports, recentAlerts] = await Promise.all([
     db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId)).limit(1),
-    db.select().from(trendScoresTable).where(and(...conditions as any[])).orderBy(desc(trendScoresTable.score)).limit(20),
+    db.select().from(trendScoresTable).where(and(...trendConditions as any[])).orderBy(desc(trendScoresTable.score)).limit(20),
     db.select().from(analysisReportsTable)
-      .where(category ? and(eq(analysisReportsTable.orgId, PLATFORM_ORG_ID as any), eq(analysisReportsTable.category, category) as any) : eq(analysisReportsTable.orgId, PLATFORM_ORG_ID as any))
+      .where(category ? and(eq(analysisReportsTable.orgId, orgId as any), eq(analysisReportsTable.category, category) as any) : eq(analysisReportsTable.orgId, orgId as any))
       .orderBy(desc(analysisReportsTable.runAt)).limit(3),
     db.select().from(alertsTable)
       .where(and(eq(alertsTable.orgId, orgId), gte(alertsTable.createdAt, since) as any))

@@ -10,7 +10,7 @@ const router = Router();
 router.use(requireAuth);
 router.use(requireFeature("developer_api"));
 
-router.get("/", async (req, res) => {
+router.get("/", requireRole("owner", "admin"), async (req, res) => {
   const keys = await db
     .select({
       id: apiKeysTable.id,

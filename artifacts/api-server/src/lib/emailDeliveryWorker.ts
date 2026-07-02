@@ -10,8 +10,6 @@ import {
 import { eq, desc, gte, and } from "drizzle-orm";
 import { logger } from "./logger";
 
-const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
-
 interface EmailRecipient {
   email: string;
   name?: string | null;
@@ -30,9 +28,9 @@ async function buildDigestData(orgId: string) {
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const [org, trends, recentAlerts, latestReport] = await Promise.all([
     db.select({ name: organizationsTable.name }).from(organizationsTable).where(eq(organizationsTable.id, orgId)).limit(1),
-    db.select().from(trendScoresTable).where(and(eq(trendScoresTable.orgId, PLATFORM_ORG_ID), gte(trendScoresTable.scoredAt, since))).orderBy(desc(trendScoresTable.score)).limit(10),
+    db.select().from(trendScoresTable).where(and(eq(trendScoresTable.orgId, orgId), gte(trendScoresTable.scoredAt, since))).orderBy(desc(trendScoresTable.score)).limit(10),
     db.select().from(alertsTable).where(and(eq(alertsTable.orgId, orgId), gte(alertsTable.createdAt, since))).orderBy(desc(alertsTable.createdAt)).limit(5),
-    db.select().from(analysisReportsTable).where(eq(analysisReportsTable.orgId, PLATFORM_ORG_ID)).orderBy(desc(analysisReportsTable.runAt)).limit(1),
+    db.select().from(analysisReportsTable).where(eq(analysisReportsTable.orgId, orgId)).orderBy(desc(analysisReportsTable.runAt)).limit(1),
   ]);
 
   const orgName = org[0]?.name ?? "Your Organisation";

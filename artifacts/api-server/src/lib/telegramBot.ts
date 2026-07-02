@@ -5,7 +5,15 @@ import { eq, and, desc, gte } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
 
-const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
+/** Look up the orgId linked to a Telegram chat. Returns null if not connected. */
+async function getOrgForChat(chatId: string): Promise<string | null> {
+  const rows = await db
+    .select({ orgId: emailPreferencesTable.orgId })
+    .from(emailPreferencesTable)
+    .where(eq(emailPreferencesTable.telegramChatId, chatId))
+    .limit(1);
+  return rows[0]?.orgId ?? null;
+}
 
 let botInstance: Telegraf | null = null;
 
@@ -82,16 +90,23 @@ export function startTelegramBot(): void {
   });
 
   bot.command("trends", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    const orgId = await getOrgForChat(chatId);
+    if (!orgId) {
+      await ctx.reply("❌ Not connected. Use `/connect <your_api_key>` first.", { parse_mode: "Markdown" });
+      return;
+    }
+
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const trends = await db
       .select()
       .from(trendScoresTable)
-      .where(and(eq(trendScoresTable.orgId, PLATFORM_ORG_ID), gte(trendScoresTable.scoredAt, since)))
+      .where(and(eq(trendScoresTable.orgId, orgId), gte(trendScoresTable.scoredAt, since)))
       .orderBy(desc(trendScoresTable.score))
       .limit(5);
 
     if (!trends.length) {
-      await ctx.reply("No trend data available yet. Check back after the next analysis run.");
+      await ctx.reply("No trend data available yet for your org. Check back after the next analysis run.");
       return;
     }
 
@@ -100,6 +115,13 @@ export function startTelegramBot(): void {
   });
 
   bot.command("status", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    const orgId = await getOrgForChat(chatId);
+    if (!orgId) {
+      await ctx.reply("❌ Not connected. Use `/connect <your_api_key>` first.", { parse_mode: "Markdown" });
+      return;
+    }
+
     const parts = ctx.message.text.split(/\s+/).slice(1);
     const keyword = parts.join(" ");
     if (!keyword) {
@@ -111,7 +133,7 @@ export function startTelegramBot(): void {
     const rows = await db
       .select()
       .from(trendScoresTable)
-      .where(and(eq(trendScoresTable.orgId, PLATFORM_ORG_ID), gte(trendScoresTable.scoredAt, since)))
+      .where(and(eq(trendScoresTable.orgId, orgId), gte(trendScoresTable.scoredAt, since)))
       .orderBy(desc(trendScoresTable.score))
       .limit(100);
 

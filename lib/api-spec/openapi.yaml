@@ -796,14 +796,151 @@ paths:
       responses:
         "200":
           description: Platform stats
+  /v1/api-keys:
+    get:
+      operationId: listApiKeys
+      tags: [developer]
+      summary: List API keys for the authenticated org (owner/admin only)
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: List of API key metadata (raw key is never returned)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    name: { type: string }
+                    keyPrefix: { type: string }
+                    scopes: { type: array, items: { type: string } }
+                    isActive: { type: boolean }
+                    lastUsedAt: { type: string, format: date-time, nullable: true }
+                    expiresAt: { type: string, format: date-time, nullable: true }
+                    createdAt: { type: string, format: date-time }
+        "401": { description: Unauthenticated }
+        "403": { description: Insufficient role or feature not enabled }
+    post:
+      operationId: createApiKey
+      tags: [developer]
+      summary: Create a new API key (owner/admin only). Raw key returned once.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                scopes: { type: array, items: { type: string }, default: ["read"] }
+                expiresAt: { type: string, format: date-time, nullable: true }
+      responses:
+        "201":
+          description: Created — includes the raw key (shown once only)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  key: { type: string, description: "Full API key — store securely, not retrievable again" }
+                  keyPrefix: { type: string }
+        "401": { description: Unauthenticated }
+        "403": { description: Insufficient role or feature not enabled }
+  /v1/api-keys/{id}:
+    patch:
+      operationId: updateApiKey
+      tags: [developer]
+      summary: Update API key name or active status (owner/admin only)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                isActive: { type: boolean }
+      responses:
+        "200": { description: Updated }
+        "404": { description: Not found }
+    delete:
+      operationId: deleteApiKey
+      tags: [developer]
+      summary: Revoke and permanently delete an API key (owner/admin only)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Deleted }
+        "404": { description: Not found }
   /v1/reports/pdf:
     post:
       operationId: generatePdfReport
       tags: [reports]
-      summary: Generate a white-label PDF report (Phase 8)
+      summary: Generate a white-label PDF trend report for the authenticated org
+      security:
+        - cookieAuth: []
+        - bearerApiKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category: { type: string, description: "Filter to a specific category (optional)" }
       responses:
-        "501":
-          description: Not yet implemented
+        "200":
+          description: PDF file stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401": { description: Unauthenticated }
+        "403": { description: Feature not enabled for this plan }
+  /v1/reports/pptx:
+    post:
+      operationId: generatePptxReport
+      tags: [reports]
+      summary: Generate a white-label PowerPoint report for the authenticated org
+      security:
+        - cookieAuth: []
+        - bearerApiKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category: { type: string, description: "Filter to a specific category (optional)" }
+      responses:
+        "200":
+          description: PPTX file stream
+          content:
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema:
+                type: string
+                format: binary
+        "401": { description: Unauthenticated }
+        "403": { description: Feature not enabled for this plan }
   /v1/markets:
     get:
       operationId: listMarkets
