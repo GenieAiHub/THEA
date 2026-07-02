@@ -1,14 +1,23 @@
 import { pgTable, text, timestamp, uuid, integer, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organizationsTable } from "./organizations";
+
+/** Platform org — auto-generated markets belong here. */
+const PLATFORM_ORG_DEFAULT = sql`'10000000-0000-0000-0000-000000000001'::uuid`;
 
 /**
- * THEA Markets — public prediction polls generated from trend data.
- * `options` stores the option labels as a JSON array of strings; vote counts
- * are aggregated from market_votes at read time.
+ * THEA Markets — prediction polls generated from trend data.
+ * Markets are org-scoped: auto-generated markets belong to the platform org and
+ * are visible to all tenants; manually created markets belong to their org only.
  */
 export const predictionMarketsTable = pgTable("prediction_markets", {
   id: uuid("id").primaryKey().defaultRandom(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizationsTable.id, { onDelete: "cascade" })
+    .default(PLATFORM_ORG_DEFAULT),
   question: text("question").notNull(),
   description: text("description"),
   category: text("category").notNull(),

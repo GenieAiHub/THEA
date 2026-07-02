@@ -341,7 +341,10 @@ Respond with ONLY a JSON array, no prose:
     throw new Error("LLM returned no valid poll questions");
   }
 
+  const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
+
   const toInsert = polls.slice(0, settings.marketsPerRun).map((p) => ({
+    orgId: PLATFORM_ORG_ID,
     question: p.question.trim(),
     description: p.description?.trim() || null,
     category: p.category.trim() || "General",

@@ -5,16 +5,19 @@ import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { VoteOnMarketBody } from "@workspace/api-zod";
 import { serializeMarkets } from "../../lib/markets";
 import { requireAuth } from "../../middlewares/clerkAuth";
+import { tenantOr, PLATFORM_ORG_ID } from "../../lib/tenantScope";
 
 const router = Router();
 router.use(requireAuth);
 
 // ─── GET /api/v1/markets ──────────────────────────────────────────────────────
 router.get("/", async (req, res) => {
+  const userOrgId = req.thea!.org.id;
   const { status, category, sort = "trending", search } = req.query as Record<string, string | undefined>;
   const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "50"), 10) || 50));
 
-  const conditions = [];
+  const conditions = [tenantOr(predictionMarketsTable.orgId, userOrgId)];
+
   if (category) conditions.push(eq(predictionMarketsTable.category, category));
   if (search) {
     conditions.push(
@@ -41,7 +44,7 @@ router.get("/", async (req, res) => {
   const rows = await db
     .select()
     .from(predictionMarketsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(predictionMarketsTable.createdAt))
     .limit(limit);
 
@@ -57,19 +60,20 @@ router.get("/", async (req, res) => {
       return +new Date(a.closesAt) - +new Date(b.closesAt);
     });
   }
-  // "newest" preserved from SQL order
 
   res.json({ data: markets });
 });
 
 // ─── GET /api/v1/markets/categories ──────────────────────────────────────────
-router.get("/categories", async (_req, res) => {
+router.get("/categories", async (req, res) => {
+  const userOrgId = req.thea!.org.id;
   const rows = await db
     .select({
       category: predictionMarketsTable.category,
       count: sql<number>`count(*)::int`,
     })
     .from(predictionMarketsTable)
+    .where(tenantOr(predictionMarketsTable.orgId, userOrgId))
     .groupBy(predictionMarketsTable.category)
     .orderBy(desc(sql`count(*)`));
 
@@ -77,18 +81,25 @@ router.get("/categories", async (_req, res) => {
 });
 
 // ─── GET /api/v1/markets/stats ────────────────────────────────────────────────
-router.get("/stats", async (_req, res) => {
+router.get("/stats", async (req, res) => {
+  const userOrgId = req.thea!.org.id;
+  const orgFilter = tenantOr(predictionMarketsTable.orgId, userOrgId);
+
   const [marketCounts] = await db
     .select({
       totalMarkets: sql<number>`count(*)::int`,
       openMarkets: sql<number>`count(*) filter (where ${predictionMarketsTable.status} = 'open' and (${predictionMarketsTable.closesAt} is null or ${predictionMarketsTable.closesAt} > now()))::int`,
       categories: sql<number>`count(distinct ${predictionMarketsTable.category})::int`,
     })
-    .from(predictionMarketsTable);
+    .from(predictionMarketsTable)
+    .where(orgFilter);
 
   const [voteCounts] = await db
     .select({ totalVotes: sql<number>`count(*)::int` })
-    .from(marketVotesTable);
+    .from(marketVotesTable)
+    .where(
+      sql`${marketVotesTable.marketId} IN (SELECT id FROM prediction_markets WHERE ${predictionMarketsTable.orgId} = ${PLATFORM_ORG_ID} OR ${predictionMarketsTable.orgId} = ${userOrgId})`,
+    );
 
   res.json({
     totalMarkets: marketCounts?.totalMarkets ?? 0,
@@ -106,10 +117,11 @@ router.get("/:id", async (req, res) => {
     res.status(404).json({ error: "Market not found" });
     return;
   }
+  const userOrgId = req.thea!.org.id;
   const rows = await db
     .select()
     .from(predictionMarketsTable)
-    .where(eq(predictionMarketsTable.id, req.params.id))
+    .where(and(eq(predictionMarketsTable.id, req.params.id), tenantOr(predictionMarketsTable.orgId, userOrgId)))
     .limit(1);
 
   if (!rows[0]) {
@@ -133,11 +145,12 @@ router.post("/:id/vote", async (req, res) => {
     return;
   }
   const { optionIndex, voterId } = parsed.data;
+  const userOrgId = req.thea!.org.id;
 
   const rows = await db
     .select()
     .from(predictionMarketsTable)
-    .where(eq(predictionMarketsTable.id, req.params.id))
+    .where(and(eq(predictionMarketsTable.id, req.params.id), tenantOr(predictionMarketsTable.orgId, userOrgId)))
     .limit(1);
 
   const market = rows[0];
