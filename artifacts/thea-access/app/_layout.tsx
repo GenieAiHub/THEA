@@ -15,6 +15,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LockScreen } from "@/components/LockScreen";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -31,7 +32,7 @@ function RootLayoutNav() {
   const colors = useColors();
 
   useEffect(() => {
-    if (status === "loading") return;
+    if (status === "loading" || status === "locked") return;
     const onLogin = segments[0] === "login";
     if (status === "unauthed" && !onLogin) {
       router.replace("/login");
@@ -39,6 +40,10 @@ function RootLayoutNav() {
       router.replace("/(tabs)");
     }
   }, [status, segments, router]);
+
+  if (status === "locked") {
+    return <LockScreen />;
+  }
 
   if (status === "loading") {
     return (

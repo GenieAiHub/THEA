@@ -28,6 +28,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "list.bullet.rectangle", selected: "list.bullet.rectangle.fill" }} />
         <Label>Activity</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>Settings</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -105,6 +109,13 @@ function ClassicTabLayout() {
         options={{
           title: "Activity",
           tabBarIcon: ({ color }) => iconFor("activity", "list.bullet.rectangle.fill", color),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color }) => iconFor("settings", "gearshape.fill", color),
         }}
       />
     </Tabs>
