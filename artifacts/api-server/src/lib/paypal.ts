@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { getPlatformConfig } from "./platform-config";
 
 /**
  * Minimal PayPal REST client (Orders v2) using direct fetch — no SDK dependency.
@@ -10,22 +11,27 @@ import { logger } from "./logger";
  * currentPeriodEnd, so no recurring PayPal machinery is needed.
  */
 
-const PAYPAL_ENV = (process.env.PAYPAL_ENV || "sandbox").toLowerCase();
-
-function apiBase(): string {
-  return PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+async function apiBase(): Promise<string> {
+  const env = ((await getPlatformConfig("paypal_env")) ?? "sandbox").toLowerCase();
+  return env === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 }
 
-export function isPaypalConfigured(): boolean {
-  return Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+export async function isPaypalConfigured(): Promise<boolean> {
+  const [id, secret] = await Promise.all([
+    getPlatformConfig("paypal_client_id"),
+    getPlatformConfig("paypal_client_secret"),
+  ]);
+  return Boolean(id && secret);
 }
 
 async function getAccessToken(): Promise<string> {
-  const id = process.env.PAYPAL_CLIENT_ID;
-  const secret = process.env.PAYPAL_CLIENT_SECRET;
+  const [id, secret] = await Promise.all([
+    getPlatformConfig("paypal_client_id"),
+    getPlatformConfig("paypal_client_secret"),
+  ]);
   if (!id || !secret) throw new Error("PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET not configured");
 
-  const res = await fetch(`${apiBase()}/v1/oauth2/token`, {
+  const res = await fetch(`${await apiBase()}/v1/oauth2/token`, {
     method: "POST",
     headers: {
       Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
@@ -56,7 +62,7 @@ export async function createPaypalOrder(args: CreateOrderArgs): Promise<string> 
   // alter it, and we re-verify the captured amount against it on capture.
   const customId = JSON.stringify({ orgId: args.orgId, planKey: args.planKey, interval: args.interval });
 
-  const res = await fetch(`${apiBase()}/v2/checkout/orders`, {
+  const res = await fetch(`${await apiBase()}/v2/checkout/orders`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -89,7 +95,7 @@ export interface CaptureResult {
 /** Capture a previously-approved order and normalize the result. */
 export async function capturePaypalOrder(orderId: string): Promise<CaptureResult> {
   const token = await getAccessToken();
-  const res = await fetch(`${apiBase()}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+  const res = await fetch(`${await apiBase()}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   });
@@ -122,7 +128,7 @@ export interface WebhookVerifyArgs {
 
 /** Verify a webhook payload with PayPal's verify-webhook-signature API. */
 export async function verifyPaypalWebhook(args: WebhookVerifyArgs): Promise<boolean> {
-  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  const webhookId = await getPlatformConfig("paypal_webhook_id");
   if (!webhookId) return false;
   const h = args.headers;
   const pick = (k: string): string | undefined => {
@@ -131,7 +137,7 @@ export async function verifyPaypalWebhook(args: WebhookVerifyArgs): Promise<bool
   };
   try {
     const token = await getAccessToken();
-    const res = await fetch(`${apiBase()}/v1/notifications/verify-webhook-signature`, {
+    const res = await fetch(`${await apiBase()}/v1/notifications/verify-webhook-signature`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -4,32 +4,32 @@ import { subscriptionsTable, organizationsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { TIER_LIMITS, type Tier } from "../middlewares/featureGate";
+import { getPlatformConfig } from "./platform-config";
 
-export function getStripeClient(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not configured — set it in environment variables");
+export async function getStripeClient(): Promise<Stripe> {
+  const secretKey = await getPlatformConfig("stripe_secret_key");
+  if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not configured — set it in Super Admin › API Keys or environment");
   return new Stripe(secretKey, { apiVersion: "2024-11-20.acacia" as any });
 }
 
-export function getStripeWebhookSecret(): string {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+export async function getStripeWebhookSecret(): Promise<string> {
+  const secret = await getPlatformConfig("stripe_webhook_secret");
   if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
   return secret;
 }
 
-function tierFromPriceId(priceId: string): Tier {
-  const PRO_PRICES = [
-    process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
-    process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
-  ].filter(Boolean);
+async function tierFromPriceId(priceId: string): Promise<Tier> {
+  const [proMonthly, proAnnual, entMonthly, entAnnual] = await Promise.all([
+    getPlatformConfig("stripe_pro_monthly_price_id"),
+    getPlatformConfig("stripe_pro_annual_price_id"),
+    getPlatformConfig("stripe_enterprise_monthly_price_id"),
+    getPlatformConfig("stripe_enterprise_annual_price_id"),
+  ]);
+  const proPrices = [proMonthly, proAnnual].filter(Boolean);
+  const entPrices = [entMonthly, entAnnual].filter(Boolean);
 
-  const ENT_PRICES = [
-    process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID,
-    process.env.STRIPE_ENTERPRISE_ANNUAL_PRICE_ID,
-  ].filter(Boolean);
-
-  if (ENT_PRICES.includes(priceId)) return "enterprise";
-  if (PRO_PRICES.includes(priceId)) return "pro";
+  if (entPrices.includes(priceId)) return "enterprise";
+  if (proPrices.includes(priceId)) return "pro";
   return "starter";
 }
 
@@ -38,7 +38,7 @@ export async function handleStripeSubscriptionUpsert(
   customerId: string
 ): Promise<void> {
   const priceId = stripeSub.items.data[0]?.price?.id ?? "";
-  const tier = tierFromPriceId(priceId);
+  const tier = await tierFromPriceId(priceId);
   const limits = TIER_LIMITS[tier];
 
   const existing = await db
@@ -136,7 +136,7 @@ export async function createCheckoutSession(
   successUrl: string,
   cancelUrl: string
 ): Promise<string> {
-  const stripe = getStripeClient();
+  const stripe = await getStripeClient();
 
   const subRows = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.orgId, orgId)).limit(1);
   const orgRows = await db.select().from(organizationsTable).where(eq(organizationsTable.id, orgId)).limit(1);
@@ -171,7 +171,7 @@ export async function createCheckoutSession(
 }
 
 export async function createBillingPortalSession(orgId: string, returnUrl: string): Promise<string> {
-  const stripe = getStripeClient();
+  const stripe = await getStripeClient();
 
   const subRows = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.orgId, orgId)).limit(1);
   const customerId = subRows[0]?.stripeCustomerId;

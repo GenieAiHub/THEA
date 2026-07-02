@@ -1,9 +1,11 @@
 import { logger } from "../logger";
 import { chatWithGpt } from "../llm";
 import { parseRawReport } from "./report-parser";
+import { getPlatformConfig, getPlatformConfigNumber } from "../platform-config";
 
-const MIROFISH_URL = process.env.MIROFISH_URL;
-const MIROFISH_MAX_ROUNDS = Number(process.env.MIROFISH_MAX_ROUNDS ?? 10);
+// DB-backed (env fallback) config; resolved at the start of each pipeline run.
+let mirofishUrl: string | null = null;
+let mirofishMaxRounds = 10;
 
 // Per-step timeouts / deadlines (ms). MiroFish's OASIS pipeline is long-running:
 // ontology generation is a synchronous in-request LLM call, the rest are async
@@ -41,7 +43,7 @@ async function mfCall<T = unknown>(
   init: RequestInit,
   timeoutMs: number
 ): Promise<T> {
-  const res = await fetch(`${MIROFISH_URL}${path}`, {
+  const res = await fetch(`${mirofishUrl}${path}`, {
     ...init,
     signal: AbortSignal.timeout(timeoutMs),
   });
@@ -75,8 +77,8 @@ function jsonPost(body: unknown): RequestInit {
 // failures and then serves GPT-4o directly for MIROFISH_BREAKER_COOLDOWN_MS
 // before probing MiroFish again (half-open) — so B stays primary but A carries
 // the load cheaply while B is unavailable.
-const BREAKER_THRESHOLD = Number(process.env.MIROFISH_BREAKER_THRESHOLD ?? 3);
-const BREAKER_COOLDOWN_MS = Number(process.env.MIROFISH_BREAKER_COOLDOWN_MS ?? 30 * 60_000);
+let breakerThreshold = 3;
+let breakerCooldownMs = 30 * 60_000;
 const breaker = { consecutiveFailures: 0, openUntil: 0 };
 
 function breakerIsOpen(): boolean {
@@ -90,8 +92,8 @@ function recordBreakerSuccess(): void {
 
 function recordBreakerFailure(): void {
   breaker.consecutiveFailures += 1;
-  if (breaker.consecutiveFailures >= BREAKER_THRESHOLD) {
-    breaker.openUntil = Date.now() + BREAKER_COOLDOWN_MS;
+  if (breaker.consecutiveFailures >= breakerThreshold) {
+    breaker.openUntil = Date.now() + breakerCooldownMs;
   }
 }
 
@@ -156,9 +158,16 @@ export async function runMiroFishPipeline(
   simulationRequirement: string,
   category: string
 ): Promise<{ runId: string; report: MiroFishReport }> {
+  // Resolve DB-backed config (env fallback) at the start of each run so admin
+  // edits take effect without a process restart.
+  mirofishUrl = await getPlatformConfig("mirofish_url");
+  mirofishMaxRounds = await getPlatformConfigNumber("mirofish_max_rounds", 10);
+  breakerThreshold = await getPlatformConfigNumber("mirofish_breaker_threshold", 3);
+  breakerCooldownMs = await getPlatformConfigNumber("mirofish_breaker_cooldown_ms", 30 * 60_000);
+
   // Option B not configured → Option A only.
-  if (!MIROFISH_URL) {
-    logger.warn({ category }, "MIROFISH_URL not set — using GPT-4o simulation for What-If run");
+  if (!mirofishUrl) {
+    logger.warn({ category }, "mirofish_url not set — using GPT-4o simulation for What-If run");
     return runGptAnalysis(seedDocument, category);
   }
 
@@ -242,7 +251,7 @@ export async function runMiroFishPipeline(
       jsonPost({
         simulation_id: simulationId,
         platform: "reddit",
-        max_rounds: MIROFISH_MAX_ROUNDS,
+        max_rounds: mirofishMaxRounds,
         enable_graph_memory_update: false,
       }),
       CALL_TIMEOUT_MS
@@ -299,7 +308,7 @@ export async function runMiroFishPipeline(
         projectId,
         simulationId,
         reportId: gen.report_id,
-        maxRounds: MIROFISH_MAX_ROUNDS,
+        maxRounds: mirofishMaxRounds,
         outline: report.outline,
         markdown,
       },
@@ -317,7 +326,7 @@ export async function runMiroFishPipeline(
   } finally {
     // Best-effort: release the sidecar's simulation env process so long-lived
     // runs don't pile up. Never let cleanup failures affect the result.
-    if (createdSimulationId && MIROFISH_URL) {
+    if (createdSimulationId && mirofishUrl) {
       try {
         await mfCall(
           "/api/simulation/close-env",

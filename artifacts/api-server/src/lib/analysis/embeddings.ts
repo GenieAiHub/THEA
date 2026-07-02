@@ -1,28 +1,14 @@
 import OpenAI from "openai";
 import { db } from "@workspace/db";
-import { platformConfigsTable, llmUsageLogsTable, contentItemsTable } from "@workspace/db/schema";
+import { llmUsageLogsTable, contentItemsTable } from "@workspace/db/schema";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
-import { safeDecrypt } from "../crypto";
+import { getPlatformConfig as getConfig } from "../platform-config";
 import { logger } from "../logger";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 1536;
 const EMBED_BATCH_SIZE = 100;
 const COST_PER_1K_TOKENS = 0.00002;
-
-const CONFIG_TTL_MS = 5 * 60 * 1000;
-const configCache = new Map<string, { value: string | null; expiresAt: number }>();
-
-async function getConfig(key: string): Promise<string | null> {
-  const cached = configCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.value;
-  const rows = await db.select().from(platformConfigsTable)
-    .where(and(eq(platformConfigsTable.key, key), eq(platformConfigsTable.isActive, true))).limit(1);
-  const row = rows[0];
-  const value = row ? safeDecrypt(row.encryptedValue) : null;
-  configCache.set(key, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
-  return value;
-}
 
 async function logEmbeddingUsage(tokens: number, durationMs: number, status: "success" | "error", error?: string) {
   try {

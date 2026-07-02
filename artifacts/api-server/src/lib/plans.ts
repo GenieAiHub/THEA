@@ -1,4 +1,5 @@
 import type { Tier } from "../middlewares/featureGate";
+import { getPlatformConfig } from "./platform-config";
 
 /**
  * PR subscription packages. These are the audience-facing product packages the
@@ -65,19 +66,19 @@ export function planFromKey(key: string): PlanDef | null {
 }
 
 /**
- * Resolve the Stripe Price ID for a package + interval from environment config.
- * Tier -> env var mapping is kept server-side so the client can never smuggle in
- * an arbitrary priceId to buy a plan it did not pay for.
+ * Resolve the Stripe Price ID for a package + interval. Reads the DB-backed
+ * platform config (Super Admin › API Keys), falling back to the matching env
+ * var. The tier -> key mapping is kept server-side so the client can never
+ * smuggle in an arbitrary priceId to buy a plan it did not pay for.
  */
-export function priceIdForPlan(key: PlanKey, interval: BillingInterval): string {
+export async function priceIdForPlan(key: PlanKey, interval: BillingInterval): Promise<string> {
   const tier = PLAN_TO_TIER[key];
-  const envByTier: Record<Tier, Record<BillingInterval, string>> = {
-    starter: { monthly: "STRIPE_STARTER_MONTHLY_PRICE_ID", annual: "STRIPE_STARTER_ANNUAL_PRICE_ID" },
-    pro: { monthly: "STRIPE_PRO_MONTHLY_PRICE_ID", annual: "STRIPE_PRO_ANNUAL_PRICE_ID" },
-    enterprise: { monthly: "STRIPE_ENTERPRISE_MONTHLY_PRICE_ID", annual: "STRIPE_ENTERPRISE_ANNUAL_PRICE_ID" },
+  const keyByTier: Record<Tier, Record<BillingInterval, string>> = {
+    starter: { monthly: "stripe_starter_monthly_price_id", annual: "stripe_starter_annual_price_id" },
+    pro: { monthly: "stripe_pro_monthly_price_id", annual: "stripe_pro_annual_price_id" },
+    enterprise: { monthly: "stripe_enterprise_monthly_price_id", annual: "stripe_enterprise_annual_price_id" },
   };
-  const envKey = envByTier[tier][interval];
-  return process.env[envKey] || "";
+  return (await getPlatformConfig(keyByTier[tier][interval])) ?? "";
 }
 
 /**

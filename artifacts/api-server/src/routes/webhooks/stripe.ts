@@ -14,8 +14,8 @@ export async function handleStripeWebhook(req: Request, res: Response): Promise<
   let webhookSecret: string;
 
   try {
-    stripe = getStripeClient();
-    webhookSecret = getStripeWebhookSecret();
+    stripe = await getStripeClient();
+    webhookSecret = await getStripeWebhookSecret();
   } catch (err) {
     logger.warn("Stripe webhook received but Stripe is not configured — ignoring");
     res.json({ received: true });

@@ -1,9 +1,8 @@
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@workspace/db";
-import { platformConfigsTable, llmUsageLogsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
-import { safeDecrypt } from "./crypto";
+import { llmUsageLogsTable } from "@workspace/db/schema";
+import { getPlatformConfig as getConfig, clearConfigCache } from "./platform-config";
 import { logger } from "./logger";
 
 export type LlmProvider = "openai" | "gemini";
@@ -22,30 +21,8 @@ export interface LlmResponse {
   durationMs: number;
 }
 
-// ─── Config cache (in-process, 5 min TTL) ────────────────────────────────────
-const CONFIG_TTL_MS = 5 * 60 * 1000;
-const configCache = new Map<string, { value: string | null; expiresAt: number }>();
-
-async function getConfig(key: string): Promise<string | null> {
-  const cached = configCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.value;
-
-  const rows = await db
-    .select()
-    .from(platformConfigsTable)
-    .where(and(eq(platformConfigsTable.key, key), eq(platformConfigsTable.isActive, true)))
-    .limit(1);
-
-  const row = rows[0];
-  const value = row ? safeDecrypt(row.encryptedValue) : null;
-  configCache.set(key, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
-  return value;
-}
-
-export function clearConfigCache(key?: string) {
-  if (key) configCache.delete(key);
-  else configCache.clear();
-}
+// Config resolution + caching now live in ./platform-config (DB-first, env fallback).
+export { clearConfigCache };
 
 // ─── Cost estimation ──────────────────────────────────────────────────────────
 const COST_PER_1K: Record<string, { input: number; output: number }> = {

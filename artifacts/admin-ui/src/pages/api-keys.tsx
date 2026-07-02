@@ -2,15 +2,37 @@ import { useState } from "react";
 import { useAdminConfigs, useAdminUpsertConfig } from "@/hooks/use-admin";
 import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 
-const CATEGORY_ORDER = ["llm", "search", "social", "payments", "email", "general"];
+const CATEGORY_ORDER = [
+  "llm",
+  "news",
+  "social",
+  "crawler",
+  "payments",
+  "crypto",
+  "email",
+  "notifications",
+  "simulation",
+  "disinformation",
+  "general",
+];
 const CATEGORY_LABELS: Record<string, string> = {
   llm: "LLM / AI",
-  search: "Search & Scraping",
+  news: "News & Ingestion Feeds",
   social: "Social Media",
+  crawler: "Web Crawler",
   payments: "Payments",
-  email: "Email",
+  crypto: "Crypto Payments",
+  email: "Email Delivery",
+  notifications: "Notifications",
+  simulation: "What-If Simulation",
+  disinformation: "Disinformation",
   general: "General",
 };
+
+// Keys bound once at process boot — an admin edit needs a server restart to apply.
+// Everything else resolves DB-first with a ~5-min cache, so edits take effect
+// within minutes without a restart.
+const RESTART_REQUIRED_KEYS = new Set<string>(["telegram_bot_token"]);
 
 function ConfigRow({ config, onSave }: { config: any; onSave: (key: string, value: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
@@ -57,6 +79,11 @@ function ConfigRow({ config, onSave }: { config: any; onSave: (key: string, valu
               {config.isSecret && (
                 <span className="text-[10px] font-mono px-1.5 py-0.5 bg-muted rounded-sm text-muted-foreground">
                   SECRET
+                </span>
+              )}
+              {RESTART_REQUIRED_KEYS.has(config.key) && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-500/15 text-amber-500 rounded-sm">
+                  RESTART REQUIRED
                 </span>
               )}
             </div>
@@ -144,7 +171,14 @@ export default function ApiKeysPage() {
 
   const configs: any[] = data ?? [];
 
-  const grouped = CATEGORY_ORDER.reduce<Record<string, any[]>>((acc, cat) => {
+  // Render known categories first, then any category present in the data that we
+  // don't have an explicit order for — so a config is never silently hidden.
+  const extraCats = Array.from(new Set(configs.map((c: any) => c.category as string))).filter(
+    (c) => !CATEGORY_ORDER.includes(c),
+  );
+  const orderedCats = [...CATEGORY_ORDER, ...extraCats];
+
+  const grouped = orderedCats.reduce<Record<string, any[]>>((acc, cat) => {
     acc[cat] = configs.filter((c: any) => c.category === cat);
     return acc;
   }, {});
@@ -171,7 +205,7 @@ export default function ApiKeysPage() {
         <div className="text-xs font-mono text-muted-foreground">Loading...</div>
       ) : (
         <div className="space-y-6">
-          {CATEGORY_ORDER.map((cat) => {
+          {orderedCats.map((cat) => {
             const items = grouped[cat];
             if (!items || items.length === 0) return null;
             const catConfigured = items.filter((c: any) => c.hasValue).length;

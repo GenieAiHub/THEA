@@ -23,9 +23,13 @@ import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
 import { watchlistKeywordsTable } from "@workspace/db/schema";
 import { persistGeoSignals } from "../geoSignals";
+import { getPlatformConfig } from "../platform-config";
 
-function getEnv(key: string): string {
-  return process.env[key] ?? "";
+// Resolve a collector credential (DB-backed, env fallback). The upper-case env
+// name maps to the lower-case platform_configs key (NEWS_API_KEY → news_api_key)
+// so operators can manage every ingestion key from the Super Admin UI.
+async function cfg(envKey: string): Promise<string> {
+  return (await getPlatformConfig(envKey.toLowerCase())) ?? "";
 }
 
 async function getActiveRssSources(category?: string): Promise<RssSource[]> {
@@ -99,7 +103,7 @@ export function startContentIngestionWorker(): void {
         }
 
         case "newsapi": {
-          const apiKey = getEnv("NEWS_API_KEY");
+          const apiKey = await cfg("NEWS_API_KEY");
           if (!apiKey) { logger.warn("NEWS_API_KEY not set — skipping NewsAPI collection"); break; }
           const items = await collectNewsApi(category ?? "general", apiKey);
           stats = await ingestItems(items);
@@ -107,7 +111,7 @@ export function startContentIngestionWorker(): void {
         }
 
         case "mediastack": {
-          const apiKey = getEnv("MEDIASTACK_API_KEY");
+          const apiKey = await cfg("MEDIASTACK_API_KEY");
           if (!apiKey) { logger.warn("MEDIASTACK_API_KEY not set — skipping MediaStack collection"); break; }
           const items = await collectMediaStack(category ?? "general", apiKey);
           stats = await ingestItems(items);
@@ -115,7 +119,7 @@ export function startContentIngestionWorker(): void {
         }
 
         case "bing-news": {
-          const apiKey = getEnv("BING_NEWS_API_KEY");
+          const apiKey = await cfg("BING_NEWS_API_KEY");
           if (!apiKey) { logger.warn("BING_NEWS_API_KEY not set — skipping Bing News collection"); break; }
           const items = await collectBingNews(keyword ?? category ?? "news", apiKey, category ?? "general");
           stats = await ingestItems(items);
@@ -123,7 +127,7 @@ export function startContentIngestionWorker(): void {
         }
 
         case "twitter": {
-          const bearerToken = getEnv("TWITTER_BEARER_TOKEN");
+          const bearerToken = await cfg("TWITTER_BEARER_TOKEN");
           if (!bearerToken) { logger.warn("TWITTER_BEARER_TOKEN not set — skipping Twitter collection"); break; }
           const items = await collectTwitter(category ?? "general", bearerToken);
           stats = await ingestItems(items);
@@ -131,8 +135,8 @@ export function startContentIngestionWorker(): void {
         }
 
         case "reddit": {
-          const clientId = getEnv("REDDIT_CLIENT_ID");
-          const clientSecret = getEnv("REDDIT_CLIENT_SECRET");
+          const clientId = await cfg("REDDIT_CLIENT_ID");
+          const clientSecret = await cfg("REDDIT_CLIENT_SECRET");
           if (!clientId || !clientSecret) { logger.warn("REDDIT_CLIENT_ID/SECRET not set — skipping Reddit collection"); break; }
           const items = await collectReddit(category ?? "general", clientId, clientSecret);
           stats = await ingestItems(items);
@@ -140,7 +144,7 @@ export function startContentIngestionWorker(): void {
         }
 
         case "youtube": {
-          const apiKey = getEnv("YOUTUBE_API_KEY");
+          const apiKey = await cfg("YOUTUBE_API_KEY");
           if (!apiKey) { logger.warn("YOUTUBE_API_KEY not set — skipping YouTube collection"); break; }
           const items = await collectYouTube(category ?? "general", apiKey);
           stats = await ingestItems(items);
@@ -149,7 +153,7 @@ export function startContentIngestionWorker(): void {
 
         case "brave":
         case "duckduckgo": {
-          const braveApiKey = getEnv("BRAVE_API_KEY");
+          const braveApiKey = await cfg("BRAVE_API_KEY");
           if (!braveApiKey) { logger.warn("BRAVE_API_KEY not set — skipping Brave Search collection"); break; }
           const items = await collectBrave(keyword ?? category ?? "news", category ?? "general", braveApiKey);
           stats = await ingestItems(items, orgId);
@@ -157,7 +161,7 @@ export function startContentIngestionWorker(): void {
         }
 
         case "serp": {
-          const apiKey = getEnv("SERP_API_KEY");
+          const apiKey = await cfg("SERP_API_KEY");
           if (!apiKey) { logger.warn("SERP_API_KEY not set — skipping SerpAPI collection"); break; }
           const items = await collectSerp(keyword ?? category ?? "news", apiKey, category ?? "general");
           // Pass orgId so org-scoped SERP jobs attribute content to the correct org
@@ -174,8 +178,8 @@ export function startContentIngestionWorker(): void {
         }
 
         case "tiktok": {
-          const clientKey = getEnv("TIKTOK_CLIENT_KEY");
-          const clientSecret = getEnv("TIKTOK_CLIENT_SECRET");
+          const clientKey = await cfg("TIKTOK_CLIENT_KEY");
+          const clientSecret = await cfg("TIKTOK_CLIENT_SECRET");
           if (!clientKey || !clientSecret) { logger.warn("TIKTOK_CLIENT_KEY/SECRET not set — skipping TikTok collection"); break; }
           const items = await collectTikTok(category ?? "general", clientKey, clientSecret);
           stats = await ingestItems(items);
@@ -195,9 +199,9 @@ export function startContentIngestionWorker(): void {
 
           // Brave Search is the default web search engine (set BRAVE_API_KEY).
           // Bing News and SerpAPI are optional additional sources.
-          const braveKey = getEnv("BRAVE_API_KEY");
-          const bingKey = getEnv("BING_NEWS_API_KEY");
-          const serpKey = getEnv("SERP_API_KEY");
+          const braveKey = await cfg("BRAVE_API_KEY");
+          const bingKey = await cfg("BING_NEWS_API_KEY");
+          const serpKey = await cfg("SERP_API_KEY");
 
           const orgKeywords = await db
             .select({
@@ -208,10 +212,10 @@ export function startContentIngestionWorker(): void {
             .from(watchlistKeywordsTable)
             .where(and(eq(watchlistKeywordsTable.orgId, orgId), eq(watchlistKeywordsTable.isActive, true)));
 
-          const newsApiKey = getEnv("NEWS_API_KEY");
-          const twitterKey = getEnv("TWITTER_BEARER_TOKEN");
-          const redditSecret = getEnv("REDDIT_CLIENT_SECRET");
-          const redditId = getEnv("REDDIT_CLIENT_ID");
+          const newsApiKey = await cfg("NEWS_API_KEY");
+          const twitterKey = await cfg("TWITTER_BEARER_TOKEN");
+          const redditSecret = await cfg("REDDIT_CLIENT_SECRET");
+          const redditId = await cfg("REDDIT_CLIENT_ID");
 
           let totalFetched = 0, totalDeduplicated = 0, totalStored = 0;
           const keywordSet = new Set<string>();

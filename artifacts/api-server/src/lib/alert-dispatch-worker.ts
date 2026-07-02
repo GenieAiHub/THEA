@@ -7,6 +7,7 @@ import { detectSpikesForOrg } from "./spikeDetector";
 import { dispatchWebhookEvent } from "./webhookDispatcher";
 import { sendTelegramMessage } from "./telegramBot";
 import { logger } from "./logger";
+import { getPlatformConfig } from "./platform-config";
 
 interface AlertDispatchJobData {
   alertId?: string;
@@ -72,7 +73,8 @@ export function startAlertDispatchWorker(): void {
       ]);
 
       const severityEmoji = severity === "critical" ? "🚨" : severity === "high" ? "⚠️" : "📊";
-      const alertUrl = `${process.env["APP_URL"] ?? "https://app.thea.ai"}/alerts/${alertId}`;
+      const appUrl = (await getPlatformConfig("app_url")) ?? "https://app.thea.ai";
+      const alertUrl = `${appUrl}/alerts/${alertId}`;
 
       // ── Email delivery ─────────────────────────────────────────────────────
       if (orgMembers.length > 0) {
@@ -187,8 +189,10 @@ export function startAlertDispatchWorker(): void {
 
       // ── WhatsApp Business Cloud API delivery ───────────────────────────────
       const whatsappTo = emailPref?.whatsappPhoneNumber;
-      const whatsappPhoneNumberId = process.env["WHATSAPP_PHONE_NUMBER_ID"];
-      const whatsappAccessToken = process.env["WHATSAPP_ACCESS_TOKEN"];
+      const [whatsappPhoneNumberId, whatsappAccessToken] = await Promise.all([
+        getPlatformConfig("whatsapp_phone_number_id"),
+        getPlatformConfig("whatsapp_access_token"),
+      ]);
       if (whatsappTo && whatsappPhoneNumberId && whatsappAccessToken) {
         try {
           const body = JSON.stringify({

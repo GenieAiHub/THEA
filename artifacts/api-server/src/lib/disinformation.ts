@@ -4,6 +4,7 @@ import { eq, and, gte, sql } from "drizzle-orm";
 import { chat } from "./llm";
 import { logger } from "./logger";
 import { getQueues } from "./queues";
+import { getPlatformConfig } from "./platform-config";
 
 export interface DisinformationCheckResult {
   itemId: string;
@@ -26,7 +27,7 @@ const DISINFORMATION_CONFIDENCE_THRESHOLD = 0.7;
 async function checkWithClaimBuster(
   text: string,
 ): Promise<{ checkWorthy: boolean; score: number } | null> {
-  const apiKey = process.env["CLAIMBUSTER_API_KEY"];
+  const apiKey = await getPlatformConfig("claimbuster_api_key");
   if (!apiKey) return null;
 
   try {

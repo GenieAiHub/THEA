@@ -7,6 +7,7 @@ import {
   type Chain,
 } from "viem";
 import { polygon, mainnet, bsc } from "viem/chains";
+import { getPlatformConfig, getPlatformConfigNumber } from "./platform-config";
 
 /**
  * On-chain USDT (ERC-20) payment verification for Web3 crypto checkout.
@@ -46,15 +47,18 @@ export interface CryptoConfig {
   intentTtlMinutes: number;
 }
 
-export function getCryptoConfig(): CryptoConfig | null {
-  const chain = (process.env.CRYPTO_CHAIN || "polygon").toLowerCase();
+export async function getCryptoConfig(): Promise<CryptoConfig | null> {
+  const chain = ((await getPlatformConfig("crypto_chain")) ?? "polygon").toLowerCase();
   const viemChain = CHAINS[chain];
-  const rpcUrl = process.env.CRYPTO_RPC_URL || process.env.POLYGON_RPC_URL || "";
-  const receivingAddress = (process.env.CRYPTO_RECEIVING_ADDRESS || "").toLowerCase();
-  const tokenAddress = (process.env.CRYPTO_USDT_ADDRESS || DEFAULT_USDT[chain] || "").toLowerCase();
-  const decimals = Number(process.env.CRYPTO_USDT_DECIMALS || "6");
-  const minConfirmations = Number(process.env.CRYPTO_MIN_CONFIRMATIONS || "30");
-  const intentTtlMinutes = Number(process.env.CRYPTO_INTENT_TTL_MIN || "1440");
+  const rpcUrl =
+    (await getPlatformConfig("crypto_rpc_url")) ??
+    (await getPlatformConfig("polygon_rpc_url")) ??
+    "";
+  const receivingAddress = ((await getPlatformConfig("crypto_receiving_address")) ?? "").toLowerCase();
+  const tokenAddress = ((await getPlatformConfig("crypto_usdt_address")) ?? DEFAULT_USDT[chain] ?? "").toLowerCase();
+  const decimals = await getPlatformConfigNumber("crypto_usdt_decimals", 6);
+  const minConfirmations = await getPlatformConfigNumber("crypto_min_confirmations", 30);
+  const intentTtlMinutes = await getPlatformConfigNumber("crypto_intent_ttl_min", 1440);
 
   if (!viemChain || !rpcUrl || !receivingAddress || !tokenAddress) return null;
 

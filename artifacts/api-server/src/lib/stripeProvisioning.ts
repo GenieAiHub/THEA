@@ -124,7 +124,7 @@ export async function runStripeProvisioning(opts: {
   if (!origin) throw new Error("apiOrigin is required to build the webhook URL");
   const webhookUrl = `${origin}/api/webhooks/stripe`;
 
-  const stripe = getStripeClient();
+  const stripe = await getStripeClient();
 
   const priceEnv: Record<string, string> = {};
 

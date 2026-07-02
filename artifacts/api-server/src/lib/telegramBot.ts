@@ -4,6 +4,7 @@ import { emailPreferencesTable, apiKeysTable, trendScoresTable } from "@workspac
 import { eq, and, desc, gte } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
+import { getPlatformConfig } from "./platform-config";
 
 /** Look up the orgId linked to a Telegram chat. Returns null if not connected. */
 async function getOrgForChat(chatId: string): Promise<string | null> {
@@ -37,10 +38,16 @@ export async function sendTelegramMessage(chatId: string, text: string): Promise
  * Initialise and start the THEA Telegram bot.
  * Requires TELEGRAM_BOT_TOKEN env var.
  */
-export function startTelegramBot(): void {
-  const token = process.env["TELEGRAM_BOT_TOKEN"];
+export async function startTelegramBot(): Promise<void> {
+  let token: string | null = null;
+  try {
+    token = await getPlatformConfig("telegram_bot_token");
+  } catch (err) {
+    logger.warn({ err }, "Could not resolve telegram_bot_token — Telegram bot disabled");
+    return;
+  }
   if (!token) {
-    logger.info("TELEGRAM_BOT_TOKEN not set — Telegram bot disabled");
+    logger.info("telegram_bot_token not set — Telegram bot disabled");
     return;
   }
 
@@ -150,7 +157,7 @@ export function startTelegramBot(): void {
   });
 
   bot.command("report", async (ctx) => {
-    const appUrl = process.env["APP_URL"] ?? "https://app.thea.ai";
+    const appUrl = (await getPlatformConfig("app_url")) ?? "https://app.thea.ai";
     await ctx.reply(`📄 Download your latest report from the THEA dashboard:\n${appUrl}/reports`);
   });
 

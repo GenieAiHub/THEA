@@ -5,9 +5,13 @@ import { join } from "node:path";
 import type { NormalizedItem } from "../types";
 import { logger } from "../../logger";
 import { detectLanguage } from "../language";
+import { getPlatformConfig, getPlatformConfigBool } from "../../platform-config";
 
-const PROXY_URLS = process.env.CRAWLER_PROXY_URLS?.split(",").map((u) => u.trim()).filter(Boolean) ?? [];
-const USE_PLAYWRIGHT = process.env.USE_PLAYWRIGHT === "true";
+/** Resolve proxy URLs (DB-backed, env fallback) from a comma-separated list. */
+async function getProxyUrls(): Promise<string[]> {
+  const raw = (await getPlatformConfig("crawler_proxy_urls")) ?? "";
+  return raw.split(",").map((u) => u.trim()).filter(Boolean);
+}
 
 const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -147,8 +151,9 @@ async function crawlWithPlaywright(filtered: string[], category: string): Promis
       logger.warn({ url: request.url, error: (error as Error).message }, "Playwright request failed");
     },
   };
-  if (PROXY_URLS.length > 0) {
-    options.proxyConfiguration = new ProxyConfiguration({ proxyUrls: PROXY_URLS });
+  const proxyUrls = await getProxyUrls();
+  if (proxyUrls.length > 0) {
+    options.proxyConfiguration = new ProxyConfiguration({ proxyUrls });
   }
   const crawler = new PlaywrightCrawler(options);
   await crawler.run(filtered.map((url) => ({ url, headers: { "User-Agent": randomUa() } })));
@@ -177,8 +182,9 @@ async function crawlWithCheerio(filtered: string[], category: string): Promise<N
       logger.warn({ url: request.url, error: (error as Error).message }, "Cheerio request failed");
     },
   };
-  if (PROXY_URLS.length > 0) {
-    options.proxyConfiguration = new ProxyConfiguration({ proxyUrls: PROXY_URLS });
+  const proxyUrls = await getProxyUrls();
+  if (proxyUrls.length > 0) {
+    options.proxyConfiguration = new ProxyConfiguration({ proxyUrls });
   }
   const crawler = new CheerioCrawler(options);
   await crawler.run(filtered.map((url) => ({ url, headers: { "User-Agent": randomUa() } })));
@@ -202,7 +208,7 @@ export async function crawlUrls(urls: string[], category: string): Promise<Norma
 
   let results: NormalizedItem[] = [];
   try {
-    if (USE_PLAYWRIGHT) {
+    if (await getPlatformConfigBool("use_playwright", false)) {
       try {
         results = await crawlWithPlaywright(filtered, category);
         logger.info({ crawled: results.length }, "Playwright crawl complete");

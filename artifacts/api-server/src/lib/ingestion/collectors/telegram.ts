@@ -1,6 +1,7 @@
 import type { NormalizedItem } from "../types";
 import { logger } from "../../logger";
 import { detectLanguage } from "../language";
+import { getPlatformConfig } from "../../platform-config";
 import { collectRss } from "./rss";
 import type { RssSource } from "./rss";
 
@@ -31,9 +32,9 @@ interface TelegramMessage {
 }
 
 async function collectGramJs(category: string): Promise<NormalizedItem[]> {
-  const apiIdStr = process.env.TELEGRAM_API_ID ?? "";
-  const apiHash = process.env.TELEGRAM_API_HASH ?? "";
-  const sessionStr = process.env.TELEGRAM_SESSION ?? "";
+  const apiIdStr = (await getPlatformConfig("telegram_api_id")) ?? "";
+  const apiHash = (await getPlatformConfig("telegram_api_hash")) ?? "";
+  const sessionStr = (await getPlatformConfig("telegram_session")) ?? "";
 
   if (!apiIdStr || !apiHash || !sessionStr) return [];
 
@@ -109,7 +110,7 @@ async function collectRssHubFallback(category: string): Promise<NormalizedItem[]
   const channels = CHANNELS_BY_CATEGORY[category] ?? [];
   if (!channels.length) return [];
 
-  const rsshubBase = process.env.RSSHUB_URL ?? RSSHUB_BASE;
+  const rsshubBase = (await getPlatformConfig("rsshub_url")) ?? RSSHUB_BASE;
   const rssSources: RssSource[] = channels.map((channel) => ({
     name: `Telegram: ${channel}`,
     url: `${rsshubBase}/telegram/channel/${channel}`,
@@ -133,11 +134,12 @@ async function collectRssHubFallback(category: string): Promise<NormalizedItem[]
 }
 
 export async function collectTelegram(category: string): Promise<NormalizedItem[]> {
-  const hasGramJsConfig = !!(
-    process.env.TELEGRAM_API_ID &&
-    process.env.TELEGRAM_API_HASH &&
-    process.env.TELEGRAM_SESSION
-  );
+  const [tgApiId, tgApiHash, tgSession] = await Promise.all([
+    getPlatformConfig("telegram_api_id"),
+    getPlatformConfig("telegram_api_hash"),
+    getPlatformConfig("telegram_session"),
+  ]);
+  const hasGramJsConfig = !!(tgApiId && tgApiHash && tgSession);
 
   if (hasGramJsConfig) {
     try {

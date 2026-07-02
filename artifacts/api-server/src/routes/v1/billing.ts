@@ -14,6 +14,7 @@ import {
 import { createPaypalOrder, capturePaypalOrder, isPaypalConfigured } from "../../lib/paypal";
 import { getCryptoConfig, verifyUsdtPayment, formatUsdt } from "../../lib/cryptoPayments";
 import { activateSubscription } from "../../lib/subscriptionService";
+import { getPlatformConfig } from "../../lib/platform-config";
 import { db } from "@workspace/db";
 import { subscriptionsTable, cryptoPaymentIntentsTable } from "@workspace/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -32,20 +33,22 @@ const router = Router();
 
 router.use(requireAuth);
 
-const TIER_PRICES = {
-  starter: {
-    monthly: process.env.STRIPE_STARTER_MONTHLY_PRICE_ID || "",
-    annual: process.env.STRIPE_STARTER_ANNUAL_PRICE_ID || "",
-  },
-  pro: {
-    monthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || "",
-    annual: process.env.STRIPE_PRO_ANNUAL_PRICE_ID || "",
-  },
-  enterprise: {
-    monthly: process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID || "",
-    annual: process.env.STRIPE_ENTERPRISE_ANNUAL_PRICE_ID || "",
-  },
-} as const;
+/** Resolve the six Stripe price IDs (DB-backed, env fallback) for the plan UI. */
+async function resolveTierPrices(): Promise<Record<Tier, Record<BillingInterval, string>>> {
+  const [sm, sa, pm, pa, em, ea] = await Promise.all([
+    getPlatformConfig("stripe_starter_monthly_price_id"),
+    getPlatformConfig("stripe_starter_annual_price_id"),
+    getPlatformConfig("stripe_pro_monthly_price_id"),
+    getPlatformConfig("stripe_pro_annual_price_id"),
+    getPlatformConfig("stripe_enterprise_monthly_price_id"),
+    getPlatformConfig("stripe_enterprise_annual_price_id"),
+  ]);
+  return {
+    starter: { monthly: sm ?? "", annual: sa ?? "" },
+    pro: { monthly: pm ?? "", annual: pa ?? "" },
+    enterprise: { monthly: em ?? "", annual: ea ?? "" },
+  };
+}
 
 const TIER_DISPLAY = {
   starter: { name: "Starter", priceMonthly: 99, priceAnnual: 79 },
@@ -57,6 +60,7 @@ const TIER_DISPLAY = {
 router.get("/plan", async (req, res) => {
   const { subscription, tier } = req.thea!;
   const display = TIER_DISPLAY[tier] ?? TIER_DISPLAY.starter;
+  const tierPrices = await resolveTierPrices();
 
   res.json({
     data: {
@@ -73,7 +77,7 @@ router.get("/plan", async (req, res) => {
       availablePlans: Object.entries(TIER_DISPLAY).map(([t, d]) => ({
         tier: t,
         ...d,
-        prices: TIER_PRICES[t as keyof typeof TIER_PRICES],
+        prices: tierPrices[t as Tier],
       })),
       // Audience-facing PR packages (what the marketing site + settings sell).
       packages: Object.values(PLANS).map((p) => ({
@@ -99,7 +103,7 @@ router.get("/invoices", requireRole("owner", "admin"), async (req, res) => {
   }
 
   try {
-    const stripe = getStripeClient();
+    const stripe = await getStripeClient();
     const invoices = await stripe.invoices.list({ customer: customerId, limit: 24 });
     res.json({
       data: invoices.data.map((inv) => ({
@@ -149,7 +153,7 @@ router.post("/checkout", requireRole("owner", "admin"), async (req, res) => {
   // Interval + price are resolved server-side from the plan key so a client can
   // never pass an arbitrary Stripe priceId to buy a tier it did not pay for.
   const billingInterval: BillingInterval = interval === "annual" ? "annual" : "monthly";
-  const priceId = priceIdForPlan(plan.key, billingInterval);
+  const priceId = await priceIdForPlan(plan.key, billingInterval);
   if (!priceId) {
     res.status(503).json({ error: "Card checkout is not configured for this plan yet" });
     return;
@@ -192,19 +196,25 @@ router.post("/portal", requireRole("owner", "admin"), async (req, res) => {
  * "available" once Stripe price IDs are configured; PayPal / crypto once their
  * respective secrets / wallet are set. Unconfigured methods are simply hidden.
  */
-router.get("/config", (_req, res) => {
-  const card = Boolean(
-    priceIdForPlan("professional", "monthly") &&
-      priceIdForPlan("business", "monthly") &&
-      priceIdForPlan("political", "monthly"),
-  );
-  const cfg = getCryptoConfig();
+router.get("/config", async (_req, res) => {
+  const [starterCard, businessCard, politicalCard] = await Promise.all([
+    priceIdForPlan("professional", "monthly"),
+    priceIdForPlan("business", "monthly"),
+    priceIdForPlan("political", "monthly"),
+  ]);
+  const card = Boolean(starterCard && businessCard && politicalCard);
+
+  const [cfg, paypalReady, paypalClientId] = await Promise.all([
+    getCryptoConfig(),
+    isPaypalConfigured(),
+    // PayPal client id is public (used by the browser SDK) — safe to expose.
+    getPlatformConfig("paypal_client_id"),
+  ]);
   res.json({
     data: {
       card,
-      paypal: isPaypalConfigured(),
-      // PayPal client id is public (used by the browser SDK) — safe to expose.
-      paypalClientId: process.env.PAYPAL_CLIENT_ID ?? null,
+      paypal: paypalReady,
+      paypalClientId: paypalClientId ?? null,
       crypto: cfg !== null,
       cryptoChain: cfg?.chain ?? null,
     },
@@ -219,7 +229,7 @@ router.post("/paypal/order", requireRole("owner", "admin"), async (req, res) => 
     res.status(400).json({ error: "Unknown plan" });
     return;
   }
-  if (!isPaypalConfigured()) {
+  if (!(await isPaypalConfigured())) {
     res.status(503).json({ error: "PayPal is not configured yet" });
     return;
   }
@@ -245,7 +255,7 @@ router.post("/paypal/capture", requireRole("owner", "admin"), async (req, res) =
     res.status(400).json({ error: "orderId is required" });
     return;
   }
-  if (!isPaypalConfigured()) {
+  if (!(await isPaypalConfigured())) {
     res.status(503).json({ error: "PayPal is not configured yet" });
     return;
   }
@@ -309,7 +319,7 @@ router.post("/crypto/intent", requireRole("owner", "admin"), async (req, res) =>
     res.status(400).json({ error: "Unknown plan" });
     return;
   }
-  const cfg = getCryptoConfig();
+  const cfg = await getCryptoConfig();
   if (!cfg) {
     res.status(503).json({ error: "Crypto payments are not configured yet" });
     return;
@@ -369,7 +379,7 @@ router.post("/crypto/verify", requireRole("owner", "admin"), async (req, res) =>
     res.status(400).json({ error: "That does not look like a valid transaction hash" });
     return;
   }
-  const cfg = getCryptoConfig();
+  const cfg = await getCryptoConfig();
   if (!cfg) {
     res.status(503).json({ error: "Crypto payments are not configured yet" });
     return;

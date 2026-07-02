@@ -137,7 +137,7 @@ app.listen(port, async (err) => {
         logger.warn({ err }, "Email delivery worker / digest scheduler bootstrap failed — will retry on next startup")
       ),
     Promise.resolve()
-      .then(() => { startTelegramBot(); })
+      .then(() => startTelegramBot())
       .catch((err) =>
         logger.warn({ err }, "Telegram bot bootstrap failed — will retry on next startup")
       ),

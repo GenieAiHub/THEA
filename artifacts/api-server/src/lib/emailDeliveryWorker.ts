@@ -9,6 +9,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { logger } from "./logger";
+import { getPlatformConfig } from "./platform-config";
 
 interface EmailRecipient {
   email: string;
@@ -68,9 +69,10 @@ function buildHtml(template: string, data: Record<string, unknown>): string {
 async function sendViaResend(to: EmailRecipient[], subject: string, html: string, apiKey: string): Promise<void> {
   const { Resend } = await import("resend");
   const resend = new Resend(apiKey);
+  const fromEmail = (await getPlatformConfig("resend_from_email")) ?? "THEA <alerts@thea.ai>";
   for (const r of to) {
     const { error } = await resend.emails.send({
-      from: process.env["RESEND_FROM_EMAIL"] ?? "THEA <alerts@thea.ai>",
+      from: fromEmail,
       to: r.name ? `${r.name} <${r.email}>` : r.email,
       subject,
       html,
@@ -80,10 +82,10 @@ async function sendViaResend(to: EmailRecipient[], subject: string, html: string
 }
 
 export function startEmailDeliveryWorker(): void {
-  const RESEND_API_KEY = process.env["RESEND_API_KEY"];
-  if (!RESEND_API_KEY) logger.warn("RESEND_API_KEY not set — emails will be logged but not sent");
-
   createWorker<EmailDeliveryJobData>("email-delivery", async (job) => {
+    // Resolve the Resend key per job (DB-backed, env fallback) so admin edits
+    // take effect without a worker restart.
+    const resendApiKey = await getPlatformConfig("resend_api_key");
     // Digest schedule trigger: build digest data and send
     if (job.name === "digest-schedule-trigger") {
       const { orgId } = job.data;
@@ -98,10 +100,10 @@ export function startEmailDeliveryWorker(): void {
       const subject = `${freq} THEA Intelligence Digest — ${digestData.dateRange}`;
 
       // Email delivery
-      if (!RESEND_API_KEY) {
-        logger.info({ orgId, recipients }, "[DRY-RUN] Digest email would be sent");
+      if (!resendApiKey) {
+        logger.info({ orgId, recipients }, "[DRY-RUN] Digest email would be sent (resend_api_key not set)");
       } else {
-        await sendViaResend(recipients.map((email: string) => ({ email })), subject, html, RESEND_API_KEY);
+        await sendViaResend(recipients.map((email: string) => ({ email })), subject, html, resendApiKey);
         logger.info({ orgId, recipients: recipients.length }, "Digest email sent");
       }
 
@@ -155,11 +157,11 @@ export function startEmailDeliveryWorker(): void {
     if (!to?.length || !subject) { logger.warn({ jobId: job.id }, "email-delivery missing to/subject"); return; }
     const html = rawHtml ?? (template ? buildHtml(template, data) : "<p>No content</p>");
 
-    if (!RESEND_API_KEY) {
-      logger.info({ to: to.map((r) => r.email), subject }, "[DRY-RUN] Email would be sent");
+    if (!resendApiKey) {
+      logger.info({ to: to.map((r) => r.email), subject }, "[DRY-RUN] Email would be sent (resend_api_key not set)");
       return;
     }
-    await sendViaResend(to, subject, html, RESEND_API_KEY);
+    await sendViaResend(to, subject, html, resendApiKey);
     logger.info({ recipients: to.length, subject }, "Email sent");
   });
 }
