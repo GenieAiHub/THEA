@@ -4,8 +4,10 @@ import { predictionMarketsTable, marketVotesTable } from "@workspace/db/schema";
 import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { VoteOnMarketBody } from "@workspace/api-zod";
 import { serializeMarkets } from "../../lib/markets";
+import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
+router.use(requireAuth);
 
 // ─── GET /api/v1/markets ──────────────────────────────────────────────────────
 router.get("/", async (req, res) => {

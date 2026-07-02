@@ -94,7 +94,7 @@ router.post("/search", async (req, res) => {
   }
 
   try {
-    const results = await semanticSearch(query, { category, limit, minSimilarity, orgId: req.thea!.org.id });
+    const results = await semanticSearch(query, req.thea!.org.id, { category, limit, minSimilarity });
     res.json({ query, results, count: results.length });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Semantic search failed";

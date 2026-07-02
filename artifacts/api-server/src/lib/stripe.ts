@@ -68,9 +68,54 @@ export async function handleStripeSubscriptionUpsert(
         updatedAt: new Date(),
       })
       .where(eq(subscriptionsTable.stripeCustomerId, customerId));
-  }
+    logger.info({ customerId, tier, status: stripeSub.status }, "Stripe subscription updated");
+  } else {
+    // No existing subscription by Stripe customer ID.
+    // Recover using thea_org_id embedded in subscription metadata at checkout creation time.
+    const orgId = stripeSub.metadata?.thea_org_id;
+    if (orgId) {
+      const existingByOrg = await db
+        .select()
+        .from(subscriptionsTable)
+        .where(eq(subscriptionsTable.orgId, orgId))
+        .limit(1);
 
-  logger.info({ customerId, tier, status: stripeSub.status }, "Stripe subscription synced");
+      if (existingByOrg[0]) {
+        await db
+          .update(subscriptionsTable)
+          .set({
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: stripeSub.id,
+            stripePriceId: priceId,
+            tier,
+            status: stripeSub.status,
+            currentPeriodStart: new Date(((stripeSub as any).current_period_start as number) * 1000),
+            currentPeriodEnd: new Date(((stripeSub as any).current_period_end as number) * 1000),
+            cancelAtPeriodEnd: String(stripeSub.cancel_at_period_end),
+            ...limits,
+            updatedAt: new Date(),
+          })
+          .where(eq(subscriptionsTable.orgId, orgId));
+        logger.info({ customerId, tier, status: stripeSub.status, orgId }, "Stripe subscription linked via metadata (customer ID was missing)");
+      } else {
+        await db.insert(subscriptionsTable).values({
+          orgId,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: stripeSub.id,
+          stripePriceId: priceId,
+          tier,
+          status: stripeSub.status,
+          currentPeriodStart: new Date(((stripeSub as any).current_period_start as number) * 1000),
+          currentPeriodEnd: new Date(((stripeSub as any).current_period_end as number) * 1000),
+          cancelAtPeriodEnd: String(stripeSub.cancel_at_period_end),
+          ...limits,
+        });
+        logger.info({ customerId, tier, status: stripeSub.status, orgId }, "Stripe subscription inserted via metadata recovery");
+      }
+    } else {
+      logger.warn({ customerId }, "Stripe subscription upsert: no org found for customer — missing metadata.thea_org_id");
+    }
+  }
 }
 
 export async function handleStripeSubscriptionDeleted(customerId: string): Promise<void> {
@@ -125,6 +170,7 @@ export async function createCheckoutSession(
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: { thea_org_id: orgId },
+    subscription_data: { metadata: { thea_org_id: orgId } },
   });
 
   return session.url!;

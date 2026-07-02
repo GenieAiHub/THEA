@@ -131,10 +131,19 @@ export async function embedPendingItems(limit = 200): Promise<number> {
   return stored;
 }
 
+/**
+ * Semantic search scoped to a specific org.
+ * orgId is REQUIRED — the caller must always provide tenant context.
+ * This makes cross-tenant data access architecturally impossible by
+ * removing any unscoped code path.
+ */
 export async function semanticSearch(
   queryText: string,
-  opts: { category?: string; limit?: number; minSimilarity?: number; orgId?: string } = {}
+  orgId: string,
+  opts: { category?: string; limit?: number; minSimilarity?: number } = {}
 ): Promise<Array<{ id: string; similarity: number; title: string | null; summary: string | null; category: string | null; platform: string; publishedAt: Date | null }>> {
+  if (!orgId) throw new Error("semanticSearch: orgId is required for tenant isolation");
+
   const embedding = await generateEmbedding(queryText);
   if (!embedding) return [];
 
@@ -143,7 +152,6 @@ export async function semanticSearch(
   const safeLimit = Math.max(1, Math.min(100, Math.floor(Number(opts.limit ?? 20))));
   const safeMinSimilarity = Math.max(0, Math.min(1, Number(opts.minSimilarity ?? 0.3)));
   const category = typeof opts.category === "string" ? opts.category : null;
-  const orgId = typeof opts.orgId === "string" ? opts.orgId : null;
 
   const vectorStr = `[${embedding.join(",")}]`;
 

@@ -4,6 +4,7 @@ import { crawlerSourcesTable, collectionRunsTable } from "@workspace/db/schema";
 import { desc, eq, and } from "drizzle-orm";
 import { triggerImmediateCollection } from "../../lib/ingestion";
 import { PRECONFIGURED_SOURCES, CATEGORIES } from "../../lib/ingestion/sources-config";
+import { requireAuth } from "../../middlewares/clerkAuth";
 
 const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
 
@@ -22,8 +23,8 @@ function requireAdminToken(req: Request, res: Response, next: NextFunction): voi
 
 const router = Router();
 
-// ─── PUBLIC: list sources (read-only) ────────────────────────────────────────
-router.get("/sources", async (req, res) => {
+// ─── Authenticated: list sources (read-only) ─────────────────────────────────
+router.get("/sources", requireAuth, async (req, res) => {
   const { category, type, active } = req.query as Record<string, string>;
   const conditions = [];
   if (category) conditions.push(eq(crawlerSourcesTable.category, category));
@@ -100,7 +101,7 @@ router.delete("/sources/:id", requireAdminToken, async (req, res) => {
 });
 
 // ─── PUBLIC: list collection runs ────────────────────────────────────────────
-router.get("/runs", async (req, res) => {
+router.get("/runs", requireAuth, async (req, res) => {
   const { limit = "50", sourceType } = req.query as Record<string, string>;
   const conditions = [];
   if (sourceType) conditions.push(eq(collectionRunsTable.sourceType, sourceType));
@@ -168,7 +169,7 @@ router.post("/seed-sources", requireAdminToken, async (req, res) => {
 });
 
 // ─── PUBLIC: list categories ──────────────────────────────────────────────────
-router.get("/categories", (_req, res) => {
+router.get("/categories", requireAuth, (_req, res) => {
   res.json({ data: CATEGORIES });
 });
 
