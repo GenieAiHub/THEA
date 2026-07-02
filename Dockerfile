@@ -18,7 +18,8 @@
 ############################
 FROM node:24-slim AS base
 ENV PNPM_HOME="/pnpm" \
-    PATH="/pnpm:$PATH"
+    PATH="/pnpm:$PATH" \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
 

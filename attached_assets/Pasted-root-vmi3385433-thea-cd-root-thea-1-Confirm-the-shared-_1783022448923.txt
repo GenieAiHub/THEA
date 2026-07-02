@@ -1,0 +1,1698 @@
+root@vmi3385433:~/thea# cd /root/thea
+
+# 1. Confirm the shared proxy network exists (the other 15 projects ride it):
+docker network ls | grep -w web
+4c9a9cc02949   web                    bridge    local
+root@vmi3385433:~/thea# # 2. Build the heaviest image (api: full monorepo install + tsc + esbuild) FIRST,
+#    alone, so we don't run parallel builds into the RAM ceiling:
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml build api
+
+# 3. Then the three SPA images (they reuse the cached install layer):
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml build website admin markets
+
+# 4. Bring everything up (db, redis, elasticsearch, one-shot migrate, api, 3 web):
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+
+# 5. Check status:
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml ps
+[+] Building 94.4s (13/16)
+ => [internal] load local bake definitions                                         0.0s
+ => => reading from stdin 864B                                                     0.0s
+ => [internal] load build definition from Dockerfile                               0.1s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => resolve image config for docker-image://docker.io/docker/dockerfile:1.7        1.5s
+ => CACHED docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb  0.1s
+ => => resolve docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f281  0.1s
+ => [internal] load metadata for docker.io/library/node:24-slim                    1.0s
+ => [internal] load .dockerignore                                                  0.1s
+ => => transferring context: 254B                                                  0.0s
+ => [internal] load build context                                                  0.8s
+ => => transferring context: 10.98MB                                               0.7s
+ => CACHED [base 1/3] FROM docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa  0.1s
+ => => resolve docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa5f5ed477c72d  0.1s
+ => [base 2/3] RUN corepack enable                                                 2.1s
+ => [base 3/3] WORKDIR /app                                                        0.4s
+ => [deps 1/3] RUN apt-get update  && apt-get install -y --no-install-recommends  29.2s
+ => [deps 2/3] COPY . .                                                            0.5s
+ => ERROR [deps 3/3] RUN pnpm install --frozen-lockfile                           57.1s
+------
+ > [deps 3/3] RUN pnpm install --frozen-lockfile:
+0.758 ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-11.9.0.tgz
+5.650 [WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.peerDependencyRules". See https://pnpm.io/settings for the new home of each setting.
+5.805 Scope: all 12 workspace projects
+6.311 ? Verifying lockfile against supply-chain policies (1472 entries)...
+6.358 Lockfile is up to date, resolution step is skipped
+6.679 Progress: resolved 1, reused 0, downloaded 0, added 0
+7.044 Packages: +1490
+7.044 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+7.694 Progress: resolved 1490, reused 0, downloaded 0, added 0
+10.82 Progress: resolved 1490, reused 0, downloaded 1, added 0
+11.83 Progress: resolved 1490, reused 0, downloaded 43, added 0
+12.84 Progress: resolved 1490, reused 0, downloaded 106, added 4
+13.87 Progress: resolved 1490, reused 0, downloaded 171, added 12
+14.88 Progress: resolved 1490, reused 0, downloaded 218, added 16
+16.02 Progress: resolved 1490, reused 0, downloaded 251, added 16
+17.04 Progress: resolved 1490, reused 0, downloaded 284, added 20
+18.08 Progress: resolved 1490, reused 0, downloaded 316, added 22
+18.65 [WARN] Request took 10053ms: https://registry.npmjs.org/@crawlee%2Fpuppeteer
+19.10 Progress: resolved 1490, reused 0, downloaded 349, added 24
+20.12 Progress: resolved 1490, reused 0, downloaded 402, added 28
+21.16 Progress: resolved 1490, reused 0, downloaded 470, added 36
+22.24 Progress: resolved 1490, reused 0, downloaded 544, added 40
+22.90 [WARN] Request took 12015ms: https://registry.npmjs.org/@react-native%2Fbabel-preset
+23.31 Progress: resolved 1490, reused 0, downloaded 584, added 44
+24.49 Progress: resolved 1490, reused 0, downloaded 625, added 48
+25.27 [WARN] Request took 10325ms: https://registry.npmjs.org/@react-native%2Fbabel-plugin-codegen
+25.56 Progress: resolved 1490, reused 0, downloaded 670, added 51
+26.59 Progress: resolved 1490, reused 0, downloaded 725, added 56
+26.70 [WARN] Request took 12459ms: https://registry.npmjs.org/@types%2Fnode
+26.81 [WARN] Request took 11234ms: https://registry.npmjs.org/@react-native%2Fvirtualized-lists
+27.28 [WARN] Request took 11309ms: https://registry.npmjs.org/@react-native%2Fdev-middleware
+27.47 [WARN] Request took 11729ms: https://registry.npmjs.org/@react-native%2Fcommunity-cli-plugin
+27.76 Progress: resolved 1490, reused 0, downloaded 789, added 60
+29.02 Progress: resolved 1490, reused 0, downloaded 848, added 66
+29.88 [WARN] Request took 12636ms: https://registry.npmjs.org/crawlee
+30.07 Progress: resolved 1490, reused 0, downloaded 933, added 72
+30.11 [WARN] Request took 12990ms: https://registry.npmjs.org/@react-native%2Fcodegen
+31.08 Progress: resolved 1490, reused 0, downloaded 1033, added 80
+32.09 Progress: resolved 1490, reused 0, downloaded 1094, added 87
+32.16 [WARN] Request took 13201ms: https://registry.npmjs.org/electron-to-chromium
+33.17 Progress: resolved 1490, reused 0, downloaded 1200, added 96
+33.52 [WARN] Request took 12419ms: https://registry.npmjs.org/framer-motion
+34.29 Progress: resolved 1490, reused 0, downloaded 1279, added 103
+35.30 Progress: resolved 1490, reused 0, downloaded 1314, added 107
+36.33 Progress: resolved 1490, reused 0, downloaded 1329, added 107
+37.37 [WARN] Request took 10169ms: https://registry.npmjs.org/react-is
+37.37 Progress: resolved 1490, reused 0, downloaded 1372, added 111
+37.77 [WARN] Request took 14341ms: https://registry.npmjs.org/@react-native%2Fbabel-preset
+37.90 [WARN] Request took 10371ms: https://registry.npmjs.org/react
+38.06 [WARN] Request took 10679ms: https://registry.npmjs.org/react-refresh
+38.37 Progress: resolved 1490, reused 0, downloaded 1456, added 119
+38.51 [WARN] Request took 11429ms: https://registry.npmjs.org/react-dom
+38.86 [WARN] Request took 11653ms: https://registry.npmjs.org/react-native-reanimated
+39.37 Progress: resolved 1490, reused 0, downloaded 1463, added 290
+40.13 [WARN] Request took 10162ms: https://registry.npmjs.org/tailwindcss
+40.39 Progress: resolved 1490, reused 0, downloaded 1463, added 367
+40.79 [WARN] Request took 13415ms: https://registry.npmjs.org/react-native
+41.40 Progress: resolved 1490, reused 0, downloaded 1464, added 535
+42.29 [WARN] Request took 15689ms: https://registry.npmjs.org/playwright
+42.41 Progress: resolved 1490, reused 0, downloaded 1464, added 622
+42.65 [WARN] Request took 16051ms: https://registry.npmjs.org/playwright-core
+42.76 [WARN] Request took 12188ms: https://registry.npmjs.org/typescript
+43.61 Progress: resolved 1490, reused 0, downloaded 1464, added 740
+44.64 Progress: resolved 1490, reused 0, downloaded 1464, added 812
+45.61 Progress: resolved 1490, reused 0, downloaded 1464, added 929
+46.04 ✓ Lockfile passes supply-chain policies (1472 entries in 39.7s)
+46.61 Progress: resolved 1490, reused 0, downloaded 1464, added 1201
+47.63 Progress: resolved 1490, reused 0, downloaded 1464, added 1356
+48.43 Progress: resolved 1490, reused 0, downloaded 1464, added 1490, done
+54.09
+54.09 dependencies:
+54.09 + @opentelemetry/api 1.9.1
+54.09 + @opentelemetry/core 2.8.0
+54.09 + @opentelemetry/semantic-conventions 1.41.1
+54.09 + stripe 22.3.0
+54.09 + stripe-replit-sync 1.0.0
+54.09 + viem 2.54.1
+54.09
+54.09 devDependencies:
+54.09 + prettier 3.8.4
+54.09 + typescript 5.9.3
+54.09
+54.29 . preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+54.37 . preinstall: Done
+55.78 [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: @scarf/scarf@1.4.0, bufferutil@4.1.0, core-js@3.29.1, es5-ext@0.10.64, esbuild@0.27.3, msgpackr-extract@3.0.4, utf-8-validate@5.0.10
+55.78
+55.78 Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+------
+[+] build 0/2
+ ⠙ Image thea-tools Building                                                       94.7s
+ ⠙ Image thea-api   Building                                                       94.7s
+failed to solve: process "/bin/sh -c pnpm install --frozen-lockfile" did not complete successfully: exit code: 1
+
+[+] Building 60.3s (23/35)
+ => [internal] load local bake definitions                                         0.0s
+ => => reading from stdin 2.29kB                                                   0.0s
+ => [website internal] load build definition from Dockerfile                       0.3s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [markets] resolve image config for docker-image://docker.io/docker/dockerfile  0.8s
+ => CACHED [admin] docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d  0.2s
+ => => resolve docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f281  0.2s
+ => [markets internal] load build definition from Dockerfile                       0.1s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [admin internal] load build definition from Dockerfile                         0.1s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [website internal] load build definition from Dockerfile                       0.2s
+ => => transferring dockerfile: 3.78kB                                             0.0s
+ => [markets internal] load metadata for docker.io/library/nginx:1.27-alpine       1.4s
+ => [admin internal] load metadata for docker.io/library/node:24-slim              0.8s
+ => [admin internal] load .dockerignore                                            0.1s
+ => => transferring context: 254B                                                  0.0s
+ => [website internal] load .dockerignore                                          0.2s
+ => => transferring context: 254B                                                  0.0s
+ => [markets internal] load .dockerignore                                          0.2s
+ => => transferring context: 254B                                                  0.0s
+ => [markets base 1/3] FROM docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8a  0.1s
+ => => resolve docker.io/library/node:24-slim@sha256:b31e7a42fdf8b8aa5f5ed477c72d  0.1s
+ => CACHED [markets web 1/3] FROM docker.io/library/nginx:1.27-alpine@sha256:6564  0.1s
+ => => resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03  0.1s
+ => [admin internal] load build context                                            0.1s
+ => => transferring context: 46.05kB                                               0.0s
+ => [website internal] load build context                                          0.7s
+ => => transferring context: 10.98MB                                               0.5s
+ => [markets internal] load build context                                          0.6s
+ => => transferring context: 10.98MB                                               0.5s
+ => CACHED [website base 2/3] RUN corepack enable                                  0.0s
+ => CACHED [website base 3/3] WORKDIR /app                                         0.0s
+ => CACHED [website deps 1/3] RUN apt-get update  && apt-get install -y --no-inst  0.0s
+ => CACHED [website deps 2/3] COPY . .                                             0.0s
+ => [website web 2/3] COPY deploy/nginx/default.conf.template /etc/nginx/template  0.1s
+ => ERROR [admin deps 3/3] RUN pnpm install --frozen-lockfile                     55.9s
+------
+ > [admin deps 3/3] RUN pnpm install --frozen-lockfile:
+0.977 ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-11.9.0.tgz
+8.214 [WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.peerDependencyRules". See https://pnpm.io/settings for the new home of each setting.
+8.585 Scope: all 12 workspace projects
+9.126 ? Verifying lockfile against supply-chain policies (1472 entries)...
+9.212 Lockfile is up to date, resolution step is skipped
+9.574 Progress: resolved 1, reused 0, downloaded 0, added 0
+10.31 Packages: +1490
+10.31 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+10.70 Progress: resolved 1490, reused 0, downloaded 0, added 0
+14.07 Progress: resolved 1490, reused 0, downloaded 1, added 0
+15.14 Progress: resolved 1490, reused 0, downloaded 36, added 0
+16.14 Progress: resolved 1490, reused 0, downloaded 61, added 4
+17.15 Progress: resolved 1490, reused 0, downloaded 100, added 4
+18.16 Progress: resolved 1490, reused 0, downloaded 160, added 8
+19.18 Progress: resolved 1490, reused 0, downloaded 205, added 12
+20.41 Progress: resolved 1490, reused 0, downloaded 224, added 12
+21.54 Progress: resolved 1490, reused 0, downloaded 250, added 16
+22.61 Progress: resolved 1490, reused 0, downloaded 292, added 19
+23.13 [WARN] Request took 10424ms: https://registry.npmjs.org/@crawlee%2Fhttp
+23.35 [WARN] Request took 10525ms: https://registry.npmjs.org/@crawlee%2Fmemory-storage
+23.57 [WARN] Request took 10902ms: https://registry.npmjs.org/@crawlee%2Fcheerio
+23.61 Progress: resolved 1490, reused 0, downloaded 344, added 22
+23.72 [WARN] Request took 10853ms: https://registry.npmjs.org/@crawlee%2Ftypes
+23.76 [WARN] Request took 11117ms: https://registry.npmjs.org/@crawlee%2Fbrowser
+24.38 [WARN] Request took 15656ms: https://registry.npmjs.org/pnpm
+24.74 Progress: resolved 1490, reused 0, downloaded 414, added 28
+25.43 [WARN] Request took 12531ms: https://registry.npmjs.org/@crawlee%2Futils
+25.89 Progress: resolved 1490, reused 0, downloaded 456, added 32
+25.96 [WARN] Request took 13326ms: https://registry.npmjs.org/@crawlee%2Fbrowser-pool
+26.00 [WARN] Request took 13157ms: https://registry.npmjs.org/@crawlee%2Fpuppeteer
+26.32 [WARN] Request took 13711ms: https://registry.npmjs.org/@crawlee%2Fbasic
+26.90 Progress: resolved 1490, reused 0, downloaded 499, added 36
+27.16 [WARN] Request took 14469ms: https://registry.npmjs.org/@crawlee%2Fcore
+27.29 [WARN] Request took 14451ms: https://registry.npmjs.org/@crawlee%2Fplaywright
+28.08 Progress: resolved 1490, reused 0, downloaded 557, added 40
+29.12 Progress: resolved 1490, reused 0, downloaded 607, added 44
+30.13 Progress: resolved 1490, reused 0, downloaded 689, added 51
+31.08 [WARN] Request took 12014ms: https://registry.npmjs.org/@tailwindcss%2Foxide
+31.17 Progress: resolved 1490, reused 0, downloaded 793, added 60
+32.32 Progress: resolved 1490, reused 0, downloaded 818, added 63
+32.57 [WARN] Request took 15589ms: https://registry.npmjs.org/@react-native%2Fbabel-preset
+33.41 Progress: resolved 1490, reused 0, downloaded 873, added 67
+33.49 [WARN] Request took 10691ms: https://registry.npmjs.org/@react-native%2Fgradle-plugin
+34.02 [WARN] Request took 10703ms: https://registry.npmjs.org/@react-native%2Fbabel-plugin-codegen
+34.44 Progress: resolved 1490, reused 0, downloaded 965, added 75
+35.50 Progress: resolved 1490, reused 0, downloaded 1057, added 81
+35.58 [WARN] Request took 11537ms: https://registry.npmjs.org/@react-native%2Fvirtualized-lists
+35.85 [WARN] Request took 13819ms: https://registry.npmjs.org/@types%2Fnode
+36.56 Progress: resolved 1490, reused 0, downloaded 1128, added 89
+36.67 [WARN] Request took 11653ms: https://registry.npmjs.org/@react-native%2Fdev-middleware
+37.11 [WARN] Request took 11425ms: https://registry.npmjs.org/@react-native%2Fcommunity-cli-plugin
+37.64 Progress: resolved 1490, reused 0, downloaded 1191, added 93
+38.67 Progress: resolved 1490, reused 0, downloaded 1250, added 97
+39.69 Progress: resolved 1490, reused 0, downloaded 1307, added 103
+39.96 [WARN] Request took 13374ms: https://registry.npmjs.org/crawlee
+40.72 Progress: resolved 1490, reused 0, downloaded 1349, added 107
+40.85 [WARN] Request took 14257ms: https://registry.npmjs.org/@react-native%2Fcodegen
+41.77 Progress: resolved 1490, reused 0, downloaded 1370, added 109
+42.81 Progress: resolved 1490, reused 0, downloaded 1396, added 111
+43.40 [WARN] Request took 15320ms: https://registry.npmjs.org/electron-to-chromium
+43.83 Progress: resolved 1490, reused 0, downloaded 1461, added 129
+44.20 [WARN] Request took 14203ms: https://registry.npmjs.org/framer-motion
+44.84 Progress: resolved 1490, reused 0, downloaded 1464, added 265
+45.03 [WARN] Request took 11768ms: https://registry.npmjs.org/@react-native%2Fbabel-preset
+45.83 Progress: resolved 1490, reused 0, downloaded 1464, added 439
+46.71 [WARN] Request took 10179ms: https://registry.npmjs.org/react-native
+46.85 Progress: resolved 1490, reused 0, downloaded 1464, added 714
+47.54 [WARN] Request took 11796ms: https://registry.npmjs.org/playwright
+47.72 [WARN] Request took 11975ms: https://registry.npmjs.org/playwright-core
+48.02 Progress: resolved 1490, reused 0, downloaded 1464, added 957
+49.05 Progress: resolved 1490, reused 0, downloaded 1464, added 1270
+50.07 Progress: resolved 1490, reused 0, downloaded 1464, added 1400
+50.62 ✓ Lockfile passes supply-chain policies (1472 entries in 41.4s)
+50.62 Progress: resolved 1490, reused 0, downloaded 1464, added 1490, done
+53.60
+53.60 dependencies:
+53.60 + @opentelemetry/api 1.9.1
+53.60 + @opentelemetry/core 2.8.0
+53.60 + @opentelemetry/semantic-conventions 1.41.1
+53.60 + stripe 22.3.0
+53.60 + stripe-replit-sync 1.0.0
+53.60 + viem 2.54.1
+53.60
+53.60 devDependencies:
+53.60 + prettier 3.8.4
+53.60 + typescript 5.9.3
+53.60
+53.71 . preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+53.79 . preinstall: Done
+54.72 [ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: @scarf/scarf@1.4.0, bufferutil@4.1.0, core-js@3.29.1, es5-ext@0.10.64, esbuild@0.27.3, msgpackr-extract@3.0.4, utf-8-validate@5.0.10
+54.72
+54.72 Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+------
+[+] build 0/5
+ ⠙ Image thea-tools   Building                                                     60.5s
+ ⠙ Image thea-api     Building                                                     60.5s
+ ⠙ Image thea-admin   Building                                                     60.5s
+ ⠙ Image thea-markets Building                                                     60.5s
+ ⠙ Image thea-website Building                                                     60.5s
+target website: failed to solve: process "/bin/sh -c pnpm install --frozen-lockfile" did not complete successfully: exit code: 1
+
+[+] up 1/7
+[+] up 5/7... Pulling                                                               1.3s
+ ⠼ Image p... Pulling                                                               1.4s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s                                                             1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s                                                             1.3s
+ ⠴ Image p... Pulling                                                               1.5s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠦ Image p... Pulling                                                               1.6s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠧ Image p... Pulling                                                               1.7s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠇ Image p... Pulling                                                               1.8s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠏ Image p... Pulling                                                               1.9s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠋ Image p... Pulling                                                               2.0s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠙ Image p... Pulling                                                               2.1s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠹ Image p... Pulling                                                               2.2s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠸ Image p... Pulling                                                               2.3s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠼ Image p... Pulling                                                               2.4s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠴ Image p... Pulling                                                               2.5s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠦ Image p... Pulling                                                               2.6s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠧ Image p... Pulling                                                               2.7s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠇ Image p... Pulling                                                               2.8s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠏ Image p... Pulling                                                               2.9s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠋ Image p... Pulling                                                               3.0s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠙ Image p... Pulling                                                               3.1s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠹ Image p... Pulling                                                               3.2s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠸ Image p... Pulling                                                               3.3s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠼ Image p... Pulling                                                               3.4s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠴ Image p... Pulling                                                               3.5s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠦ Image p... Pulling                                                               3.6s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠧ Image p... Pulling                                                               3.7s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠇ Image p... Pulling                                                               3.8s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠏ Image p... Pulling                                                               3.9s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠋ Image p... Pulling                                                               4.0s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠙ Image p... Pulling                                                               4.1s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠹ Image p... Pulling                                                               4.2s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠸ Image p... Pulling                                                               4.3s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠼ Image p... Pulling                                                               4.4s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠴ Image p... Pulling                                                               4.5s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠦ Image p... Pulling                                                               4.6s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠧ Image p... Pulling                                                               4.7s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠇ Image p... Pulling                                                               4.8s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠏ Image p... Pulling                                                               4.9s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠋ Image p... Pulling                                                               5.0s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/7r login' 1.3s
+ ⠙ Image p... Pulling                                                               5.1s
+ ! Image t... pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t... pull access denied for thea-markets, repository does not exist or may requ[+] up 5/17 login' 1.3s
+ ⠹ Image p...              Pulling                                                  5.2s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠸ Image p...              Pulling                                                  5.3s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠼ Image p...              Pulling                                                  5.4s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠴ Image p...              Pulling                                                  5.5s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠦ Image p...              Pulling                                                  5.6s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠧ Image p...              Pulling                                                  5.7s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠇ Image p...              Pulling                                                  5.8s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/17quire 'docker login' 1.3s
+ ⠏ Image p...              Pulling                                                  5.9s
+ ! Image t...              pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...              pull access denied for thea-markets, repository does not exis[+] up 5/32quire 'docker login' 1.3s
+ ⠋ Image p... [⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀] Pulling                                             6.0s
+ ! Image t...                   pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                   pull access denied for thea-markets, repository does not[+] up 5/32ay require 'docker login' 1.3s
+ ⠙ Image p... [⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀] Pulling                                             6.1s
+ ! Image t...                   pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                   pull access denied for thea-markets, repository does not[+] up 5/32ay require 'docker login' 1.3s
+ ⠹ Image p... [⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀] Pulling                                             6.2s
+ ! Image t...                   pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                   pull access denied for thea-markets, repository does not[+] up 5/33ay require 'docker login' 1.3s
+ ⠸ Image p... [⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿] Pulling                                            6.3s
+ ! Image t...                    pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                    pull access denied for thea-markets, repository does no[+] up 5/33may require 'docker login' 1.3s
+ ⠼ Image p... [⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿] Pulling                                            6.4s
+ ! Image t...                    pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                    pull access denied for thea-markets, repository does no[+] up 7/33may require 'docker login' 1.3s
+ ⠴ Image p... [⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿] Pulling                                            6.5s
+ ! Image t...                    pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                    pull access denied for thea-markets, repository does no[+] up 14/33ay require 'docker login' 1.3s
+ ⠦ Image p... [⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿] Pulling                                            6.6s
+ ! Image t...                    pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                    pull access denied for thea-markets, repository does no[+] up 16/33ay require 'docker login' 1.3s
+ ⠧ Image p... [⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿]             Pulling                                6.7s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 16/33t exist or may require 'docker login' 1.3s
+ ⠇ Image p... [⣿⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿]             Pulling                                6.8s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 17/33t exist or may require 'docker login' 1.3s
+ ⠏ Image p... [⣿⣿⣄⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⣿⣿]             Pulling                                6.9s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 20/33t exist or may require 'docker login' 1.3s
+ ⠋ Image p... [⣿⣿⣄⠀⠀⠀⣿⠀⠀⣿⣿⠀⠀⠀⣿⣿]             Pulling                                7.0s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 20/33t exist or may require 'docker login' 1.3s
+ ⠙ Image p... [⣿⣿⣄⠀⠀⠀⣿⠀⠀⣿⣿⠀⠀⠀⣿⣿]             Pulling                                7.1s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 23/33t exist or may require 'docker login' 1.3s
+ ⠹ Image p... [⣿⣿⣿⣶⠀⠀⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿]             Pulling                                7.2s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 23/33t exist or may require 'docker login' 1.3s
+ ⠸ Image p... [⣿⣿⣿⣶⠀⠀⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿]             Pulling                                7.3s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 23/33t exist or may require 'docker login' 1.3s
+ ⠼ Image p... [⣿⣿⣿⣶⠀⠀⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿]             Pulling                                7.4s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 23/33t exist or may require 'docker login' 1.3s
+ ⠴ Image p... [⣿⣿⣿⣶⠀⠀⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿]             Pulling                                7.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 27/33t exist or may require 'docker login' 1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⠀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 9.795MB / 126.7MB Pulling                          7.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⠀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 9.795MB / 126.7MB Pulling                          7.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 26/33oes not exist or may require 'docker login' 1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⠀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 11.89MB / 126.7MB Pulling                          7.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⠀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 11.89MB / 126.7MB Pulling                          7.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 26/33oes not exist or may require 'docker login' 1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 16.09MB / 126.7MB Pulling                          8.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 26/33oes not exist or may require 'docker login' 1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 16.09MB / 126.7MB Pulling                          8.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 16.09MB / 126.7MB Pulling                          8.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 19.23MB / 126.7MB Pulling                          8.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login' 1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣀⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿] 19.23MB / 126.7MB Pulling                          8.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login' 1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣄⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 25.52MB / 126.7MB Pulling                          8.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login' 1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣄⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 25.52MB / 126.7MB Pulling                          8.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣄⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 25.52MB / 126.7MB Pulling                          8.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣤⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 28.67MB / 126.7MB Pulling                          8.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣤⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 28.67MB / 126.7MB Pulling                          8.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣤⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 33.91MB / 126.7MB Pulling                          9.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣤⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 33.91MB / 126.7MB Pulling                          9.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣤⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 33.91MB / 126.7MB Pulling                          9.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣤⣿⣿⣿⡀⣿⣿⣿⣿⣿⣿⣿] 33.91MB / 126.7MB Pulling                          9.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣦⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿]  40.2MB / 126.7MB Pulling                          9.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣦⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿]  40.2MB / 126.7MB Pulling                          9.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣦⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿]  40.2MB / 126.7MB Pulling                          9.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣦⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿]  40.2MB / 126.7MB Pulling                          9.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣦⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿]  40.2MB / 126.7MB Pulling                          9.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login' 1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣦⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿]  40.2MB / 126.7MB Pulling                          9.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login' 1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login' 1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿] 50.69MB / 126.7MB Pulling                         10.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣀⣿⣿⣿⣿⣿⣿⣿] 50.69MB / 126.7MB Pulling                         10.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣄⣿⣿⣿⣿⣿⣿⣿] 56.98MB / 126.7MB Pulling                         10.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣄⣿⣿⣿⣿⣿⣿⣿] 56.98MB / 126.7MB Pulling                         10.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣄⣿⣿⣿⣿⣿⣿⣿] 60.13MB / 126.7MB Pulling                         10.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣄⣿⣿⣿⣿⣿⣿⣿] 60.13MB / 126.7MB Pulling                         10.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣄⣿⣿⣿⣿⣿⣿⣿] 60.13MB / 126.7MB Pulling                         10.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣄⣿⣿⣿⣿⣿⣿⣿] 65.37MB / 126.7MB Pulling                         10.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣿⣿⣿⣿⣿⣿] 69.56MB / 126.7MB Pulling                         10.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣿⣿⣿⣿⣿⣿] 69.56MB / 126.7MB Pulling                         10.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 27/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣿⣿⣿⣿⣿⣿]             Pulling                               11.0s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 27/33t exist or may require 'docker login'  1.3s1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣿⣿⣿⣿⣿⣿]             Pulling                               11.1s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 28/33t exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣿⣿⣿⣿⣿⣿] 77.21MB / 126.7MB Pulling                         11.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣿⣿⣿⣿⣿⣿]  81.1MB / 126.7MB Pulling                         11.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 83.19MB / 126.7MB Pulling                         11.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 83.19MB / 126.7MB Pulling                         11.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 85.29MB / 126.7MB Pulling                         11.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 88.44MB / 126.7MB Pulling                         11.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 90.53MB / 126.7MB Pulling                         11.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 94.73MB / 126.7MB Pulling                         11.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 94.73MB / 126.7MB Pulling                         12.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣦⣿⣿⣿⣿⣿⣿⣿] 94.73MB / 126.7MB Pulling                         12.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿] 99.97MB / 126.7MB Pulling                         12.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿] 103.1MB / 126.7MB Pulling                         12.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿] 103.1MB / 126.7MB Pulling                         12.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿] 106.3MB / 126.7MB Pulling                         12.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣿⣿⣿] 106.3MB / 126.7MB Pulling                         12.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 112.6MB / 126.7MB Pulling                         12.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 114.7MB / 126.7MB Pulling                         12.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 114.7MB / 126.7MB Pulling                         12.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 114.7MB / 126.7MB Pulling                         13.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 28/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 30/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         13.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         14.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         15.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         16.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         17.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         18.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         19.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         20.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         21.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         22.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         23.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠦ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.6s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠧ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.7s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠇ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.8s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 30/33oes not exist or may require 'docker login'  1.3s
+ ⠏ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         24.9s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 30/33oes not exist or may require 'docker login'  1.3s
+ ⠋ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         25.0s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 30/33oes not exist or may require 'docker login'  1.3s
+ ⠙ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         25.1s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠹ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         25.2s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠸ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         25.3s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 29/33oes not exist or may require 'docker login'  1.3s
+ ⠼ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         25.4s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 30/33oes not exist or may require 'docker login'  1.3s
+ ⠴ Image p... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 118.8MB / 126.7MB Pulling                         25.5s
+ ! Image t...                                      pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                      pull access denied for thea-markets, [+] up 31/33oes not exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 32/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, reposi[+] up 31/33t exist or may require 'docker login'  1.3s
+ ✔ Image p...                                Pulled                                25.5s
+ ! Image t...                                pull access denied for thea-website, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-markets, repository does not exist or may require 'docker login'  1.3s
+ ⠴ Image d... [⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿] 671.9MB / 672.5MB Pulling                               48.9s
+ ! Image t...                                pull access denied for thea-tools, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-admin, repository does not exist or may require 'docker login'  1.3s
+ ! Image t...                                pull access denied for thea-api, repository does not exist or may require 'docker login'  1.3s

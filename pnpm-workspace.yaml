@@ -74,6 +74,18 @@ onlyBuiltDependencies:
   - msw
   - unrs-resolver
 
+# Build scripts we intentionally DON'T run (optional native accelerators or
+# telemetry — all have pure-JS fallbacks). Declared explicitly so pnpm 10.16+/11
+# does not hard-fail a fresh install with ERR_PNPM_IGNORED_BUILDS. This matches
+# what pnpm 10.26.1 already skips in the Replit dev env.
+ignoredBuiltDependencies:
+  - '@scarf/scarf'
+  - bufferutil
+  - core-js
+  - es5-ext
+  - msgpackr-extract
+  - utf-8-validate
+
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
