@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { contentItemsTable } from "@workspace/db/schema";
-import { desc, eq, and, gte, lte, like } from "drizzle-orm";
+import { desc, eq, and, gte, lte, like, sql } from "drizzle-orm";
 import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
@@ -15,6 +15,8 @@ router.get("/", async (req, res) => {
     startDate,
     endDate,
     search,
+    minSentiment,
+    maxSentiment,
     page = "1",
     limit = "50",
   } = req.query as Record<string, string>;
@@ -31,6 +33,12 @@ router.get("/", async (req, res) => {
   if (startDate) conditions.push(gte(contentItemsTable.collectedAt, new Date(startDate)));
   if (endDate) conditions.push(lte(contentItemsTable.collectedAt, new Date(endDate)));
   if (search) conditions.push(like(contentItemsTable.body, `%${search}%`));
+  if (minSentiment != null && minSentiment !== "") {
+    conditions.push(gte(contentItemsTable.sentimentScore, parseFloat(minSentiment)));
+  }
+  if (maxSentiment != null && maxSentiment !== "") {
+    conditions.push(lte(contentItemsTable.sentimentScore, parseFloat(maxSentiment)));
+  }
 
   const items = await db
     .select()

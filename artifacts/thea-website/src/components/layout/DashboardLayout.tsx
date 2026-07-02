@@ -47,34 +47,53 @@ const navItems: SidebarItem[] = [
 ];
 
 function GlobalAlertWatcher() {
-  const { data: alertsData } = useListAlerts<any>(
-    { status: "open", limit: 20 },
-    { query: { refetchInterval: 30000, queryKey: ["/api/v1/alerts/watcher", { status: "open" }] } }
-  );
   const { toast } = useToast();
   const seenIds = useRef<Set<string>>(new Set());
-  const initialized = useRef(false);
+  const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    const alerts = (alertsData?.data || []) as any[];
-    if (!alerts.length) return;
-    if (!initialized.current) {
-      alerts.forEach((a) => seenIds.current.add(a.id));
-      initialized.current = true;
-      return;
-    }
-    const newAlerts = alerts.filter(
-      (a) => !seenIds.current.has(a.id) && (a.severity === "critical" || a.severity === "high")
-    );
-    newAlerts.forEach((a) => {
-      seenIds.current.add(a.id);
-      toast({
-        title: `⚠ ${a.severity === "critical" ? "Critical" : "High"} Alert`,
-        description: a.title || "New alert triggered",
-        variant: "destructive",
+    const basePath = (import.meta as any).env?.BASE_URL?.replace(/\/$/, "") ?? "";
+    const streamUrl = `${basePath}/api/v1/alerts/stream`;
+
+    const connect = () => {
+      if (esRef.current) {
+        esRef.current.close();
+      }
+      const es = new EventSource(streamUrl, { withCredentials: true });
+      esRef.current = es;
+
+      es.addEventListener("alert", (e: MessageEvent) => {
+        try {
+          const alert = JSON.parse(e.data);
+          if (seenIds.current.has(alert.id)) return;
+          seenIds.current.add(alert.id);
+          if (alert.severity === "critical" || alert.severity === "high") {
+            toast({
+              title: `⚠ ${alert.severity === "critical" ? "Critical" : "High"} Alert`,
+              description: alert.title || "New alert triggered",
+              variant: "destructive",
+            });
+          }
+        } catch {
+          // malformed event — ignore
+        }
       });
-    });
-  }, [alertsData, toast]);
+
+      es.addEventListener("error", () => {
+        es.close();
+        esRef.current = null;
+        // Reconnect after 30s if connection dropped
+        setTimeout(connect, 30_000);
+      });
+    };
+
+    connect();
+
+    return () => {
+      esRef.current?.close();
+      esRef.current = null;
+    };
+  }, [toast]);
 
   return null;
 }

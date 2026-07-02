@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { alertsTable } from "@workspace/db/schema";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, gt } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
 
 const router = Router();
@@ -23,6 +23,59 @@ router.get("/", async (req, res) => {
     .limit(Math.min(200, parseInt(limit, 10)));
 
   res.json({ data: alerts });
+});
+
+/**
+ * Server-Sent Events stream for real-time alert notifications.
+ * Clients connect once and receive new critical/high alerts as they arrive.
+ * Polls DB every 15s; sends only alerts newer than connection time.
+ */
+router.get("/stream", async (req, res) => {
+  const orgId = req.thea!.org.id;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-store");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const sendEvent = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  sendEvent("connected", { ts: Date.now() });
+
+  let lastSeenAt = new Date();
+
+  const poll = async () => {
+    try {
+      const since = lastSeenAt;
+      lastSeenAt = new Date();
+      const fresh = await db
+        .select()
+        .from(alertsTable)
+        .where(
+          and(
+            eq(alertsTable.orgId, orgId),
+            eq(alertsTable.status, "open"),
+            gt(alertsTable.createdAt, since),
+          ),
+        )
+        .orderBy(desc(alertsTable.createdAt))
+        .limit(20);
+
+      fresh.forEach((alert) => sendEvent("alert", alert));
+    } catch {
+      // DB error: skip this poll cycle silently
+    }
+  };
+
+  const intervalId = setInterval(poll, 15_000);
+
+  req.on("close", () => {
+    clearInterval(intervalId);
+    res.end();
+  });
 });
 
 router.get("/:id", async (req, res) => {

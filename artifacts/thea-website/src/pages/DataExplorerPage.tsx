@@ -1,23 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useListContent, useListCategories } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, ExternalLink, ChevronLeft, ChevronRight, Download, X, Filter, Calendar } from "lucide-react";
+import { Search, ExternalLink, ChevronLeft, ChevronRight, Download, X, Filter, Calendar, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  createColumnHelper,
+  type SortingState,
+  type ColumnDef,
+} from "@tanstack/react-table";
 
 const PLATFORMS = ["all", "twitter", "reddit", "news", "blog", "facebook", "instagram", "other"];
-const SENTIMENTS = ["all", "positive", "negative", "neutral"];
 const LANGUAGES = ["all", "en", "es", "fr", "de", "pt", "zh", "ar", "ja", "ko", "ru", "it"];
 
 function exportCSV(data: any[]) {
-  const headers = ["id", "title", "platform", "body", "author", "language", "sentimentScore", "geoCountry", "sourceUrl", "collectedAt"];
+  const headers = ["id", "title", "platform", "body", "author", "language", "sentimentScore", "engagementScore", "geoCountry", "sourceUrl", "collectedAt"];
   const rows = data.map((item) =>
     headers.map((h) => JSON.stringify(item[h] ?? "")).join(",")
   );
@@ -31,45 +38,149 @@ function exportCSV(data: any[]) {
   URL.revokeObjectURL(url);
 }
 
+const columnHelper = createColumnHelper<any>();
+
+function SentimentCell({ value }: { value: number | null }) {
+  if (value == null) return <span className="text-slate-600">—</span>;
+  const color = value > 0.1 ? "text-emerald-400" : value < -0.1 ? "text-red-400" : "text-slate-400";
+  const dot = value > 0.1 ? "bg-emerald-400" : value < -0.1 ? "bg-red-400" : "bg-slate-500";
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+      <span className={`text-sm font-mono ${color}`}>{value.toFixed(2)}</span>
+    </div>
+  );
+}
+
 export default function DataExplorerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
   const [platform, setPlatform] = useState("all");
-  const [sentiment, setSentiment] = useState("all");
   const [language, setLanguage] = useState("all");
   const [category, setCategory] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [sentimentMin, setSentimentMin] = useState<number>(-1);
+  const [sentimentMax, setSentimentMax] = useState<number>(1);
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const { toast } = useToast();
-  const limit = 20;
+  const limit = 50;
 
   const { data: categoriesData } = useListCategories<any>();
   const allCategories = ["all", ...(categoriesData?.data || [])];
 
-  const sentimentFilter =
-    sentiment === "positive"
-      ? { minSentiment: 0.1 }
-      : sentiment === "negative"
-      ? { maxSentiment: -0.1 }
-      : {};
+  const queryParams = useMemo(() => ({
+    search: activeQuery || undefined,
+    platform: platform !== "all" ? platform : undefined,
+    category: category !== "all" ? category : undefined,
+    language: language !== "all" ? language : undefined,
+    startDate: dateFrom || undefined,
+    endDate: dateTo || undefined,
+    minSentiment: sentimentMin > -1 ? sentimentMin : undefined,
+    maxSentiment: sentimentMax < 1 ? sentimentMax : undefined,
+    page,
+    limit,
+  } as any), [activeQuery, platform, category, language, dateFrom, dateTo, sentimentMin, sentimentMax, page, limit]);
 
   const { data: contentData, isLoading } = useListContent(
-    {
-      search: activeQuery || undefined,
-      platform: platform !== "all" ? platform : undefined,
-      category: category !== "all" ? category : undefined,
-      language: language !== "all" ? language : undefined,
-      collectedAfter: dateFrom || undefined,
-      collectedBefore: dateTo || undefined,
-      page,
-      limit,
-      ...sentimentFilter,
-    } as any,
-    { query: { enabled: true, queryKey: ["/api/v1/content", { search: activeQuery, platform, category, language, dateFrom, dateTo, page, limit, sentiment }] } }
+    queryParams,
+    { query: { enabled: true, queryKey: ["/api/v1/content", queryParams] } }
   );
+
+  const rawData: any[] = useMemo(() => contentData?.data || [], [contentData]);
+
+  const columns = useMemo<ColumnDef<any, any>[]>(() => [
+    columnHelper.accessor("title", {
+      header: "Content / Title",
+      cell: (info) => {
+        const row = info.row.original;
+        return (
+          <div className="max-w-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate block font-medium text-sm text-slate-200">{row.title || "Untitled"}</span>
+              {row.sourceUrl && (
+                <a
+                  href={row.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-blue-400 hover:text-blue-300 shrink-0"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+            <span className="truncate block text-xs text-slate-500 mt-0.5">{row.body?.slice(0, 80)}</span>
+          </div>
+        );
+      },
+      enableSorting: true,
+    }),
+    columnHelper.accessor("platform", {
+      header: "Platform",
+      cell: (info) => (
+        <Badge variant="outline" className="bg-slate-950 text-slate-400 border-slate-800 text-xs capitalize">
+          {info.getValue() || "unknown"}
+        </Badge>
+      ),
+      enableSorting: true,
+    }),
+    columnHelper.accessor("sentimentScore", {
+      header: "Sentiment",
+      cell: (info) => <SentimentCell value={info.getValue()} />,
+      enableSorting: true,
+    }),
+    columnHelper.accessor((row) => {
+      const sentiment = Math.abs(row.sentimentScore ?? 0);
+      const bodyLen = (row.body?.length ?? 0) / 1000;
+      return Math.round(Math.min(100, sentiment * 60 + bodyLen * 20 + (row.author ? 15 : 0)));
+    }, {
+      id: "engagementScore",
+      header: "Eng. Score",
+      cell: (info) => {
+        const val = info.getValue() as number;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${val >= 60 ? "bg-blue-500" : val >= 30 ? "bg-amber-500" : "bg-slate-600"}`}
+                style={{ width: `${val}%` }}
+              />
+            </div>
+            <span className="font-mono text-xs text-slate-400">{val}</span>
+          </div>
+        );
+      },
+      enableSorting: true,
+    }),
+    columnHelper.accessor("geoCountry", {
+      header: "Country",
+      cell: (info) => <span className="text-sm text-slate-500 uppercase">{info.getValue() || "—"}</span>,
+      enableSorting: true,
+    }),
+    columnHelper.accessor("collectedAt", {
+      header: "Collected At",
+      cell: (info) => (
+        <span className="text-xs text-slate-500">
+          {info.getValue() ? new Date(info.getValue()).toLocaleString() : "—"}
+        </span>
+      ),
+      enableSorting: true,
+    }),
+  ], []);
+
+  const table = useReactTable({
+    data: rawData,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,24 +192,27 @@ export default function DataExplorerPage() {
     setSearchQuery("");
     setActiveQuery("");
     setPlatform("all");
-    setSentiment("all");
     setLanguage("all");
     setCategory("all");
     setDateFrom("");
     setDateTo("");
+    setSentimentMin(-1);
+    setSentimentMax(1);
     setPage(1);
   };
 
   const handleExport = () => {
-    if (!contentData?.data?.length) {
+    if (!rawData.length) {
       toast({ title: "No data to export", variant: "destructive" });
       return;
     }
-    exportCSV(contentData.data);
-    toast({ title: `Exported ${contentData.data.length} rows as CSV` });
+    exportCSV(rawData);
+    toast({ title: `Exported ${rawData.length} rows as CSV` });
   };
 
-  const hasActiveFilters = activeQuery || platform !== "all" || sentiment !== "all" || language !== "all" || category !== "all" || dateFrom || dateTo;
+  const hasActiveFilters =
+    activeQuery || platform !== "all" || language !== "all" || category !== "all" ||
+    dateFrom || dateTo || sentimentMin > -1 || sentimentMax < 1;
 
   return (
     <DashboardLayout title="Data Explorer">
@@ -132,7 +246,7 @@ export default function DataExplorerPage() {
           <Button
             variant="outline"
             onClick={handleExport}
-            disabled={isLoading || !contentData?.data?.length}
+            disabled={isLoading || !rawData.length}
             className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white shrink-0"
           >
             <Download className="w-4 h-4 mr-1.5" />
@@ -153,19 +267,6 @@ export default function DataExplorerPage() {
                   <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
                     {PLATFORMS.map((p) => (
                       <SelectItem key={p} value={p} className="capitalize">{p === "all" ? "All" : p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-slate-400 text-xs shrink-0">Sentiment</Label>
-                <Select value={sentiment} onValueChange={(v) => { setSentiment(v); setPage(1); }}>
-                  <SelectTrigger className="w-32 bg-slate-950 border-slate-700 text-slate-200 h-8 text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                    {SENTIMENTS.map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">{s === "all" ? "All" : s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -197,6 +298,8 @@ export default function DataExplorerPage() {
                 </Select>
               </div>
             </div>
+
+            {/* Date range */}
             <div className="flex flex-wrap gap-4 items-center">
               <div className="flex items-center gap-2">
                 <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -217,6 +320,44 @@ export default function DataExplorerPage() {
                   className="h-8 px-2 text-sm rounded-md bg-slate-950 border border-slate-700 text-slate-200 focus:outline-none focus:border-blue-500"
                 />
               </div>
+            </div>
+
+            {/* Sentiment range slider */}
+            <div className="flex flex-wrap gap-6 items-center">
+              <div className="flex items-center gap-3">
+                <Label className="text-slate-400 text-xs shrink-0">Sentiment Min</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={-1}
+                    max={1}
+                    step={0.05}
+                    value={sentimentMin}
+                    onChange={(e) => { setSentimentMin(parseFloat(e.target.value)); setPage(1); }}
+                    className="w-28 accent-blue-500"
+                  />
+                  <span className={`font-mono text-xs w-10 ${sentimentMin < -0.1 ? "text-red-400" : sentimentMin > 0.1 ? "text-emerald-400" : "text-slate-400"}`}>
+                    {sentimentMin > 0 ? "+" : ""}{sentimentMin.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Label className="text-slate-400 text-xs shrink-0">Sentiment Max</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={-1}
+                    max={1}
+                    step={0.05}
+                    value={sentimentMax}
+                    onChange={(e) => { setSentimentMax(parseFloat(e.target.value)); setPage(1); }}
+                    className="w-28 accent-blue-500"
+                  />
+                  <span className={`font-mono text-xs w-10 ${sentimentMax < -0.1 ? "text-red-400" : sentimentMax > 0.1 ? "text-emerald-400" : "text-slate-400"}`}>
+                    {sentimentMax > 0 ? "+" : ""}{sentimentMax.toFixed(2)}
+                  </span>
+                </div>
+              </div>
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={handleReset} className="text-slate-500 hover:text-slate-300 h-8">
                   <X className="w-3.5 h-3.5 mr-1" /> Reset All
@@ -226,96 +367,77 @@ export default function DataExplorerPage() {
           </div>
         )}
 
-        {/* Table */}
+        {/* TanStack Table */}
         <div className="flex-1 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col min-h-0">
           <div className="flex-1 overflow-auto">
-            <Table>
-              <TableHeader className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
-                <TableRow className="border-none hover:bg-transparent">
-                  <TableHead className="text-slate-400 font-medium">Content / Title</TableHead>
-                  <TableHead className="text-slate-400 font-medium w-32">Platform</TableHead>
-                  <TableHead className="text-slate-400 font-medium w-28">Sentiment</TableHead>
-                  <TableHead className="text-slate-400 font-medium w-32">Country</TableHead>
-                  <TableHead className="text-slate-400 font-medium w-44 text-right">Collected At</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full text-sm">
+              <thead className="bg-slate-950 sticky top-0 z-10 border-b border-slate-800">
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id} className="border-none">
+                    {hg.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="text-left px-4 py-3 text-slate-400 font-medium text-xs uppercase tracking-wide whitespace-nowrap"
+                        style={{ width: header.getSize() }}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div
+                            className={`flex items-center gap-1 ${header.column.getCanSort() ? "cursor-pointer select-none hover:text-slate-200" : ""}`}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getCanSort() && (
+                              header.column.getIsSorted() === "asc" ? <ArrowUp className="w-3 h-3" /> :
+                              header.column.getIsSorted() === "desc" ? <ArrowDown className="w-3 h-3" /> :
+                              <ArrowUpDown className="w-3 h-3 opacity-40" />
+                            )}
+                          </div>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
                 {isLoading ? (
                   Array.from({ length: 10 }).map((_, i) => (
-                    <TableRow key={i} className="border-b border-slate-800/50 hover:bg-slate-800/50">
-                      <TableCell><Skeleton className="h-4 w-3/4 bg-slate-800" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16 bg-slate-800" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-12 bg-slate-800" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-12 bg-slate-800" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24 bg-slate-800 ml-auto" /></TableCell>
-                    </TableRow>
+                    <tr key={i} className="border-b border-slate-800/50">
+                      {columns.map((_, ci) => (
+                        <td key={ci} className="px-4 py-3">
+                          <Skeleton className="h-4 w-full bg-slate-800" />
+                        </td>
+                      ))}
+                    </tr>
                   ))
-                ) : contentData?.data?.length ? (
-                  contentData.data.map((item: any) => (
-                    <TableRow
-                      key={item.id}
-                      className="border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer"
-                      onClick={() => setSelectedItem(item)}
+                ) : table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer transition-colors"
+                      onClick={() => setSelectedItem(row.original)}
                     >
-                      <TableCell className="text-slate-300 max-w-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate block font-medium text-sm">{item.title || "Untitled"}</span>
-                          {item.sourceUrl && (
-                            <a
-                              href={item.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-blue-400 hover:text-blue-300 shrink-0"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </div>
-                        <span className="truncate block text-xs text-slate-500 mt-0.5">{item.body?.slice(0, 80)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-slate-950 text-slate-400 border-slate-800 text-xs capitalize">
-                          {item.platform || "unknown"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            item.sentimentScore > 0.1 ? "bg-emerald-400" :
-                            item.sentimentScore < -0.1 ? "bg-red-400" : "bg-slate-500"
-                          }`} />
-                          <span className={`text-sm font-medium ${
-                            item.sentimentScore > 0.1 ? "text-emerald-400" :
-                            item.sentimentScore < -0.1 ? "text-red-400" : "text-slate-400"
-                          }`}>
-                            {item.sentimentScore != null ? item.sentimentScore.toFixed(2) : "—"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-500 uppercase">
-                        {item.geoCountry || "—"}
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-slate-500">
-                        {item.collectedAt ? new Date(item.collectedAt).toLocaleString() : "—"}
-                      </TableCell>
-                    </TableRow>
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
                   ))
                 ) : (
-                  <TableRow className="border-none hover:bg-transparent">
-                    <TableCell colSpan={5} className="h-32 text-center text-slate-500">
+                  <tr>
+                    <td colSpan={columns.length} className="h-32 text-center text-slate-500">
                       No data found.
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
           <div className="h-14 border-t border-slate-800 bg-slate-950 flex items-center justify-between px-4 shrink-0">
             <span className="text-sm text-slate-500">
-              Page {page} · {contentData?.data?.length ?? 0} rows
+              Page {page} · {rawData.length} rows
             </span>
             <div className="flex items-center gap-2">
               <Button
@@ -331,7 +453,7 @@ export default function DataExplorerPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage((p) => p + 1)}
-                disabled={!contentData?.data?.length || contentData.data.length < limit || isLoading}
+                disabled={!rawData.length || rawData.length < limit || isLoading}
                 className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
               >
                 <ChevronRight className="w-4 h-4" />
