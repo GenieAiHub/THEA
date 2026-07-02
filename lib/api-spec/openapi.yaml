@@ -1,8 +1,8 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Api
   version: 0.1.0
-  description: THEA — Total Human Engagement Analytics API
+  description: THEA - Total Human Engagement Analytics API
 servers:
   - url: /api
     description: Base API path
@@ -32,7 +32,7 @@ tags:
   - name: admin
     description: Platform operator admin endpoints
   - name: markets
-    description: THEA Markets — public prediction polls generated from trend data
+    description: THEA Markets - public prediction polls generated from trend data
 paths:
   /healthz:
     get:
@@ -773,14 +773,6 @@ paths:
       responses:
         "501":
           description: Not yet implemented
-  /v1/intelligence/simulate:
-    post:
-      operationId: runWhatIfSimulation
-      tags: [intelligence]
-      summary: Run a MiroFish What-If simulation (Phase 5)
-      responses:
-        "501":
-          description: Not yet implemented
   /v1/markets:
     get:
       operationId: listMarkets
@@ -1110,7 +1102,7 @@ paths:
       operationId: getInfluencers
       tags: [intelligence]
       summary: Top amplifier accounts for a topic
-      description: Returns top accounts by reach score for a topic, ranked by reach × engagement. Flags suspected bots.
+      description: Returns top accounts by reach score for a topic, ranked by reach x engagement. Flags suspected bots.
       security:
         - ClerkJWT: []
         - AdminToken: []
@@ -1403,11 +1395,11 @@ components:
         key:         { type: string }
         category:    { type: string }
         label:       { type: string }
-        description: { type: ["string", "null"] }
+        description: { type: string, nullable: true }
         isSecret:    { type: boolean }
         isActive:    { type: boolean }
         hasValue:    { type: boolean }
-        value:       { type: ["string", "null"] }
+        value:       { type: string, nullable: true }
         createdAt:   { type: string, format: date-time }
         updatedAt:   { type: string, format: date-time }
     PlatformConfigInput:
@@ -1448,7 +1440,7 @@ components:
       properties:
         id:             { type: string, format: uuid }
         question:       { type: string }
-        description:    { type: ["string", "null"] }
+        description:    { type: string, nullable: true }
         category:       { type: string }
         options:
           type: array
@@ -1458,8 +1450,8 @@ components:
         status:         { type: string, enum: [open, closed, resolved] }
         resolvedOption: { type: ["integer", "null"] }
         source:         { type: string, enum: [auto, manual] }
-        sourceTopic:    { type: ["string", "null"] }
-        closesAt:       { type: ["string", "null"], format: date-time }
+        sourceTopic:    { type: string, nullable: true }
+        closesAt:       { type: string, nullable: true, format: date-time }
         createdAt:      { type: string, format: date-time }
     MarketList:
       type: object
@@ -1510,7 +1502,7 @@ components:
         category:       { type: string }
         status:         { type: string, enum: [open, closed, resolved] }
         resolvedOption: { type: integer, minimum: 0 }
-        closesAt:       { type: ["string", "null"], format: date-time }
+        closesAt:       { type: string, nullable: true, format: date-time }
     MarketGenerationResult:
       type: object
       required: [generated, markets]
@@ -1531,7 +1523,7 @@ components:
           type: array
           items: { type: string }
         marketsPerRun:    { type: integer }
-        lastRunAt:        { type: ["string", "null"], format: date-time }
+        lastRunAt:        { type: string, nullable: true, format: date-time }
     MarketSettingsInput:
       type: object
       properties:
@@ -1546,7 +1538,7 @@ components:
       required: [countryCode, intensity, mentionCount]
       properties:
         countryCode:    { type: string }
-        region:         { type: ["string", "null"] }
+        region:         { type: string, nullable: true }
         intensity:      { type: integer, minimum: 0, maximum: 100 }
         mentionCount:   { type: integer }
         avgSentiment:   { type: ["number", "null"] }
@@ -1630,7 +1622,7 @@ components:
       type: object
       required: [platform, accountHandle, mentionCount, totalEngagement, reachScore, botRisk, isBotFlagged]
       properties:
-        platform:         { type: ["string", "null"] }
+        platform:         { type: string, nullable: true }
         accountHandle:    { type: string }
         mentionCount:     { type: integer }
         totalEngagement:  { type: integer }
@@ -1688,14 +1680,14 @@ components:
         simulationId:       { type: string, format: uuid }
         status:             { type: string, enum: [pending, running, completed, failed] }
         category:           { type: string }
-        scenario:           { type: ["string", "null"] }
-        geography:          { type: ["string", "null"] }
+        scenario:           { type: string, nullable: true }
+        geography:          { type: string, nullable: true }
         createdAt:          { type: string, format: date-time }
-        completedAt:        { type: ["string", "null"], format: date-time }
+        completedAt:        { type: string, nullable: true, format: date-time }
         message:            { type: string }
         trendingTopics:     { type: array, items: { type: object } }
-        narrativeSummary:   { type: ["string", "null"] }
-        sentimentOverall:   { type: ["string", "null"] }
+        narrativeSummary:   { type: string, nullable: true }
+        sentimentOverall:   { type: string, nullable: true }
         predictions:        { type: array, items: { type: object } }
         dominantNarratives: { type: array, items: { type: object } }
         keyEntities:        { type: array, items: { type: object } }
@@ -1734,7 +1726,7 @@ components:
       properties:
         draftId:       { type: string, format: uuid }
         keyword:       { type: string }
-        alertId:       { type: ["string", "null"], format: uuid }
+        alertId:       { type: string, nullable: true, format: uuid }
         tone:          { type: string, enum: [formal, empathetic, assertive] }
         type:          { type: string, enum: [press_release, social_post, internal_memo] }
         draft:         { type: string }
@@ -1779,13 +1771,13 @@ components:
       properties:
         messages:
           type: array
-          description: Canonical input — plain string messages (2-5 required)
+          description: Canonical input - plain string messages (2-5 required)
           items: { type: string }
           minItems: 2
           maxItems: 5
         variants:
           type: array
-          description: Legacy input shape — use messages[] instead
+          description: Legacy input shape - use messages[] instead
           items:
             $ref: "#/components/schemas/TestMessageVariant"
           minItems: 2
@@ -1810,7 +1802,7 @@ components:
       properties:
         status:           { type: string, enum: [completed] }
         category:         { type: string }
-        geography:        { type: ["string", "null"] }
+        geography:        { type: string, nullable: true }
         variantCount:     { type: integer }
         variants:
           type: array
@@ -1827,9 +1819,9 @@ components:
         name:                   { type: string }
         targetKeywords:         { type: array, items: { type: string } }
         startDate:              { type: string, format: date-time }
-        baselinePeriodStart:    { type: ["string", "null"], format: date-time }
-        baselinePeriodEnd:      { type: ["string", "null"], format: date-time }
-        goal:                   { type: ["string", "null"] }
+        baselinePeriodStart:    { type: string, nullable: true, format: date-time }
+        baselinePeriodEnd:      { type: string, nullable: true, format: date-time }
+        goal:                   { type: string, nullable: true }
         status:                 { type: string, enum: [active, paused, completed] }
         baselineKeywordVolume:  { type: ["number", "null"] }
         baselineSentiment:      { type: ["number", "null"] }
