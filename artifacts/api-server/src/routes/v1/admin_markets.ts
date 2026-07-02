@@ -24,7 +24,7 @@ function requireAdminToken(req: Request, res: Response, next: NextFunction): voi
     });
     return;
   }
-  const provided = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  const provided = (req.headers["x-admin-token"] as string | undefined) ?? req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (provided !== ADMIN_TOKEN) {
     res.status(401).json({ error: "Invalid or missing admin token" });
     return;

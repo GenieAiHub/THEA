@@ -3,7 +3,7 @@ import { AppError } from "./errorHandler";
 
 export type Tier = "starter" | "pro" | "enterprise";
 
-const TIER_ORDER: Record<Tier, number> = {
+export const TIER_ORDER: Record<Tier, number> = {
   starter: 0,
   pro: 1,
   enterprise: 2,
@@ -28,10 +28,8 @@ export const TIER_FEATURES: Record<Tier, string[]> = {
 };
 
 export function requireTier(minTier: Tier) {
-  return (_req: Request, _res: Response, next: NextFunction): void => {
-    // Stub: org tier will be populated by auth middleware in Phase 4
-    // For now, default to enterprise (no gating during development)
-    const orgTier: Tier = "enterprise";
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const orgTier: Tier = req.thea?.tier ?? "starter";
     if (TIER_ORDER[orgTier] < TIER_ORDER[minTier]) {
       throw new AppError(402, `This feature requires a ${minTier} subscription or higher`, "TIER_REQUIRED");
     }
@@ -40,9 +38,11 @@ export function requireTier(minTier: Tier) {
 }
 
 export function requireFeature(feature: string) {
-  return (_req: Request, _res: Response, next: NextFunction): void => {
-    // Stub: will use org tier from auth middleware in Phase 4
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const flags = req.thea?.featureFlags ?? TIER_FEATURES.starter;
+    if (!flags.includes(feature)) {
+      throw new AppError(402, "This feature is not available on your current plan — upgrade to unlock it", "FEATURE_REQUIRED");
+    }
     next();
-    void feature;
   };
 }

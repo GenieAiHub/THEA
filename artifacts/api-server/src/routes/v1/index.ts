@@ -14,6 +14,9 @@ import adminConfigsRouter from "./admin_configs";
 import marketsRouter from "./markets";
 import adminMarketsRouter from "./admin_markets";
 import entitiesRouter from "./entities";
+import billingRouter from "./billing";
+import onboardingRouter from "./onboarding";
+import settingsRouter from "./settings";
 
 const router = Router();
 
@@ -32,5 +35,8 @@ router.use("/admin", adminMarketsRouter);
 router.use("/admin", adminRouter);
 router.use("/admin/configs", adminConfigsRouter);
 router.use("/entities", entitiesRouter);
+router.use("/billing", billingRouter);
+router.use("/onboarding", onboardingRouter);
+router.use("/settings", settingsRouter);
 
 export default router;

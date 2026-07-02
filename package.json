@@ -24,6 +24,8 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/core": "^2.8.0",
-    "@opentelemetry/semantic-conventions": "^1.41.1"
+    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "stripe": "^22.3.0",
+    "stripe-replit-sync": "^1.0.0"
   }
 }

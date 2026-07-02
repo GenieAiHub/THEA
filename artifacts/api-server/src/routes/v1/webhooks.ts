@@ -1,18 +1,22 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { webhookRegistrationsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireFeature } from "../../middlewares/featureGate";
 
 const router = Router();
 
-const STUB_ORG_ID = "00000000-0000-0000-0000-000000000001";
+router.use(requireAuth);
+router.use(requireFeature("webhooks"));
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   const webhooks = await db
     .select()
     .from(webhookRegistrationsTable)
-    .where(eq(webhookRegistrationsTable.orgId, STUB_ORG_ID));
+    .where(eq(webhookRegistrationsTable.orgId, req.thea!.org.id));
+
   res.json({ data: webhooks });
 });
 
@@ -28,7 +32,7 @@ router.post("/", async (req, res) => {
 
   const [created] = await db
     .insert(webhookRegistrationsTable)
-    .values({ orgId: STUB_ORG_ID, url, events, secret })
+    .values({ orgId: req.thea!.org.id, url, events, secret })
     .returning();
 
   res.status(201).json({ ...created, secret });
@@ -37,7 +41,7 @@ router.post("/", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   await db
     .delete(webhookRegistrationsTable)
-    .where(eq(webhookRegistrationsTable.id, req.params.id));
+    .where(and(eq(webhookRegistrationsTable.id, req.params.id), eq(webhookRegistrationsTable.orgId, req.thea!.org.id)));
   res.status(204).send();
 });
 

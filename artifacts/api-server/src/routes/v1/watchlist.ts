@@ -1,17 +1,24 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { watchlistKeywordsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { requireAuth } from "../../middlewares/clerkAuth";
+import { requireFeature } from "../../middlewares/featureGate";
 
 const router = Router();
 
-router.get("/", async (_req, res) => {
-  // Stub: org_id from auth middleware in Phase 4
-  const keywords = await db.select().from(watchlistKeywordsTable);
-  res.json({ data: keywords });
+router.use(requireAuth);
+
+router.get("/", async (req, res) => {
+  const keywords = await db
+    .select()
+    .from(watchlistKeywordsTable)
+    .where(eq(watchlistKeywordsTable.orgId, req.thea!.org.id));
+
+  res.json({ data: keywords, total: keywords.length, limit: req.thea!.subscription.maxKeywords });
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireFeature("watchlist"), async (req, res) => {
   const { keyword, type = "keyword", category, notes } = req.body as {
     keyword: string;
     type?: string;
@@ -24,12 +31,19 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  // Stub org_id — Phase 4 will wire in real org from auth
-  const STUB_ORG_ID = "00000000-0000-0000-0000-000000000001";
+  const { org, subscription } = req.thea!;
+
+  const existing = await db.select().from(watchlistKeywordsTable).where(eq(watchlistKeywordsTable.orgId, org.id));
+  if (existing.length >= subscription.maxKeywords) {
+    res.status(402).json({
+      error: `Your plan allows up to ${subscription.maxKeywords} keywords. Upgrade to Pro for 50 keywords or Enterprise for unlimited.`,
+    });
+    return;
+  }
 
   const [created] = await db
     .insert(watchlistKeywordsTable)
-    .values({ orgId: STUB_ORG_ID, keyword, type, category, notes })
+    .values({ orgId: org.id, keyword, type, category, notes })
     .returning();
 
   res.status(201).json(created);
@@ -39,8 +53,8 @@ router.patch("/:id", async (req, res) => {
   const { isActive, notes } = req.body as { isActive?: boolean; notes?: string };
   const [updated] = await db
     .update(watchlistKeywordsTable)
-    .set({ ...(isActive !== undefined ? { isActive } : {}), ...(notes ? { notes } : {}), updatedAt: new Date() })
-    .where(eq(watchlistKeywordsTable.id, req.params.id))
+    .set({ ...(isActive !== undefined ? { isActive } : {}), ...(notes !== undefined ? { notes } : {}), updatedAt: new Date() })
+    .where(and(eq(watchlistKeywordsTable.id, req.params.id), eq(watchlistKeywordsTable.orgId, req.thea!.org.id)))
     .returning();
 
   if (!updated) {
@@ -51,7 +65,9 @@ router.patch("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  await db.delete(watchlistKeywordsTable).where(eq(watchlistKeywordsTable.id, req.params.id));
+  await db
+    .delete(watchlistKeywordsTable)
+    .where(and(eq(watchlistKeywordsTable.id, req.params.id), eq(watchlistKeywordsTable.orgId, req.thea!.org.id)));
   res.status(204).send();
 });
 
