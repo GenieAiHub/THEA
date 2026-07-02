@@ -13,14 +13,12 @@ const router = Router();
 const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
 
 function requireAdminToken(req: Request, res: Response, next: NextFunction): void {
+  // Fail closed: if no token is configured, deny ALL requests.
+  // Never fall back to IP-based checks — trust proxy makes req.ip spoofable.
   if (!ADMIN_TOKEN) {
-    // No token configured — only allow access from loopback addresses
-    const ip = req.ip ?? "";
-    if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") {
-      next();
-      return;
-    }
-    res.status(403).json({ error: "Admin endpoints are not accessible from external networks before Phase 4 auth" });
+    res.status(503).json({
+      error: "Admin routes are disabled until ADMIN_INTERNAL_TOKEN is configured (required before Phase 4 auth)",
+    });
     return;
   }
   const provided = req.headers.authorization?.replace(/^Bearer\s+/i, "");
