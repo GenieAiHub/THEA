@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import { contentItemsTable } from "@workspace/db/schema";
 import { PLATFORM_ORG_ID } from "./system-org";
-import { computeHash, isDuplicate, cacheHash, addSourceUrlToExisting } from "./deduplicator";
+import { computeHash, isDuplicate, markSeen, addSourceUrlToExisting } from "./deduplicator";
 import { detectLanguage } from "./language";
 import { normalizeBody, normalizeTitle } from "./normalizer";
 import type { NormalizedItem } from "./types";
@@ -60,7 +60,7 @@ export async function ingestItems(
 
       if (inserted) {
         stats.stored++;
-        await cacheHash(contentHash, orgId, inserted.id);
+        await markSeen(contentHash, orgId, inserted.id);
         await indexInElasticsearch(inserted.id, { ...item, body, language, orgId, contentHash });
       }
     } catch (err) {

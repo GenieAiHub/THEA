@@ -1,7 +1,11 @@
 import { createWorker } from "../queues";
+import { db } from "@workspace/db";
+import { crawlerSourcesTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 import { ingestItems } from "./pipeline";
 import { startRun, completeRun, failRun } from "./run-tracker";
 import { collectRssBatch } from "./collectors/rss";
+import type { RssSource } from "./collectors/rss";
 import { collectGdelt, collectGdeltAllCategories } from "./collectors/gdelt";
 import { collectNewsApi } from "./collectors/news-api";
 import { collectMediaStack } from "./collectors/mediastack";
@@ -13,12 +17,46 @@ import { collectSerp } from "./collectors/serp";
 import { crawlUrls } from "./collectors/web-crawler";
 import { collectTelegram, collectTelegramAllCategories } from "./collectors/telegram";
 import { collectTikTok } from "./collectors/tiktok";
-import { getSourcesByCategory, PRECONFIGURED_SOURCES } from "./sources-config";
+import { PRECONFIGURED_SOURCES, getSourcesByCategory } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
 
 function getEnv(key: string): string {
   return process.env[key] ?? "";
+}
+
+async function getActiveRssSources(category?: string): Promise<RssSource[]> {
+  try {
+    const conditions = [
+      eq(crawlerSourcesTable.isActive, true),
+      eq(crawlerSourcesTable.type, "rss"),
+    ];
+    if (category) conditions.push(eq(crawlerSourcesTable.category, category));
+
+    const rows = await db
+      .select({
+        name: crawlerSourcesTable.name,
+        url: crawlerSourcesTable.url,
+        category: crawlerSourcesTable.category,
+        language: crawlerSourcesTable.language,
+      })
+      .from(crawlerSourcesTable)
+      .where(and(...conditions));
+
+    if (rows.length > 0) {
+      return rows.map((r) => ({
+        name: r.name,
+        url: r.url,
+        category: r.category,
+        language: r.language ?? "en",
+        platform: "rss",
+      }));
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not load RSS sources from DB — using preconfigured list");
+  }
+
+  return category ? getSourcesByCategory(category) : PRECONFIGURED_SOURCES;
 }
 
 export function startContentIngestionWorker(): void {
@@ -31,16 +69,16 @@ export function startContentIngestionWorker(): void {
 
     try {
       switch (sourceType) {
-        case "rss-batch": {
-          const cat = category ?? "general";
-          const sources = getSourcesByCategory(cat);
+        case "rss-all": {
+          const sources = await getActiveRssSources();
           const items = await collectRssBatch(sources);
           stats = await ingestItems(items);
           break;
         }
 
-        case "rss-all": {
-          const items = await collectRssBatch(PRECONFIGURED_SOURCES);
+        case "rss-batch": {
+          const sources = await getActiveRssSources(category);
+          const items = await collectRssBatch(sources);
           stats = await ingestItems(items);
           break;
         }
