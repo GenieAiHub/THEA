@@ -38,7 +38,7 @@ const sentimentData = [
 const SentimentWidget = () => (
   <motion.div 
     initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 }}
-    className="absolute top-10 right-0 lg:right-10 w-64 p-4 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] z-20"
+    className="absolute -top-6 right-0 w-56 p-4 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] z-20"
   >
     <div className="flex justify-between items-center mb-3">
       <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ const AlertStreamWidget = () => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}
-      className="absolute bottom-10 left-0 lg:left-10 w-72 p-4 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] z-20"
+      className="absolute -bottom-8 left-0 w-64 p-4 rounded-xl border border-white/10 bg-black/60 backdrop-blur-xl shadow-[0_0_30px_rgba(59,130,246,0.15)] z-20"
     >
       <div className="flex items-center gap-2 mb-3">
         <ShieldAlert className="w-4 h-4 text-red-400" />
