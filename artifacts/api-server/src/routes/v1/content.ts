@@ -22,8 +22,9 @@ router.get("/", async (req, res) => {
   const pageNum = Math.max(1, parseInt(page, 10));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
   const offset = (pageNum - 1) * limitNum;
+  const orgId = req.thea!.org.id;
 
-  const conditions = [];
+  const conditions = [eq(contentItemsTable.orgId, orgId)];
   if (platform) conditions.push(eq(contentItemsTable.platform, platform));
   if (category) conditions.push(eq(contentItemsTable.category, category));
   if (language) conditions.push(eq(contentItemsTable.language, language));
@@ -34,7 +35,7 @@ router.get("/", async (req, res) => {
   const items = await db
     .select()
     .from(contentItemsTable)
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(contentItemsTable.collectedAt))
     .limit(limitNum)
     .offset(offset);
@@ -49,7 +50,7 @@ router.get("/:id", async (req, res) => {
   const item = await db
     .select()
     .from(contentItemsTable)
-    .where(eq(contentItemsTable.id, req.params.id))
+    .where(and(eq(contentItemsTable.id, req.params.id as string), eq(contentItemsTable.orgId, req.thea!.org.id)))
     .limit(1);
 
   if (!item.length) {

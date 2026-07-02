@@ -1,13 +1,14 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { analysisReportsTable, llmUsageLogsTable } from "@workspace/db/schema";
-import { desc, eq, and, gte, sql, or, isNull } from "drizzle-orm";
+import { desc, eq, and, gte, sql, or } from "drizzle-orm";
 import { getQueues } from "../../lib/queues";
 import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
 
 const ADMIN_TOKEN = process.env.ADMIN_INTERNAL_TOKEN;
+const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
 
 function requireAdminToken(req: Request, res: Response, next: NextFunction): void {
   if (!ADMIN_TOKEN) {
@@ -22,13 +23,20 @@ function requireAdminToken(req: Request, res: Response, next: NextFunction): voi
   next();
 }
 
+/** Scope: platform-wide reports (orgId = PLATFORM_ORG_ID) + this org's own reports */
+function orgScope(orgId: string) {
+  return or(
+    eq(analysisReportsTable.orgId, PLATFORM_ORG_ID),
+    eq(analysisReportsTable.orgId, orgId)
+  )!;
+}
+
 router.get("/latest", requireAuth, async (req, res) => {
   const orgId = req.thea!.org.id;
-  const orgScope = or(isNull(analysisReportsTable.orgId), eq(analysisReportsTable.orgId, orgId));
   const reports = await db
     .select()
     .from(analysisReportsTable)
-    .where(orgScope)
+    .where(orgScope(orgId))
     .orderBy(desc(analysisReportsTable.runAt))
     .limit(7);
   res.json({ data: reports });
@@ -40,12 +48,7 @@ router.get("/category/:category", requireAuth, async (req, res) => {
   const report = await db
     .select()
     .from(analysisReportsTable)
-    .where(
-      and(
-        eq(analysisReportsTable.category, category),
-        or(isNull(analysisReportsTable.orgId), eq(analysisReportsTable.orgId, orgId))
-      )
-    )
+    .where(and(eq(analysisReportsTable.category, category), orgScope(orgId)))
     .orderBy(desc(analysisReportsTable.runAt))
     .limit(1);
 
@@ -60,11 +63,11 @@ router.get("/history", requireAuth, async (req, res) => {
   const { category, limit = "50" } = req.query as Record<string, string>;
   const limitN = Math.min(200, parseInt(limit, 10));
   const orgId = req.thea!.org.id;
-  const orgScope = or(isNull(analysisReportsTable.orgId), eq(analysisReportsTable.orgId, orgId));
+  const scope = orgScope(orgId);
 
   const conditions = category
-    ? and(eq(analysisReportsTable.category, category), orgScope)
-    : orgScope;
+    ? and(eq(analysisReportsTable.category, category), scope)
+    : scope;
 
   const reports = await db
     .select()

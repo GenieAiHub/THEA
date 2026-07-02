@@ -50,8 +50,8 @@ const TIERS: TierConfig[] = [
   {
     name: "THEA Pro",
     description: "Up to 20 users, 50 watchlist keywords, 7 categories, 90-day history",
-    monthlyUsd: 349,
-    annualUsd: 3350,
+    monthlyUsd: 499,
+    annualUsd: 4790,
     metadata: {
       tier: "pro",
       maxUsers: "20",
@@ -62,9 +62,9 @@ const TIERS: TierConfig[] = [
   },
   {
     name: "THEA Enterprise",
-    description: "Unlimited users, keywords, and categories — 10 year history, custom SLA",
-    monthlyUsd: 999,
-    annualUsd: 9590,
+    description: "Unlimited users, keywords, and categories — 10-year history, dedicated support",
+    monthlyUsd: 1999,
+    annualUsd: 19190,
     metadata: {
       tier: "enterprise",
       maxUsers: "-1",
@@ -111,10 +111,10 @@ async function seed(): Promise<void> {
   console.log("Done! Copy the price IDs above into your environment variables:");
   console.log("  STRIPE_STARTER_MONTHLY_PRICE_ID  ($99/mo)");
   console.log("  STRIPE_STARTER_ANNUAL_PRICE_ID   ($950/yr)");
-  console.log("  STRIPE_PRO_MONTHLY_PRICE_ID      ($349/mo)");
-  console.log("  STRIPE_PRO_ANNUAL_PRICE_ID       ($3,350/yr)");
-  console.log("  STRIPE_ENTERPRISE_MONTHLY_PRICE_ID ($999/mo)");
-  console.log("  STRIPE_ENTERPRISE_ANNUAL_PRICE_ID  ($9,590/yr)");
+  console.log("  STRIPE_PRO_MONTHLY_PRICE_ID      ($499/mo)");
+  console.log("  STRIPE_PRO_ANNUAL_PRICE_ID       ($4,790/yr)");
+  console.log("  STRIPE_ENTERPRISE_MONTHLY_PRICE_ID ($1,999/mo)");
+  console.log("  STRIPE_ENTERPRISE_ANNUAL_PRICE_ID  ($19,190/yr)");
 }
 
 seed().catch((err) => {

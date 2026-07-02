@@ -1,10 +1,13 @@
 import { pgTable, text, timestamp, uuid, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organizationsTable } from "./organizations";
+
+const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
 
 export const analysisReportsTable = pgTable("analysis_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
-  orgId: uuid("org_id"),
+  orgId: uuid("org_id").notNull().default(PLATFORM_ORG_ID).references(() => organizationsTable.id, { onDelete: "cascade" }),
   category: text("category").notNull(),
   runAt: timestamp("run_at").notNull().defaultNow(),
   miroFishRunId: text("miro_fish_run_id"),

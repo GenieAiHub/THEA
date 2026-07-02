@@ -133,7 +133,7 @@ export async function embedPendingItems(limit = 200): Promise<number> {
 
 export async function semanticSearch(
   queryText: string,
-  opts: { category?: string; limit?: number; minSimilarity?: number } = {}
+  opts: { category?: string; limit?: number; minSimilarity?: number; orgId?: string } = {}
 ): Promise<Array<{ id: string; similarity: number; title: string | null; summary: string | null; category: string | null; platform: string; publishedAt: Date | null }>> {
   const embedding = await generateEmbedding(queryText);
   if (!embedding) return [];
@@ -143,35 +143,66 @@ export async function semanticSearch(
   const safeLimit = Math.max(1, Math.min(100, Math.floor(Number(opts.limit ?? 20))));
   const safeMinSimilarity = Math.max(0, Math.min(1, Number(opts.minSimilarity ?? 0.3)));
   const category = typeof opts.category === "string" ? opts.category : null;
+  const orgId = typeof opts.orgId === "string" ? opts.orgId : null;
 
   const vectorStr = `[${embedding.join(",")}]`;
 
-  const query = category
-    ? `
-        SELECT id, title, summary, category, platform, published_at,
-               1 - (embedding <=> $1::vector) AS similarity
-        FROM content_items
-        WHERE processed_at IS NOT NULL
-          AND embedding IS NOT NULL
-          AND category = $2
-          AND 1 - (embedding <=> $1::vector) >= $3
-        ORDER BY embedding <=> $1::vector
-        LIMIT $4
-      `
-    : `
-        SELECT id, title, summary, category, platform, published_at,
-               1 - (embedding <=> $1::vector) AS similarity
-        FROM content_items
-        WHERE processed_at IS NOT NULL
-          AND embedding IS NOT NULL
-          AND 1 - (embedding <=> $1::vector) >= $2
-        ORDER BY embedding <=> $1::vector
-        LIMIT $3
-      `;
+  let query: string;
+  let params: unknown[];
 
-  const params = category
-    ? [vectorStr, category, safeMinSimilarity, safeLimit]
-    : [vectorStr, safeMinSimilarity, safeLimit];
+  if (orgId && category) {
+    query = `
+      SELECT id, title, summary, category, platform, published_at,
+             1 - (embedding <=> $1::vector) AS similarity
+      FROM content_items
+      WHERE processed_at IS NOT NULL
+        AND embedding IS NOT NULL
+        AND org_id = $2
+        AND category = $3
+        AND 1 - (embedding <=> $1::vector) >= $4
+      ORDER BY embedding <=> $1::vector
+      LIMIT $5
+    `;
+    params = [vectorStr, orgId, category, safeMinSimilarity, safeLimit];
+  } else if (orgId) {
+    query = `
+      SELECT id, title, summary, category, platform, published_at,
+             1 - (embedding <=> $1::vector) AS similarity
+      FROM content_items
+      WHERE processed_at IS NOT NULL
+        AND embedding IS NOT NULL
+        AND org_id = $2
+        AND 1 - (embedding <=> $1::vector) >= $3
+      ORDER BY embedding <=> $1::vector
+      LIMIT $4
+    `;
+    params = [vectorStr, orgId, safeMinSimilarity, safeLimit];
+  } else if (category) {
+    query = `
+      SELECT id, title, summary, category, platform, published_at,
+             1 - (embedding <=> $1::vector) AS similarity
+      FROM content_items
+      WHERE processed_at IS NOT NULL
+        AND embedding IS NOT NULL
+        AND category = $2
+        AND 1 - (embedding <=> $1::vector) >= $3
+      ORDER BY embedding <=> $1::vector
+      LIMIT $4
+    `;
+    params = [vectorStr, category, safeMinSimilarity, safeLimit];
+  } else {
+    query = `
+      SELECT id, title, summary, category, platform, published_at,
+             1 - (embedding <=> $1::vector) AS similarity
+      FROM content_items
+      WHERE processed_at IS NOT NULL
+        AND embedding IS NOT NULL
+        AND 1 - (embedding <=> $1::vector) >= $2
+      ORDER BY embedding <=> $1::vector
+      LIMIT $3
+    `;
+    params = [vectorStr, safeMinSimilarity, safeLimit];
+  }
 
   const client = await pool.connect();
   try {
