@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { watchlistKeywordsTable, crisisScoresTable, alertsTable } from "@workspace/db/schema";
-import { eq, and, gte, desc } from "drizzle-orm";
+import { watchlistKeywordsTable, crisisScoresTable, alertsTable, contentItemsTable } from "@workspace/db/schema";
+import { eq, and, gte, lt, desc, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
 import { requireFeature } from "../../middlewares/featureGate";
 import { computeShareOfVoice } from "../../lib/shareOfVoice";
@@ -161,8 +161,32 @@ router.get("/:id/analysis", async (req, res) => {
     .orderBy(desc(alertsTable.createdAt))
     .limit(10);
 
-  // Compute a fresh live score
-  const liveScore = await computeCrisisScore(orgId, keyword.keyword, 0, 0);
+  // Compute real current and baseline volumes for the live score
+  const WINDOW_MINUTES = 15;
+  const BASELINE_HOURS = 24;
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - WINDOW_MINUTES * 60 * 1000);
+  const baselineStart = new Date(now.getTime() - BASELINE_HOURS * 60 * 60 * 1000);
+  const pattern = `%${keyword.keyword.replace(/[%_]/g, "\\$&")}%`;
+  const mentionFilter = sql`(${contentItemsTable.title} ILIKE ${pattern} OR ${contentItemsTable.body} ILIKE ${pattern})`;
+
+  const [currentRow, baselineRow] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(contentItemsTable)
+      .where(and(eq(contentItemsTable.orgId, orgId), gte(contentItemsTable.collectedAt, windowStart), mentionFilter))
+      .then((r) => r[0]),
+    db
+      .select({ n: count() })
+      .from(contentItemsTable)
+      .where(and(eq(contentItemsTable.orgId, orgId), gte(contentItemsTable.collectedAt, baselineStart), lt(contentItemsTable.collectedAt, windowStart), mentionFilter))
+      .then((r) => r[0]),
+  ]);
+
+  const currentVolume = Number(currentRow?.n ?? 0);
+  const baselineSlots = (BASELINE_HOURS * 60) / WINDOW_MINUTES - 1;
+  const baselineAvg = baselineSlots > 0 ? Number(baselineRow?.n ?? 0) / baselineSlots : 0;
+  const liveScore = await computeCrisisScore(orgId, keyword.keyword, currentVolume, baselineAvg);
 
   res.json({
     keyword,

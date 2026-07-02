@@ -1,8 +1,9 @@
 import { db } from "@workspace/db";
-import { contentItemsTable } from "@workspace/db/schema";
+import { contentItemsTable, alertsTable, watchlistKeywordsTable } from "@workspace/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { chat } from "./llm";
 import { logger } from "./logger";
+import { getQueues } from "./queues";
 
 export interface DisinformationCheckResult {
   itemId: string;
@@ -173,6 +174,49 @@ export async function checkDisinformationForKeyword(
         .set({ isDisinformation: "true" })
         .where(eq(contentItemsTable.id, item.id))
         .catch((err) => logger.warn({ err, itemId: item.id }, "Failed to update isDisinformation flag"));
+
+      // Create a priority alert and queue dispatch for every confirmed disinformation item
+      const keywordRow = await db
+        .select({ id: watchlistKeywordsTable.id })
+        .from(watchlistKeywordsTable)
+        .where(
+          and(
+            eq(watchlistKeywordsTable.orgId, orgId),
+            sql`lower(${watchlistKeywordsTable.keyword}) = lower(${keyword})`,
+          ),
+        )
+        .limit(1)
+        .then((r) => r[0]);
+
+      const severity = llmResult.confidence >= 0.9 ? "critical" : "high";
+
+      const [alert] = await db
+        .insert(alertsTable)
+        .values({
+          orgId,
+          keywordId: keywordRow?.id ?? null,
+          keyword,
+          type: "disinformation",
+          severity,
+          crisisProbability: Math.round(llmResult.confidence * 100),
+          status: "new",
+          payload: {
+            claim: llmResult.claim,
+            reasoning: llmResult.reasoning,
+            confidence: llmResult.confidence,
+            itemId: item.id,
+          },
+        })
+        .returning()
+        .catch((err) => { logger.warn({ err }, "Failed to create disinformation alert"); return []; });
+
+      if (alert?.id) {
+        getQueues().alertDispatch.add(
+          "alert-dispatch",
+          { alertId: alert.id, orgId, keyword, severity, crisisProbability: Math.round(llmResult.confidence * 100) },
+          { priority: severity === "critical" ? 1 : 2 },
+        ).catch((err) => logger.warn({ err, alertId: alert.id }, "Failed to queue disinformation alert dispatch"));
+      }
     }
 
     results.push({

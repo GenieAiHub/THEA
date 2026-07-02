@@ -102,31 +102,43 @@ export function startAlertDispatchWorker(): void {
       // ── Slack delivery ────────────────────────────────────────────────────────
       const notifConfig = org?.notificationConfig ?? {};
       if (notifConfig.slackEnabled && notifConfig.slackWebhookUrl) {
+        // SSRF guard: only allow Slack's own incoming-webhook host
+        const allowedSlackHost = "hooks.slack.com";
+        let slackUrlSafe = false;
         try {
-          const severityEmoji2 = severity === "critical" ? "🚨" : severity === "high" ? "⚠️" : "📊";
-          const body = JSON.stringify({
-            text: `${severityEmoji2} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
-            attachments: [
-              {
-                color: severity === "critical" ? "#e53e3e" : severity === "high" ? "#dd6b20" : "#3182ce",
-                fields: [
-                  { title: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A", short: true },
-                  { title: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A", short: true },
-                  { title: "Organisation", value: org?.name ?? orgId, short: true },
-                ],
-                footer: "THEA Intelligence",
-              },
-            ],
-          });
-          await fetch(notifConfig.slackWebhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body,
-            signal: AbortSignal.timeout(5000),
-          });
-          logger.info({ alertId, orgId }, "Slack alert delivered");
-        } catch (slackErr) {
-          logger.warn({ err: slackErr, alertId, orgId }, "Slack delivery failed — email already queued");
+          const parsed = new URL(notifConfig.slackWebhookUrl);
+          slackUrlSafe = parsed.protocol === "https:" && parsed.hostname === allowedSlackHost;
+        } catch { /* invalid URL */ }
+
+        if (!slackUrlSafe) {
+          logger.warn({ alertId, orgId }, "Slack webhook URL failed allowlist check — skipping delivery");
+        } else {
+          try {
+            const severityEmoji2 = severity === "critical" ? "🚨" : severity === "high" ? "⚠️" : "📊";
+            const body = JSON.stringify({
+              text: `${severityEmoji2} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
+              attachments: [
+                {
+                  color: severity === "critical" ? "#e53e3e" : severity === "high" ? "#dd6b20" : "#3182ce",
+                  fields: [
+                    { title: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A", short: true },
+                    { title: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A", short: true },
+                    { title: "Organisation", value: org?.name ?? orgId, short: true },
+                  ],
+                  footer: "THEA Intelligence",
+                },
+              ],
+            });
+            await fetch(notifConfig.slackWebhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+              signal: AbortSignal.timeout(5000),
+            });
+            logger.info({ alertId, orgId }, "Slack alert delivered");
+          } catch (slackErr) {
+            logger.warn({ err: slackErr, alertId, orgId }, "Slack delivery failed — email already queued");
+          }
         }
       }
     } catch (err) {
