@@ -166,6 +166,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/watchlist" component={WatchlistPage} />
             <Route path="/alerts" component={AlertsPage} />
             <Route path="/ai-tools" component={AiToolsPage} />
+            <Route path="/intelligence" component={AiToolsPage} />
             <Route path="/data-explorer" component={DataExplorerPage} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/competitors" component={CompetitorIntelligencePage} />

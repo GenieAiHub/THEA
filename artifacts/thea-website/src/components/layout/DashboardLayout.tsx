@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Link, useLocation, Redirect } from "wouter";
 import { Show, useUser, useClerk } from "@clerk/react";
 import {
@@ -6,7 +6,7 @@ import {
   TrendingUp,
   Eye,
   ShieldAlert,
-  Cpu,
+  Brain,
   Database,
   Settings,
   LogOut,
@@ -26,6 +26,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useListAlerts } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface SidebarItem {
   icon: React.ReactNode;
@@ -38,12 +39,45 @@ const navItems: SidebarItem[] = [
   { icon: <TrendingUp className="w-4 h-4" />, label: "Trends", href: "/trends" },
   { icon: <Eye className="w-4 h-4" />, label: "Watchlist", href: "/watchlist" },
   { icon: <ShieldAlert className="w-4 h-4" />, label: "Alerts", href: "/alerts" },
-  { icon: <Cpu className="w-4 h-4" />, label: "AI Tools", href: "/ai-tools" },
+  { icon: <Brain className="w-4 h-4" />, label: "Intelligence", href: "/intelligence" },
   { icon: <Database className="w-4 h-4" />, label: "Data Explorer", href: "/data-explorer" },
   { icon: <Target className="w-4 h-4" />, label: "Campaigns", href: "/campaigns" },
   { icon: <Sword className="w-4 h-4" />, label: "Competitors", href: "/competitors" },
   { icon: <Settings className="w-4 h-4" />, label: "Settings", href: "/settings" },
 ];
+
+function GlobalAlertWatcher() {
+  const { data: alertsData } = useListAlerts<any>(
+    { status: "open", limit: 20 },
+    { query: { refetchInterval: 30000, queryKey: ["/api/v1/alerts/watcher", { status: "open" }] } }
+  );
+  const { toast } = useToast();
+  const seenIds = useRef<Set<string>>(new Set());
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    const alerts = (alertsData?.data || []) as any[];
+    if (!alerts.length) return;
+    if (!initialized.current) {
+      alerts.forEach((a) => seenIds.current.add(a.id));
+      initialized.current = true;
+      return;
+    }
+    const newAlerts = alerts.filter(
+      (a) => !seenIds.current.has(a.id) && (a.severity === "critical" || a.severity === "high")
+    );
+    newAlerts.forEach((a) => {
+      seenIds.current.add(a.id);
+      toast({
+        title: `⚠ ${a.severity === "critical" ? "Critical" : "High"} Alert`,
+        description: a.title || "New alert triggered",
+        variant: "destructive",
+      });
+    });
+  }, [alertsData, toast]);
+
+  return null;
+}
 
 function NotificationBell() {
   const { data: alertsData } = useListAlerts<any>({ status: "open", limit: 50 });
@@ -179,6 +213,7 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
 
             {/* Page Content */}
             <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+              <GlobalAlertWatcher />
               <div className="max-w-7xl mx-auto">
                 {children}
               </div>

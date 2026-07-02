@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useListTrends, useListContent } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sword, TrendingUp, TrendingDown, Minus, Plus, X, ExternalLink, BarChart3 } from "lucide-react";
+import { Sword, TrendingUp, TrendingDown, Minus, Plus, X, ExternalLink, BarChart3, DollarSign, Newspaper } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend,
+} from "recharts";
 
 interface Competitor {
   id: string;
@@ -61,6 +64,19 @@ export default function CompetitorIntelligencePage() {
     const avg = items.reduce((s: number, i: any) => s + (i.sentimentScore || 0), 0) / items.length;
     return avg;
   };
+
+  const EMV_CPM = 15;
+  const IMPRESSIONS_PER_TREND = 1200;
+
+  const sovData = useMemo(() =>
+    competitors.map((c) => {
+      const trends = getCompetitorTrends(c);
+      const emv = trends.length * IMPRESSIONS_PER_TREND * (EMV_CPM / 1000);
+      const cs = COLORS[parseInt(c.color) % COLORS.length];
+      return { name: c.name, trends: trends.length, emv: Math.round(emv), color: cs.dot };
+    }), [competitors, trendsData]);
+
+  const totalTrends = sovData.reduce((s, d) => s + d.trends, 0);
 
   const handleAddKeyword = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && newKeyword.trim()) {
@@ -214,8 +230,10 @@ export default function CompetitorIntelligencePage() {
                   </div>
                   <TabsList className="bg-slate-900 border border-slate-800 h-9">
                     <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 text-xs">Overview</TabsTrigger>
+                    <TabsTrigger value="sov" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 text-xs">Share of Voice</TabsTrigger>
                     <TabsTrigger value="trends" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 text-xs">Trends</TabsTrigger>
                     <TabsTrigger value="content" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 text-xs">Content</TabsTrigger>
+                    <TabsTrigger value="brief" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 text-xs">Brief</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -284,6 +302,74 @@ export default function CompetitorIntelligencePage() {
                       })}
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                <TabsContent value="sov">
+                  <div className="flex flex-col gap-4">
+                    <Card className="bg-slate-900 border-slate-800">
+                      <CardHeader>
+                        <CardTitle className="text-slate-100 text-sm">Share of Voice — All Competitors</CardTitle>
+                        <CardDescription className="text-slate-400">Trend hits comparison across tracked competitors</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {loadingTrends ? (
+                          <Skeleton className="h-44 w-full bg-slate-800" />
+                        ) : (
+                          <div className="h-44">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={sovData} barGap={4}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                <XAxis dataKey="name" stroke="#475569" fontSize={11} />
+                                <YAxis stroke="#475569" fontSize={11} allowDecimals={false} />
+                                <Tooltip
+                                  contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "#f8fafc", fontSize: 12 }}
+                                  formatter={(v: number, name: string) => [v, name === "trends" ? "Matched Trends" : name]}
+                                />
+                                <Bar dataKey="trends" radius={[3, 3, 0, 0]}>
+                                  {sovData.map((d, idx) => (
+                                    <Cell key={idx} fill={["#3b82f6", "#f43f5e", "#a855f7", "#f59e0b"][idx % 4]} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-900 border-slate-800">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-slate-100 text-sm flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-emerald-400" />
+                          Estimated Earned Media Value
+                        </CardTitle>
+                        <CardDescription className="text-slate-400">$15 CPM × 1,200 avg impressions per matched trend</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2.5">
+                          {sovData.map((d, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${d.color}`} />
+                                <span className="text-sm text-slate-300">{d.name}</span>
+                                <span className="text-xs text-slate-500">{d.trends} trends</span>
+                              </div>
+                              <span className="font-mono font-bold text-emerald-400">${d.emv.toLocaleString()}</span>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t border-slate-800 flex items-center justify-between font-semibold">
+                            <span className="text-slate-400 text-sm">Total estimated EMV</span>
+                            <span className="font-mono text-emerald-300">
+                              ${sovData.reduce((s, d) => s + d.emv, 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                        {totalTrends === 0 && (
+                          <p className="text-slate-500 text-sm text-center py-4">No trend matches found for any competitor.</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="trends">
@@ -362,6 +448,93 @@ export default function CompetitorIntelligencePage() {
                           No recent content found for {selected.name}.
                         </div>
                       )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="brief">
+                  <Card className="bg-slate-900 border-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-slate-100 text-sm flex items-center gap-2">
+                        <Newspaper className="w-4 h-4 text-amber-400" />
+                        Weekly Narrative Brief
+                      </CardTitle>
+                      <CardDescription className="text-slate-400">
+                        Synthesized intelligence summary for {selected.name} · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {/* Narrative overview */}
+                      <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                        <p className="text-xs text-amber-400 uppercase tracking-wider font-medium mb-2">Narrative Overview</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">
+                          {selectedTrends.length > 0
+                            ? `${selected.name} is currently generating signals across ${selectedTrends.length} active trends. The dominant narratives center on "${selectedTrends[0]?.topic || "unknown"}"${selectedTrends[1] ? ` and "${selectedTrends[1]?.topic}"` : ""}, indicating ${selectedSentiment != null && selectedSentiment < -0.1 ? "a negative press cycle requiring proactive counter-messaging" : "generally stable or positive positioning in the media landscape"}.`
+                            : `No significant trend signals detected for ${selected.name} in the current monitoring window. This may indicate limited media presence or a gap in keyword coverage.`
+                          }
+                        </p>
+                      </div>
+
+                      {/* Key themes */}
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-3">Key Themes This Week</p>
+                        {selectedTrends.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedTrends.slice(0, 5).map((t: any, i: number) => (
+                              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-slate-950 border border-slate-800">
+                                <div className={`w-2 h-2 rounded-full shrink-0 ${colorScheme.dot}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-slate-200 truncate">{t.topic}</p>
+                                  <p className="text-xs text-slate-500">{t.mentionCount || 0} mentions · score {(t.score || 0).toFixed(0)}</p>
+                                </div>
+                                <Badge variant="outline" className={`text-xs shrink-0 ${
+                                  (t.score || 0) > 70 ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                                  (t.score || 0) > 40 ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                  "bg-slate-700/50 text-slate-400 border-slate-700"
+                                }`}>
+                                  {(t.score || 0) > 70 ? "High" : (t.score || 0) > 40 ? "Medium" : "Low"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 text-sm">No themes detected this week.</p>
+                        )}
+                      </div>
+
+                      {/* Sentiment summary */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1.5">Sentiment Signal</p>
+                          <p className={`text-lg font-display font-bold ${
+                            selectedSentiment != null && selectedSentiment > 0.05 ? "text-emerald-400" :
+                            selectedSentiment != null && selectedSentiment < -0.05 ? "text-red-400" : "text-slate-400"
+                          }`}>
+                            {selectedSentiment != null
+                              ? `${selectedSentiment > 0 ? "+" : ""}${selectedSentiment.toFixed(3)}`
+                              : "Insufficient data"}
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1.5">Est. EMV</p>
+                          <p className="text-lg font-display font-bold text-emerald-400">
+                            ${(selectedTrends.length * 1200 * (15 / 1000)).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Recommended action */}
+                      <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
+                        <p className="text-xs text-blue-400 uppercase tracking-wider font-medium mb-1.5">Recommended Action</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">
+                          {selectedSentiment != null && selectedSentiment < -0.15
+                            ? `Escalate monitoring for ${selected.name}. Negative sentiment exceeds threshold. Consider preparing counter-narrative content and briefing communications teams.`
+                            : selectedTrends.length > 5
+                            ? `${selected.name} shows elevated trend activity. Review matched keywords and assess whether current messaging adequately addresses their narrative positioning.`
+                            : `Maintain current monitoring cadence for ${selected.name}. No immediate action required.`
+                          }
+                        </p>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useListTrends, useListAlerts, useListWatchlistKeywords } from "@workspace/api-client-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Target, TrendingUp, ShieldAlert, Plus, X, BarChart2, Calendar, CheckCircle2 } from "lucide-react";
+import { Target, TrendingUp, ShieldAlert, Plus, X, BarChart2, Calendar, CheckCircle2, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 
 interface Campaign {
   id: string;
@@ -75,6 +78,35 @@ export default function CampaignsPage() {
           a.message?.toLowerCase().includes(kw.toLowerCase())
       )
     );
+
+  const EMV_CPM = 15;
+  const AVG_IMPRESSIONS_PER_TREND = 1200;
+
+  const sovData = useMemo(() =>
+    campaigns.map((c) => {
+      const hits = getMatchingTrends(c).length;
+      const emv = hits * AVG_IMPRESSIONS_PER_TREND * (EMV_CPM / 1000);
+      return { name: c.name.length > 18 ? c.name.slice(0, 18) + "…" : c.name, mentions: hits, emv: Math.round(emv) };
+    }), [campaigns, trendsData]);
+
+  const PIE_COLORS = ["#3b82f6", "#10b981", "#a855f7", "#f59e0b", "#ec4899"];
+
+  const beforeAfterData = useMemo(() => {
+    const now = new Date();
+    return campaigns.map((c) => {
+      const startMs = new Date(c.startDate).getTime();
+      const allTrends = (trendsData?.data || []) as any[];
+      const before = allTrends.filter((t) =>
+        c.keywords.some((kw) => t.topic?.toLowerCase().includes(kw.toLowerCase())) &&
+        new Date(t.createdAt || c.startDate).getTime() < startMs
+      ).length;
+      const after = allTrends.filter((t) =>
+        c.keywords.some((kw) => t.topic?.toLowerCase().includes(kw.toLowerCase())) &&
+        new Date(t.createdAt || now).getTime() >= startMs
+      ).length;
+      return { name: c.name.length > 14 ? c.name.slice(0, 14) + "…" : c.name, "Pre-Launch": before, "Active": after };
+    });
+  }, [campaigns, trendsData]);
 
   const getDuration = (start: string, end: string) => {
     const s = new Date(start).getTime();
@@ -225,6 +257,106 @@ export default function CampaignsPage() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Campaign Analytics Overview */}
+        {campaigns.length > 0 && !loadingTrends && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Share of Voice Pie */}
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-slate-100 text-sm flex items-center gap-2">
+                  <BarChart2 className="w-4 h-4 text-blue-400" />
+                  Share of Voice
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">Matched trends by campaign</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {sovData.every((d) => d.mentions === 0) ? (
+                  <div className="h-36 flex items-center justify-center text-slate-500 text-sm">No matching trends yet</div>
+                ) : (
+                  <div className="h-36">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={sovData}
+                          dataKey="mentions"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={55}
+                          innerRadius={25}
+                        >
+                          {sovData.map((_, idx) => (
+                            <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "#f8fafc", fontSize: 11 }}
+                          formatter={(v: number) => [v, "Trends"]}
+                        />
+                        <Legend iconSize={8} wrapperStyle={{ fontSize: 10, color: "#94a3b8" }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Before / After Comparison */}
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-slate-100 text-sm flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-purple-400" />
+                  Pre-Launch vs. Active
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">Trend hits before and after campaign start</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-36">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={beforeAfterData} barGap={2}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey="name" stroke="#475569" fontSize={9} />
+                      <YAxis stroke="#475569" fontSize={9} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "#f8fafc", fontSize: 11 }}
+                      />
+                      <Bar dataKey="Pre-Launch" fill="#475569" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="Active" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* EMV Table */}
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-slate-100 text-sm flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                  Est. Earned Media Value
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">Based on $15 CPM × estimated reach</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                {sovData.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-300 truncate max-w-[60%]">{d.name}</span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      ${d.emv.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                <div className="pt-2 mt-1 border-t border-slate-800 flex items-center justify-between text-sm font-semibold">
+                  <span className="text-slate-400">Total EMV</span>
+                  <span className="font-mono text-emerald-300">
+                    ${sovData.reduce((s, d) => s + d.emv, 0).toLocaleString()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Campaign cards */}
