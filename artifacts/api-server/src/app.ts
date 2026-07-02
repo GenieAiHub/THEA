@@ -87,6 +87,29 @@ app.use(defaultRateLimiter);
 app.use("/api", healthRouter);
 app.use("/api/v1", v1Router);
 
+// TEMP-PROVISION-START — one-time Stripe provisioning, guarded by PROVISION_TOKEN.
+// Inert unless PROVISION_TOKEN is set. Remove this block after provisioning.
+app.post("/api/internal/provision-stripe", (req, res) => {
+  const token = process.env.PROVISION_TOKEN;
+  if (!token || req.header("x-provision-token") !== token) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const origin =
+    process.env.API_ORIGIN ||
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "");
+  import("./lib/stripeProvisioning")
+    .then((m) => m.runStripeProvisioning({ apiOrigin: origin, outPath: "/tmp/stripe-setup.out.json" }))
+    .then((result) => {
+      res.json({ ok: true, priceEnv: result.priceEnv, webhookUrl: result.webhookUrl, webhookId: result.webhookId });
+    })
+    .catch((err: unknown) => {
+      logger.error({ err }, "Stripe provisioning failed");
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    });
+});
+// TEMP-PROVISION-END
+
 app.use(
   "/api/docs",
   swaggerUi.serve,
