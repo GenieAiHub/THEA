@@ -1,11 +1,21 @@
 import { Router } from "express";
+import { createClerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { organizationsTable, usersTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../middlewares/clerkAuth";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 router.use(requireAuth);
+
+const VALID_ROLES = ["owner", "admin", "analyst"];
+
+function getClerkClient() {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey) throw new Error("CLERK_SECRET_KEY not configured");
+  return createClerkClient({ secretKey });
+}
 
 router.get("/org", async (req, res) => {
   const { org, subscription, tier } = req.thea!;
@@ -69,15 +79,14 @@ router.get("/team", async (req, res) => {
 
 router.post("/team/invite", requireRole("owner", "admin"), async (req, res) => {
   const { email, role = "analyst" } = req.body as { email: string; role?: string };
-  const VALID_ROLES = ["owner", "admin", "analyst"];
 
   if (!email) {
     res.status(400).json({ error: "email is required" });
     return;
   }
 
-  if (!VALID_ROLES.includes(role)) {
-    res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` });
+  if (!VALID_ROLES.includes(role) || role === "owner") {
+    res.status(400).json({ error: `role must be one of: ${VALID_ROLES.filter((r) => r !== "owner").join(", ")}` });
     return;
   }
 
@@ -92,20 +101,37 @@ router.post("/team/invite", requireRole("owner", "admin"), async (req, res) => {
     return;
   }
 
+  try {
+    const clerkClient = getClerkClient();
+    await clerkClient.invitations.createInvitation({
+      emailAddress: email,
+      redirectUrl: process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL}/onboarding` : undefined,
+      publicMetadata: {
+        theaOrgId: req.thea!.org.id,
+        theaRole: role,
+        invitedBy: req.thea!.user.id,
+      },
+    });
+    logger.info({ orgId: req.thea!.org.id, email, role }, "Clerk invitation sent");
+  } catch (err) {
+    logger.error({ err, email }, "Failed to create Clerk invitation");
+    res.status(502).json({ error: "Failed to send invitation. Please try again." });
+    return;
+  }
+
   res.status(202).json({
     message: "Invitation sent",
     email,
     role,
-    note: "The user will be provisioned when they sign up via Clerk and authenticate for the first time. Manual seat management via Clerk dashboard is required for enterprise team access control.",
   });
 });
 
 router.patch("/team/:userId/role", requireRole("owner"), async (req, res) => {
   const { role } = req.body as { role: string };
-  const VALID_ROLES = ["admin", "analyst"];
+  const updatableRoles = ["admin", "analyst"];
 
-  if (!VALID_ROLES.includes(role)) {
-    res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` });
+  if (!updatableRoles.includes(role)) {
+    res.status(400).json({ error: `role must be one of: ${updatableRoles.join(", ")}` });
     return;
   }
 
@@ -124,20 +150,28 @@ router.patch("/team/:userId/role", requireRole("owner"), async (req, res) => {
 });
 
 router.delete("/team/:userId", requireRole("owner", "admin"), async (req, res) => {
-  const [removed] = await db
-    .delete(usersTable)
-    .where(and(eq(usersTable.id, req.params.userId as string), eq(usersTable.orgId, req.thea!.org.id)))
-    .returning();
+  const userId = req.params.userId as string;
+  const orgId = req.thea!.org.id;
 
-  if (!removed) {
+  const [target] = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.id, userId), eq(usersTable.orgId, orgId)))
+    .limit(1);
+
+  if (!target) {
     res.status(404).json({ error: "Team member not found" });
     return;
   }
 
-  if (removed.role === "owner") {
+  if (target.role === "owner") {
     res.status(400).json({ error: "Cannot remove the org owner" });
     return;
   }
+
+  await db
+    .delete(usersTable)
+    .where(and(eq(usersTable.id, userId), eq(usersTable.orgId, orgId)));
 
   res.status(204).send();
 });

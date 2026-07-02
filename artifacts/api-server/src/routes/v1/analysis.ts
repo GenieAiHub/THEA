@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { analysisReportsTable, llmUsageLogsTable } from "@workspace/db/schema";
 import { desc, eq, and, gte, sql } from "drizzle-orm";
 import { getQueues } from "../../lib/queues";
+import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ function requireAdminToken(req: Request, res: Response, next: NextFunction): voi
   next();
 }
 
-router.get("/latest", async (_req, res) => {
+router.get("/latest", requireAuth, async (_req, res) => {
   const reports = await db
     .select()
     .from(analysisReportsTable)
@@ -30,8 +31,8 @@ router.get("/latest", async (_req, res) => {
   res.json({ data: reports });
 });
 
-router.get("/category/:category", async (req, res) => {
-  const { category } = req.params;
+router.get("/category/:category", requireAuth, async (req, res) => {
+  const category = req.params.category as string;
   const report = await db
     .select()
     .from(analysisReportsTable)
@@ -46,7 +47,7 @@ router.get("/category/:category", async (req, res) => {
   res.json(report[0]);
 });
 
-router.get("/history", async (req, res) => {
+router.get("/history", requireAuth, async (req, res) => {
   const { category, limit = "50" } = req.query as Record<string, string>;
   const limitN = Math.min(200, parseInt(limit, 10));
 

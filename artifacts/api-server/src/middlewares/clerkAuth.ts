@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction } from "express";
-import { getAuth } from "@clerk/express";
+import { getAuth, createClerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable, organizationsTable, subscriptionsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -39,11 +39,58 @@ function slugify(str: string): string {
   );
 }
 
+interface InvitationMeta {
+  theaOrgId?: string;
+  theaRole?: string;
+}
+
+async function getClerkUserMeta(clerkUserId: string): Promise<InvitationMeta> {
+  try {
+    const secretKey = process.env.CLERK_SECRET_KEY;
+    if (!secretKey) return {};
+    const clerkClient = createClerkClient({ secretKey });
+    const clerkUser = await clerkClient.users.getUser(clerkUserId);
+    return (clerkUser.publicMetadata ?? {}) as InvitationMeta;
+  } catch {
+    return {};
+  }
+}
+
 async function jitProvision(
   clerkUserId: string,
   email: string,
-  name?: string | null
+  name?: string | null,
+  inviteMeta?: InvitationMeta
 ): Promise<{ user: User; org: Organization; subscription: Subscription }> {
+  if (inviteMeta?.theaOrgId) {
+    const [org] = await db
+      .select()
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, inviteMeta.theaOrgId))
+      .limit(1);
+
+    if (org) {
+      const [sub] = await db
+        .select()
+        .from(subscriptionsTable)
+        .where(eq(subscriptionsTable.orgId, org.id))
+        .limit(1);
+
+      const role = inviteMeta.theaRole ?? "analyst";
+      const [user] = await db
+        .insert(usersTable)
+        .values({ orgId: org.id, clerkUserId, email, name: name ?? null, role })
+        .onConflictDoUpdate({
+          target: usersTable.clerkUserId,
+          set: { email, name: name ?? null, updatedAt: new Date() },
+        })
+        .returning();
+
+      logger.info({ orgId: org.id, clerkUserId, role }, "JIT provisioned invited user into existing org");
+      return { user, org, subscription: sub! };
+    }
+  }
+
   const orgName = name || email.split("@")[0] || "My Organization";
   const slug = `${slugify(orgName)}-${Date.now().toString(36)}`;
 
@@ -78,7 +125,8 @@ export async function resolveOrgContext(
   let subscription: Subscription;
 
   if (userRows.length === 0) {
-    const p = await jitProvision(clerkUserId, email, name);
+    const inviteMeta = await getClerkUserMeta(clerkUserId);
+    const p = await jitProvision(clerkUserId, email, name, inviteMeta);
     user = p.user;
     org = p.org;
     subscription = p.subscription;

@@ -2,8 +2,10 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { contentItemsTable } from "@workspace/db/schema";
 import { desc, eq, and, gte, lte, like } from "drizzle-orm";
+import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
+router.use(requireAuth);
 
 router.get("/", async (req, res) => {
   const {

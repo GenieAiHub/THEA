@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { chat, type LlmProvider, type LlmMessage } from "../../lib/llm";
 import { semanticSearch } from "../../lib/analysis/embeddings";
+import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
+router.use(requireAuth);
 
 router.post("/chat", async (req, res) => {
   const { provider = "openai", messages, model } = req.body as {

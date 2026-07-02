@@ -23,7 +23,7 @@ if (!STRIPE_SECRET_KEY) {
   process.exit(1);
 }
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-11-20.acacia" });
+const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-06-24.dahlia" });
 
 interface TierConfig {
   name: string;

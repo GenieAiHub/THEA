@@ -2,8 +2,10 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { trendScoresTable } from "@workspace/db/schema";
 import { desc, eq, gte, and } from "drizzle-orm";
+import { requireAuth } from "../../middlewares/clerkAuth";
 
 const router = Router();
+router.use(requireAuth);
 
 router.get("/", async (req, res) => {
   const { category, timeframe = "24h", limit = "20" } = req.query as Record<string, string>;
