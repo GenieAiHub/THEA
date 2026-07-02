@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Link, Redirect, useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,33 @@ import { useAuth } from "@/context/AuthContext";
 
 const logoUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`;
 
+const PLAN_NAMES: Record<string, string> = {
+  professional: "Professional",
+  business: "Business",
+  political: "Political Party",
+};
+
 export default function SignUpPage() {
   const { isLoaded, isSignedIn, register } = useAuth();
   const [, setLocation] = useLocation();
+  
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (isLoaded && isSignedIn) return <Redirect to="/dashboard" />;
+  // Parse query params for checkout flow
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const planKey = searchParams.get("plan");
+  const interval = searchParams.get("interval") || "annual";
+  const planName = planKey ? PLAN_NAMES[planKey] : null;
+
+  // Don't auto-redirect while a plan-driven signup+checkout is in flight —
+  // register() flips isSignedIn true mid-flow, and an eager redirect here would
+  // race (and beat) the checkout redirect. When a plan is selected we let
+  // handleSubmit drive navigation instead.
+  if (isLoaded && isSignedIn && !submitting && !planKey) return <Redirect to="/dashboard" />;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,13 +48,21 @@ export default function SignUpPage() {
     setSubmitting(true);
     try {
       await register(email.trim(), password, name.trim() || undefined);
-      setLocation("/onboarding");
+
+      // If there's a plan selected, send the new user to checkout to pick a
+      // payment method (card / PayPal / crypto). Otherwise start onboarding.
+      if (planKey) {
+        setLocation(`/checkout?plan=${planKey}&interval=${interval}`);
+      } else {
+        setLocation("/onboarding");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
+      setSubmitting(false); // Only stop loading if it failed. If it succeeded and started checkout, keep loading state.
     }
   };
+
+  const isWorking = submitting;
 
   return (
     <div className="min-h-[100dvh] bg-[#020617] text-slate-200 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -45,13 +70,21 @@ export default function SignUpPage() {
 
       <div className="w-full max-w-md z-10">
         <div className="flex justify-center mb-8">
-          <img src={logoUrl} alt="THEA" className="w-12 h-12" />
+          <Link href="/">
+            <img src={logoUrl} alt="THEA" className="w-12 h-12 cursor-pointer" />
+          </Link>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-display font-bold text-white">Get started with THEA</h1>
-            <p className="text-slate-400 text-sm mt-1">Intelligence at the speed of narrative</p>
+            <h1 className="text-2xl font-display font-bold text-white">
+              {planName ? `Create account for ${planName}` : "Get started with THEA"}
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">
+              {planName 
+                ? `You're one step away from upgrading your intelligence capabilities.`
+                : "Intelligence at the speed of narrative"}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,10 +137,10 @@ export default function SignUpPage() {
 
             <Button
               type="submit"
-              disabled={submitting}
+              disabled={isWorking}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white h-11 text-base"
             >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create account"}
+              {isWorking ? <Loader2 className="w-4 h-4 animate-spin" /> : (planName ? "Continue to Checkout" : "Create account")}
             </Button>
           </form>
 

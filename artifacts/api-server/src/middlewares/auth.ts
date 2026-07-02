@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { db } from "@workspace/db";
 import { usersTable, organizationsTable, subscriptionsTable, sessionsTable, apiKeysTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import { TIER_FEATURES, type Tier } from "./featureGate";
+import { TIER_FEATURES, TIER_LIMITS, type Tier } from "./featureGate";
 import { logger } from "../lib/logger";
 import type { Organization, User, Subscription } from "@workspace/db/schema";
 import { generateSessionToken, hashToken, readSessionCookie, SESSION_TTL_MS } from "../lib/auth";
@@ -23,12 +23,6 @@ declare global {
     }
   }
 }
-
-export const TIER_LIMITS: Record<Tier, { maxKeywords: number; maxCategories: number; historyDays: number }> = {
-  starter: { maxKeywords: 10, maxCategories: 3, historyDays: 14 },
-  pro: { maxKeywords: 50, maxCategories: 7, historyDays: 90 },
-  enterprise: { maxKeywords: 9999, maxCategories: 99, historyDays: 3650 },
-};
 
 function slugify(str: string): string {
   return (
@@ -117,9 +111,32 @@ export async function resolveOrgContext(user: User): Promise<TheaRequestContext 
 
   const subRows = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.orgId, org.id)).limit(1);
   if (!subRows[0]) return null;
-  const subscription = subRows[0];
+  let subscription = subRows[0];
 
-  const tier = (subscription.tier as Tier) || "starter";
+  let tier = (subscription.tier as Tier) || "starter";
+
+  // Non-recurring plans (PayPal, crypto USDT) are paid up-front for a fixed
+  // window with no auto-renew. Once currentPeriodEnd lapses, downgrade to
+  // starter for this request so access is revoked immediately (fail closed),
+  // even before any background sweep runs.
+  //
+  // Stripe subscriptions are EXEMPT: their lifecycle is driven by Stripe's own
+  // webhooks (customer.subscription.deleted / invoice.payment_failed), and
+  // currentPeriodEnd only advances when the renewal webhook lands. Applying the
+  // hard expiry here would lock out a paying customer at the exact period
+  // boundary if that renewal webhook is delayed or dropped.
+  const periodEnd = subscription.currentPeriodEnd;
+  const isStripeManaged = !!subscription.stripeSubscriptionId;
+  if (
+    tier !== "starter" &&
+    !isStripeManaged &&
+    periodEnd instanceof Date &&
+    periodEnd.getTime() < Date.now()
+  ) {
+    tier = "starter";
+    subscription = { ...subscription, tier: "starter", ...TIER_LIMITS.starter };
+  }
+
   return { user, org, subscription, tier, featureFlags: TIER_FEATURES[tier] ?? TIER_FEATURES.starter };
 }
 

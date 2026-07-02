@@ -38,7 +38,9 @@ const TIERS: TierConfig[] = [
     name: "THEA Starter",
     description: "Up to 5 users, 10 watchlist keywords, 3 categories, 14-day history",
     monthlyUsd: 99,
-    annualUsd: 950,
+    // Annual = discounted per-month price ($79) x 12. MUST equal amountForPlan()
+    // in lib/plans.ts so PayPal/crypto annual charges match the Stripe price.
+    annualUsd: 948,
     metadata: {
       tier: "starter",
       maxUsers: "5",
@@ -51,7 +53,8 @@ const TIERS: TierConfig[] = [
     name: "THEA Pro",
     description: "Up to 20 users, 50 watchlist keywords, 7 categories, 90-day history",
     monthlyUsd: 499,
-    annualUsd: 4790,
+    // Annual = discounted per-month price ($399) x 12.
+    annualUsd: 4788,
     metadata: {
       tier: "pro",
       maxUsers: "20",
@@ -64,7 +67,8 @@ const TIERS: TierConfig[] = [
     name: "THEA Enterprise",
     description: "Unlimited users, keywords, and categories — 10-year history, dedicated support",
     monthlyUsd: 1999,
-    annualUsd: 19190,
+    // Annual = discounted per-month price ($1,599) x 12.
+    annualUsd: 19188,
     metadata: {
       tier: "enterprise",
       maxUsers: "-1",
@@ -110,11 +114,11 @@ async function seed(): Promise<void> {
 
   console.log("Done! Copy the price IDs above into your environment variables:");
   console.log("  STRIPE_STARTER_MONTHLY_PRICE_ID  ($99/mo)");
-  console.log("  STRIPE_STARTER_ANNUAL_PRICE_ID   ($950/yr)");
+  console.log("  STRIPE_STARTER_ANNUAL_PRICE_ID   ($948/yr)");
   console.log("  STRIPE_PRO_MONTHLY_PRICE_ID      ($499/mo)");
-  console.log("  STRIPE_PRO_ANNUAL_PRICE_ID       ($4,790/yr)");
+  console.log("  STRIPE_PRO_ANNUAL_PRICE_ID       ($4,788/yr)");
   console.log("  STRIPE_ENTERPRISE_MONTHLY_PRICE_ID ($1,999/mo)");
-  console.log("  STRIPE_ENTERPRISE_ANNUAL_PRICE_ID  ($19,190/yr)");
+  console.log("  STRIPE_ENTERPRISE_ANNUAL_PRICE_ID  ($19,188/yr)");
 }
 
 seed().catch((err) => {

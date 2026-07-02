@@ -9,6 +9,18 @@ export const TIER_ORDER: Record<Tier, number> = {
   enterprise: 2,
 };
 
+/**
+ * Resource limits per tier. Single source of truth — imported by the auth
+ * middleware (registration), the subscription-activation service, and the
+ * Stripe/PayPal/crypto payment paths so a tier always grants identical limits
+ * regardless of how it was purchased.
+ */
+export const TIER_LIMITS: Record<Tier, { maxKeywords: number; maxCategories: number; historyDays: number }> = {
+  starter: { maxKeywords: 10, maxCategories: 3, historyDays: 14 },
+  pro: { maxKeywords: 50, maxCategories: 7, historyDays: 90 },
+  enterprise: { maxKeywords: 9999, maxCategories: 99, historyDays: 3650 },
+};
+
 export const TIER_FEATURES: Record<Tier, string[]> = {
   starter: ["basic_dashboard", "watchlist", "email_digest"],
   pro: [

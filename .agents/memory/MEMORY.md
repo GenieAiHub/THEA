@@ -3,7 +3,7 @@
 - [Ingestion DB-backed sources](ingestion-db-sources.md) — RSS merges DB + PRECONFIGURED_SOURCES baseline; web-crawler/SERP scheduled from crawler_sources/watchlist_keywords
 - [Web crawler politeness](web-crawler-politeness.md) — 1 req/sec per-domain + maxRequestsPerMinute:20 + UA rotation required
 - [OTel + drizzle-orm monorepo fix](otel-drizzle-fix.md) — @elastic/transport (via @elastic/elasticsearch) statically imports OTel; install all three OTel packages at workspace root
-- [pnpm dual-instance drizzle](otel-drizzle-fix.md) — drizzle-orm has OTel-aware and non-OTel variants; peerDependencyRules.ignoreMissing does NOT prevent OTel variant selection if OTel is installed anywhere in the graph
+- [pnpm dual-instance drizzle](otel-drizzle-fix.md) — drizzle-orm has OTel-aware + non-OTel variants; ignoreMissing does NOT stop OTel variant selection if OTel is anywhere in the graph
 - [BullMQ ioredis version conflict](bullmq-redis.md) — pass `{ url: REDIS_URL }` config object, never a shared Redis instance, to avoid ioredis version mismatch between BullMQ and ioredis
 - [OpenAPI naming rule](openapi-naming.md) — never name component schemas after OperationIdPascal+Body/Response; Orval auto-generates those names causing TS2308 collisions
 - [Cross-artifact API routing](cross-artifact-api-routing.md) — frontends must call the API with root-relative /api/v1/... URLs; prepending BASE_URL hits their own Vite server and returns SPA HTML
@@ -11,10 +11,11 @@
 - [DB package rebuild process](db-rebuild-process.md) — after schema changes, run `cd lib/db && pnpm exec tsc --build tsconfig.json` before API typecheck or the new exports won't be visible
 - [Orval codegen blocker](orval-codegen-blocker.md) — v8.18.0 "Failed to resolve input" persists; set clean:false, always restore from git on failure
 - [Phase 7 portal architecture](phase7-portal-architecture.md) — self-hosted auth (AuthContext/useAuth + Protected wrapper + HomeRedirect); root-relative /api/v1; hooks need <any> until codegen fixed
-- [Public consumer markets auth](public-markets-auth.md) — consumer markets router is anonymous (optionalAuth, never requireAuth); anon scoped to PLATFORM_ORG_ID via req.thea?.org.id fallback; category match case-insensitive w/ lower(), not ilike
+- [Public consumer markets auth](public-markets-auth.md) — markets router stays anonymous (optionalAuth, not requireAuth) despite new optional sign-in UI; anon scoped to PLATFORM_ORG_ID
 - [Expo web platform quirks](expo-web-quirks.md) — expo-secure-store THROWS and Alert.alert no-ops on react-native-web; wrap both with Platform.OS (localStorage + window.confirm/alert)
 - [Backend face recognition](face-recognition-backend.md) — mobile face-scan matches on backend via @vladmandic/face-api + pure-JS tfjs (NOT tfjs-node) + jpeg-js; 128-d in pgvector, threshold ~0.5-0.6
-- [Phase 8 delivery architecture](phase8-delivery.md) — email-delivery queue handles both transactional (spike-alert) and digest-schedule-trigger; digestScheduler uses upsertJobScheduler; emailDeliveryWorker handles both
+- [Email delivery queue](email-delivery-queue.md) — one queue handles transactional (spike-alert) + digest triggers; digestScheduler uses upsertJobScheduler; worker handles both
 - [pdfkit + pptxgenjs esbuild fix](pdfkit-esbuild.md) — pdfkit/fontkit compiled with @swc; must add "pdfkit" and "pptxgenjs" to build.mjs external list or @swc/helpers fails at runtime
 - [js-yaml v5 import](js-yaml-v5.md) — js-yaml v5 has no default export; use named import: `import { load as yamlLoad } from "js-yaml"` not `import YAML from "js-yaml"`
 - [Brave Search collector](brave-search-collector.md) — own-key integration, no Replit proxy; collectBrave(keyword, category, apiKey); worker handles "brave" and "duckduckgo" (alias) cases identically
+- [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side

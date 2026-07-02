@@ -3,13 +3,7 @@ import { db } from "@workspace/db";
 import { subscriptionsTable, organizationsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
-import type { Tier } from "../middlewares/featureGate";
-
-const TIER_LIMITS: Record<Tier, { maxKeywords: number; maxCategories: number; historyDays: number }> = {
-  starter: { maxKeywords: 10, maxCategories: 3, historyDays: 14 },
-  pro: { maxKeywords: 50, maxCategories: 7, historyDays: 90 },
-  enterprise: { maxKeywords: 9999, maxCategories: 99, historyDays: 3650 },
-};
+import { TIER_LIMITS, type Tier } from "../middlewares/featureGate";
 
 export function getStripeClient(): Stripe {
   const secretKey = process.env.STRIPE_SECRET_KEY;

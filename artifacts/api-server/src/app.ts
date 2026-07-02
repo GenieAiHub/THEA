@@ -13,6 +13,7 @@ import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 import v1Router from "./routes/v1";
 import healthRouter from "./routes/health";
 import { handleStripeWebhook } from "./routes/webhooks/stripe";
+import { handlePaypalWebhook } from "./routes/webhooks/paypal";
 
 let openApiSpec: Record<string, unknown> = {};
 try {
@@ -65,6 +66,15 @@ app.use(
 app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), (req, res) => {
   handleStripeWebhook(req, res).catch((err) => {
     logger.error({ err }, "Stripe webhook handler crashed");
+    res.status(500).json({ error: "Internal error" });
+  });
+});
+
+// PayPal verifies via its signature API using the parsed event, so JSON is fine
+// here (mounted before the global parser with a route-scoped one).
+app.post("/api/webhooks/paypal", express.json({ limit: "1mb" }), (req, res) => {
+  handlePaypalWebhook(req, res).catch((err) => {
+    logger.error({ err }, "PayPal webhook handler crashed");
     res.status(500).json({ error: "Internal error" });
   });
 });

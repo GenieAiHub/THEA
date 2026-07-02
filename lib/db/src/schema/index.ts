@@ -2,6 +2,8 @@ export * from "./organizations";
 export * from "./users";
 export * from "./sessions";
 export * from "./subscriptions";
+export * from "./payments";
+export * from "./crypto_payment_intents";
 export * from "./content_items";
 export * from "./crawler_sources";
 export * from "./collection_runs";

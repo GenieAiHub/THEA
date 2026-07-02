@@ -9,6 +9,7 @@ import {
 } from "@workspace/db/schema";
 import { desc, count, eq } from "drizzle-orm";
 import { resolveOrgContext, getUserByToken } from "../../middlewares/auth";
+import { TIER_LIMITS } from "../../middlewares/featureGate";
 import { readSessionCookie } from "../../lib/auth";
 import { PLATFORM_ORG_ID } from "../../lib/tenantScope";
 
@@ -105,16 +106,14 @@ router.patch("/orgs/:id/tier", async (req, res) => {
     return;
   }
 
-  const TIER_LIMITS: Record<string, { maxKeywords: number; maxCategories: number; historyDays: number }> = {
-    starter: { maxKeywords: 10, maxCategories: 3, historyDays: 14 },
-    pro: { maxKeywords: 50, maxCategories: 7, historyDays: 90 },
-    enterprise: { maxKeywords: 9999, maxCategories: 99, historyDays: 3650 },
-  };
-
-  const limits = TIER_LIMITS[tier];
+  const limits = TIER_LIMITS[tier as keyof typeof TIER_LIMITS];
+  // Operator grants are manual and carry no billing period, so clear any lapsed
+  // currentPeriodEnd (e.g. from an expired PayPal/crypto plan) and reactivate.
+  // Otherwise resolveOrgContext's expiry check would silently downgrade the org
+  // back to starter on the very next request, negating the grant.
   const [updated] = await db
     .update(subscriptionsTable)
-    .set({ tier, ...limits, updatedAt: new Date() })
+    .set({ tier, ...limits, status: "active", currentPeriodEnd: null, updatedAt: new Date() })
     .where(eq(subscriptionsTable.orgId, req.params.id))
     .returning();
 

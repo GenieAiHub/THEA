@@ -6,9 +6,10 @@ description: Why the consumer markets API is anonymous-readable and how tenant i
 # Public consumer markets auth
 
 The consumer markets router (`v1/markets.ts`) is intentionally PUBLIC/anonymous —
-it uses `optionalAuth`, NOT `requireAuth`. The THEA Markets frontend has no login
-UI and votes anonymously via a localStorage `voterId`, so a hard auth guard 401s
-the entire app.
+it uses `optionalAuth`, NOT `requireAuth`. The THEA Markets frontend now has an
+OPTIONAL sign-in/sign-up UI (shared THEA account, same /api/v1/auth as the other
+apps), but voting still DEFAULTS to anonymous via a localStorage `voterId`, so a
+hard auth guard would 401 signed-out visitors and break the whole app.
 
 **Rule:** never re-add `requireAuth` to the consumer markets router. Anonymous
 access is a product requirement, not an oversight.

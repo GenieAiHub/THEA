@@ -5,72 +5,9 @@ import { ChevronDown, Activity, Globe, ShieldAlert, FileText, Zap, Users, Lock, 
 import logo from "@assets/ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1782950524488.png";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
-const AnimatedBackground = () => {
-  const prefersReducedMotion = typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  return (
-    <div className="fixed inset-0 z-[-1] overflow-hidden bg-background">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-background to-background"></div>
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-50"></div>
-      {!prefersReducedMotion && Array.from({ length: 20 }).map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute rounded-full bg-blue-500/10 blur-xl"
-          initial={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-            scale: Math.random() * 2 + 1,
-            opacity: Math.random() * 0.3,
-          }}
-          animate={{
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-            opacity: Math.random() * 0.5 + 0.1,
-          }}
-          transition={{
-            duration: Math.random() * 20 + 10,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-          style={{
-            width: Math.random() * 300 + 100,
-            height: Math.random() * 300 + 100,
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
-const Navbar = () => {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-6 backdrop-blur-md border-b border-white/5 bg-background/50">
-      <div className="text-xl font-bold tracking-tighter text-white font-display">THEA</div>
-      <div className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground">
-        <a href="#capabilities" className="hover:text-white transition-colors">Capabilities</a>
-        <a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a>
-        <a href="#audiences" className="hover:text-white transition-colors">Audiences</a>
-        <a href="#features" className="hover:text-white transition-colors">Features</a>
-        <a
-          href="/markets/"
-          className="relative flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors font-semibold"
-          data-testid="link-markets-nav"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-          </span>
-          THEA Markets
-        </a>
-      </div>
-      <Button variant="outline" className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300">
-        Request Access
-      </Button>
-    </nav>
-  );
-};
+import { PublicNavbar } from "@/components/layout/PublicNavbar";
+import { Footer } from "@/components/layout/Footer";
+import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
 
 const Hero = () => {
   const { scrollY } = useScroll();
@@ -606,36 +543,11 @@ const CTA = () => {
   );
 };
 
-const Footer = () => {
-  return (
-    <footer className="border-t border-white/10 py-16 px-8 bg-background">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-        <div className="flex flex-col items-center md:items-start">
-          <div className="font-display font-bold text-3xl tracking-tighter mb-2">THEA</div>
-          <div className="text-sm text-muted-foreground">
-            Total Human Engagement Analytics
-          </div>
-        </div>
-        
-        <div className="flex gap-8 text-sm text-muted-foreground">
-          <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-          <a href="#" className="hover:text-white transition-colors">Security</a>
-        </div>
-        
-        <div className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} THEA Intelligence. All rights reserved.
-        </div>
-      </div>
-    </footer>
-  );
-};
-
 export default function Home() {
   return (
     <div className="min-h-[100dvh] text-foreground selection:bg-blue-500/30">
       <AnimatedBackground />
-      <Navbar />
+      <PublicNavbar />
       <main>
         <Hero />
         <Metrics />

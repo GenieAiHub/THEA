@@ -24,6 +24,9 @@ import OnboardingPage from "@/pages/OnboardingPage";
 import SignInPage from "@/pages/SignInPage";
 import SignUpPage from "@/pages/SignUpPage";
 
+import PricingPage from "@/pages/PricingPage";
+import CheckoutPage from "@/pages/CheckoutPage";
+
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } });
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -53,8 +56,10 @@ function AppRoutes() {
   return (
     <Switch>
       <Route path="/" component={HomeRedirect} />
+      <Route path="/pricing" component={PricingPage} />
       <Route path="/sign-in" component={SignInPage} />
       <Route path="/sign-up" component={SignUpPage} />
+      <Route path="/checkout">{() => <Protected><CheckoutPage /></Protected>}</Route>
       <Route path="/dashboard">{() => <Protected><DashboardPage /></Protected>}</Route>
       <Route path="/trends">{() => <Protected><TrendsPage /></Protected>}</Route>
       <Route path="/trends/:topic">{() => <Protected><TrendDetailPage /></Protected>}</Route>
