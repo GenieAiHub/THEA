@@ -12,10 +12,13 @@ interface EntityRecord {
   count: number;
 }
 
+const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
+
 export async function aggregateEntityMentions(
   windowStart: Date,
   windowEnd: Date,
-  category?: string
+  category?: string,
+  orgId: string = PLATFORM_ORG_ID
 ): Promise<void> {
   const conditions = [
     isNotNull(contentItemsTable.processedAt),
@@ -76,6 +79,7 @@ export async function aggregateEntityMentions(
       await db
         .insert(entityMentionsTable)
         .values({
+          orgId,
           entityName: record.name,
           entityType: record.type,
           category: record.category,
@@ -86,6 +90,7 @@ export async function aggregateEntityMentions(
         })
         .onConflictDoUpdate({
           target: [
+            entityMentionsTable.orgId,
             entityMentionsTable.entityName,
             entityMentionsTable.entityType,
             entityMentionsTable.category,
@@ -102,12 +107,10 @@ export async function aggregateEntityMentions(
   }
 
   logger.info(
-    { windowStart, windowEnd, category: category ?? "all", entities: entityMap.size },
+    { windowStart, windowEnd, category: category ?? "all", orgId, entities: entityMap.size },
     "Entity mentions aggregated"
   );
 }
-
-const PLATFORM_ORG_ID = "10000000-0000-0000-0000-000000000001";
 
 export async function getTopEntities(
   windowHours = 24,
