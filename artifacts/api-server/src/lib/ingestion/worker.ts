@@ -11,6 +11,8 @@ import { collectReddit } from "./collectors/reddit";
 import { collectYouTube } from "./collectors/youtube";
 import { collectSerp } from "./collectors/serp";
 import { crawlUrls } from "./collectors/web-crawler";
+import { collectTelegram, collectTelegramAllCategories } from "./collectors/telegram";
+import { collectTikTok } from "./collectors/tiktok";
 import { getSourcesByCategory, PRECONFIGURED_SOURCES } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
@@ -31,9 +33,7 @@ export function startContentIngestionWorker(): void {
       switch (sourceType) {
         case "rss-batch": {
           const cat = category ?? "general";
-          const sources = sourceId
-            ? PRECONFIGURED_SOURCES.filter((s) => s.category === cat)
-            : getSourcesByCategory(cat);
+          const sources = getSourcesByCategory(cat);
           const items = await collectRssBatch(sources);
           stats = await ingestItems(items);
           break;
@@ -110,9 +110,27 @@ export function startContentIngestionWorker(): void {
           break;
         }
 
+        case "telegram": {
+          const items = category
+            ? await collectTelegram(category)
+            : await collectTelegramAllCategories();
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "tiktok": {
+          const clientKey = getEnv("TIKTOK_CLIENT_KEY");
+          const clientSecret = getEnv("TIKTOK_CLIENT_SECRET");
+          if (!clientKey || !clientSecret) { logger.warn("TIKTOK_CLIENT_KEY/SECRET not set — skipping TikTok collection"); break; }
+          const items = await collectTikTok(category ?? "general", clientKey, clientSecret);
+          stats = await ingestItems(items);
+          break;
+        }
+
         case "web-crawler": {
-          if (!urls?.length) { logger.warn("No URLs provided for web-crawler job"); break; }
-          const items = await crawlUrls(urls, category ?? "general");
+          const crawlUrls_ = urls ?? [];
+          if (!crawlUrls_.length) { logger.warn("No URLs provided for web-crawler job"); break; }
+          const items = await crawlUrls(crawlUrls_, category ?? "general");
           stats = await ingestItems(items);
           break;
         }

@@ -4,8 +4,10 @@ import { logger } from "../logger";
 
 const RSS_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 const GDELT_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const TELEGRAM_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const SOCIAL_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const NEWS_API_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+const TIKTOK_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
 
 export async function scheduleIngestion(): Promise<void> {
   const { contentIngestion } = getQueues();
@@ -31,6 +33,16 @@ export async function scheduleIngestion(): Promise<void> {
       }
     );
 
+    await contentIngestion.upsertJobScheduler(
+      "telegram-all-channels",
+      { every: TELEGRAM_REFRESH_INTERVAL_MS },
+      {
+        name: "telegram",
+        data: { sourceType: "telegram" },
+        opts: { attempts: 2 },
+      }
+    );
+
     const socialSources = ["twitter", "reddit", "youtube"];
     for (const sourceType of socialSources) {
       for (const category of CATEGORIES.slice(0, 5)) {
@@ -44,6 +56,18 @@ export async function scheduleIngestion(): Promise<void> {
           }
         );
       }
+    }
+
+    for (const category of ["politics", "technology", "business", "society"]) {
+      await contentIngestion.upsertJobScheduler(
+        `tiktok-${category}`,
+        { every: TIKTOK_REFRESH_INTERVAL_MS },
+        {
+          name: "tiktok",
+          data: { sourceType: "tiktok", category },
+          opts: { attempts: 1 },
+        }
+      );
     }
 
     const newsApiSources = ["newsapi", "mediastack", "bing-news"];
@@ -67,11 +91,16 @@ export async function scheduleIngestion(): Promise<void> {
   }
 }
 
-export async function triggerImmediateCollection(sourceType: string, category?: string, keyword?: string): Promise<void> {
+export async function triggerImmediateCollection(
+  sourceType: string,
+  category?: string,
+  keyword?: string,
+  urls?: string[]
+): Promise<void> {
   const { contentIngestion } = getQueues();
   await contentIngestion.add(
     sourceType,
-    { sourceType, category, keyword },
+    { sourceType, category, keyword, urls },
     { priority: 1, attempts: 2 }
   );
   logger.info({ sourceType, category, keyword }, "Triggered immediate collection job");

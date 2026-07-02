@@ -100,6 +100,13 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "crawlee",
+      "@crawlee/*",
+      "got-scraping",
+      "got",
+      "fingerprint-generator",
+      "fingerprint-injector",
+      "header-generator",
     ],
     sourcemap: "linked",
     plugins: [

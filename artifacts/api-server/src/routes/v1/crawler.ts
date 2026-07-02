@@ -120,15 +120,22 @@ router.post("/trigger", requireAdminToken, async (req, res) => {
     sourceType: string; category?: string; keyword?: string; urls?: string[];
   };
 
-  const validSources = ["rss-all", "rss-batch", "gdelt", "newsapi", "mediastack", "bing-news",
-    "twitter", "reddit", "youtube", "serp", "web-crawler"];
+  const validSources = [
+    "rss-all", "rss-batch", "gdelt", "newsapi", "mediastack", "bing-news",
+    "twitter", "reddit", "youtube", "serp", "telegram", "tiktok", "web-crawler",
+  ];
   if (!sourceType || !validSources.includes(sourceType)) {
     res.status(400).json({ error: `sourceType must be one of: ${validSources.join(", ")}` });
     return;
   }
 
-  await triggerImmediateCollection(sourceType, category, keyword);
-  res.json({ queued: true, sourceType, category, keyword });
+  if (sourceType === "web-crawler" && (!Array.isArray(urls) || urls.length === 0)) {
+    res.status(400).json({ error: "web-crawler requires urls array" });
+    return;
+  }
+
+  await triggerImmediateCollection(sourceType, category, keyword, urls);
+  res.json({ queued: true, sourceType, category, keyword, urlCount: urls?.length ?? 0 });
 });
 
 // ─── ADMIN: seed preconfigured sources into DB ────────────────────────────────

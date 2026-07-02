@@ -1,97 +1,157 @@
+import { CheerioCrawler, ProxyConfiguration } from "crawlee";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { NormalizedItem } from "../types";
 import { logger } from "../../logger";
-import { normalizeBody, normalizeTitle } from "../normalizer";
 import { detectLanguage } from "../language";
 
-const USER_AGENTS = [
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/119.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/118.0.0.0 Safari/537.36",
-];
+const PROXY_URLS = process.env.CRAWLER_PROXY_URLS?.split(",").map((u) => u.trim()).filter(Boolean) ?? [];
+const ROBOTS_CACHE_TTL_MS = 60 * 60 * 1000;
+const robotsCache: Map<string, { allowed: boolean; expires: number }> = new Map();
 
-const POLITENESS_DELAY_MS = 1000;
-const domainLastFetch: Map<string, number> = new Map();
-
-async function politeDelay(domain: string): Promise<void> {
-  const last = domainLastFetch.get(domain) ?? 0;
-  const wait = POLITENESS_DELAY_MS - (Date.now() - last);
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  domainLastFetch.set(domain, Date.now());
-}
-
-function extractDomain(url: string): string {
+async function checkRobotsTxt(url: string): Promise<boolean> {
   try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-}
+    const { hostname, protocol } = new URL(url);
+    const cacheKey = `${protocol}//${hostname}`;
+    const cached = robotsCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) return cached.allowed;
 
-function extractTextFromHtml(html: string): string {
-  return html
-    .replace(/<head[\s\S]*?<\/head>/gi, "")
-    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
-    .replace(/<aside[\s\S]*?<\/aside>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "");
-}
-
-function extractTitle(html: string): string | null {
-  const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-  return match ? match[1]?.trim() ?? null : null;
-}
-
-export async function crawlUrl(url: string, category: string): Promise<NormalizedItem | null> {
-  const domain = extractDomain(url);
-  await politeDelay(domain);
-
-  try {
-    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]!;
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": ua,
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      signal: AbortSignal.timeout(20000),
+    const robotsUrl = `${protocol}//${hostname}/robots.txt`;
+    const res = await fetch(robotsUrl, {
+      headers: { "User-Agent": "THEA-Intelligence-Bot/1.0" },
+      signal: AbortSignal.timeout(5000),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      robotsCache.set(cacheKey, { allowed: true, expires: Date.now() + ROBOTS_CACHE_TTL_MS });
+      return true;
+    }
 
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html")) return null;
+    const text = await res.text();
+    const pathName = new URL(url).pathname;
+    let inRelevantSection = false;
+    let allowed = true;
 
-    const html = await res.text();
-    const rawText = extractTextFromHtml(html);
-    const body = normalizeBody(rawText);
-    const title = normalizeTitle(extractTitle(html));
+    for (const line of text.split("\n")) {
+      const l = line.trim().toLowerCase();
+      if (l.startsWith("user-agent:")) {
+        const agent = l.replace("user-agent:", "").trim();
+        inRelevantSection = agent === "*" || agent === "thea-intelligence-bot";
+      }
+      if (inRelevantSection && l.startsWith("disallow:")) {
+        const path = l.replace("disallow:", "").trim();
+        if (path && pathName.startsWith(path)) {
+          allowed = false;
+          break;
+        }
+      }
+    }
 
-    if (!body || body.length < 50) return null;
-
-    return {
-      platform: "web",
-      sourceUrl: url,
-      title,
-      body,
-      author: domain,
-      publishedAt: null,
-      language: detectLanguage(body),
-      category,
-      engagementMetrics: {},
-      rawMetadata: { domain },
-    };
-  } catch (err) {
-    logger.warn({ err, url }, "Web crawl failed");
-    return null;
+    robotsCache.set(cacheKey, { allowed, expires: Date.now() + ROBOTS_CACHE_TTL_MS });
+    return allowed;
+  } catch {
+    return true;
   }
 }
 
 export async function crawlUrls(urls: string[], category: string): Promise<NormalizedItem[]> {
-  const results: NormalizedItem[] = [];
+  if (!urls.length) return [];
+
+  const filtered: string[] = [];
   for (const url of urls) {
-    const item = await crawlUrl(url, category);
-    if (item) results.push(item);
+    if (await checkRobotsTxt(url)) {
+      filtered.push(url);
+    } else {
+      logger.warn({ url }, "Crawl skipped — disallowed by robots.txt");
+    }
   }
+
+  if (!filtered.length) return [];
+
+  const storageDir = await mkdtemp(join(tmpdir(), "crawlee-thea-"));
+  process.env.CRAWLEE_STORAGE_DIR = storageDir;
+
+  const results: NormalizedItem[] = [];
+
+  try {
+    const crawlerOptions: ConstructorParameters<typeof CheerioCrawler>[0] = {
+      maxConcurrency: 5,
+      maxRequestsPerCrawl: filtered.length,
+      navigationTimeoutSecs: 30,
+      requestHandlerTimeoutSecs: 30,
+      ignoreSslErrors: true,
+      additionalMimeTypes: ["application/xhtml+xml"],
+      async requestHandler({ request, $, response }) {
+        if ((response.statusCode ?? 0) >= 400) return;
+
+        const $body = $("body");
+        $body.find("nav, footer, aside, script, style, header, .ad, .advertisement, .sidebar, .menu").remove();
+
+        const rawTitle =
+          $("meta[property='og:title']").attr("content") ||
+          $("title").text() ||
+          $("h1").first().text() ||
+          null;
+
+        const title = rawTitle ? rawTitle.trim().slice(0, 500) : null;
+
+        const articleText =
+          $("article").text() ||
+          $("main").text() ||
+          $("[role='main']").text() ||
+          $body.text();
+
+        const body = articleText.replace(/\s+/g, " ").trim();
+
+        if (!body || body.length < 80) return;
+
+        const domain = new URL(request.url).hostname;
+
+        const publishedStr =
+          $("meta[property='article:published_time']").attr("content") ||
+          $("meta[name='date']").attr("content") ||
+          $("time[datetime]").first().attr("datetime") ||
+          null;
+
+        const publishedAt = publishedStr ? new Date(publishedStr) : null;
+
+        results.push({
+          platform: "web",
+          sourceUrl: request.url,
+          title,
+          body: body.slice(0, 2000),
+          author: $("meta[name='author']").attr("content") || domain,
+          publishedAt: publishedAt && !isNaN(publishedAt.getTime()) ? publishedAt : null,
+          language: detectLanguage(body),
+          category,
+          engagementMetrics: {},
+          rawMetadata: { domain },
+        });
+      },
+
+      async failedRequestHandler({ request, error }) {
+        logger.warn({ url: request.url, error: (error as Error).message }, "Crawlee request failed");
+      },
+    };
+
+    if (PROXY_URLS.length > 0) {
+      crawlerOptions.proxyConfiguration = new ProxyConfiguration({ proxyUrls: PROXY_URLS });
+    }
+
+    const crawler = new CheerioCrawler(crawlerOptions);
+    await crawler.run(filtered.map((url) => ({ url })));
+  } catch (err) {
+    logger.warn({ err }, "Crawlee crawler error");
+  } finally {
+    try { await rm(storageDir, { recursive: true, force: true }); } catch {}
+    delete process.env.CRAWLEE_STORAGE_DIR;
+  }
+
   return results;
+}
+
+export async function crawlUrl(url: string, category: string): Promise<NormalizedItem | null> {
+  const items = await crawlUrls([url], category);
+  return items[0] ?? null;
 }
