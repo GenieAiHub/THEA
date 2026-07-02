@@ -3,7 +3,7 @@ import { contentItemsTable, watchlistKeywordsTable, alertsTable } from "@workspa
 import { eq, and, gte, lt, sql, count } from "drizzle-orm";
 import { getQueues } from "./queues";
 import { logger } from "./logger";
-import { computeCrisisScore } from "./crisisScoring";
+import { computeCrisisScore, saveCrisisScore } from "./crisisScoring";
 
 const WINDOW_MINUTES = 15;
 const BASELINE_HOURS = 24;
@@ -21,7 +21,7 @@ interface KeywordVolume {
 
 /**
  * Count content items mentioning a keyword in a given time window.
- * Uses a simple ILIKE title/body match — fast on indexed columns.
+ * Uses ILIKE on title/body — sufficient for watchlist keyword matching.
  */
 async function countMentions(
   keyword: string,
@@ -47,6 +47,11 @@ async function countMentions(
 /**
  * Run spike detection for a single org.
  * Called after each 15-min watchlist collection cycle.
+ *
+ * Flow:
+ *   1. Compute volume for every active keyword
+ *   2. Compute crisis score for every keyword (persisted to crisis_scores table)
+ *   3. For keywords that cross the spike threshold, create alerts and queue dispatch
  */
 export async function detectSpikesForOrg(orgId: string): Promise<void> {
   const now = new Date();
@@ -60,31 +65,32 @@ export async function detectSpikesForOrg(orgId: string): Promise<void> {
 
   if (!keywords.length) return;
 
+  const baselineSlots = (BASELINE_HOURS * 60) / WINDOW_MINUTES - 1;
   const spikes: KeywordVolume[] = [];
 
+  // ─── Step 1 + 2: Compute volumes and crisis scores for ALL active keywords ──
   for (const kw of keywords) {
     const [currentVolume, baselineTotal] = await Promise.all([
       countMentions(kw.keyword, orgId, windowStart, now),
       countMentions(kw.keyword, orgId, baselineStart, windowStart),
     ]);
 
-    const baselineSlots = (BASELINE_HOURS * 60) / WINDOW_MINUTES - 1;
     const baselineAvg = baselineSlots > 0 ? baselineTotal / baselineSlots : 0;
-    const spikeRatio = baselineAvg > 0 ? currentVolume / baselineAvg : currentVolume > 0 ? 999 : 1;
+    const spikeRatio =
+      baselineAvg > 0 ? currentVolume / baselineAvg : currentVolume > 0 ? 999 : 1;
+
+    // Compute crisis score for every keyword and persist to history table
+    const crisis = await computeCrisisScore(orgId, kw.keyword, currentVolume, baselineAvg);
+    await saveCrisisScore(orgId, kw.id, kw.keyword, crisis);
 
     if (spikeRatio >= SPIKE_THRESHOLD && currentVolume >= MIN_VOLUME) {
-      spikes.push({
-        keywordId: kw.id,
-        keyword: kw.keyword,
-        orgId,
-        currentVolume,
-        baselineAvg,
-        spikeRatio,
-      });
+      spikes.push({ keywordId: kw.id, keyword: kw.keyword, orgId, currentVolume, baselineAvg, spikeRatio });
     }
   }
 
+  // ─── Step 3: Create alerts for spiking keywords ──────────────────────────────
   for (const spike of spikes) {
+    // Re-use the crisis score we already computed (pull from last DB insert)
     const crisis = await computeCrisisScore(orgId, spike.keyword, spike.currentVolume, spike.baselineAvg);
 
     const severity =
@@ -133,8 +139,8 @@ export async function detectSpikesForOrg(orgId: string): Promise<void> {
     );
   }
 
-  if (spikes.length > 0) {
-    logger.info({ orgId, spikes: spikes.length }, "Spike detection complete");
+  if (spikes.length > 0 || keywords.length > 0) {
+    logger.info({ orgId, keywords: keywords.length, spikes: spikes.length }, "Spike detection + crisis scoring complete");
   }
 }
 

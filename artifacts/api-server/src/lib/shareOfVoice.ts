@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { contentItemsTable, watchlistKeywordsTable } from "@workspace/db/schema";
-import { eq, and, gte, sql, count, avg } from "drizzle-orm";
+import { eq, and, gte, lt, sql, count, avg, inArray } from "drizzle-orm";
 
 export interface SovEntry {
   keyword: string;
@@ -9,12 +9,6 @@ export interface SovEntry {
   sharePercent: number;
   avgSentiment: number | null;
   trend: "up" | "down" | "stable";
-}
-
-export interface NarrativeGap {
-  competitor: string;
-  topics: string[];
-  message: string;
 }
 
 /**
@@ -27,10 +21,11 @@ export async function computeShareOfVoice(
   orgId: string,
   timeframeHours = 24,
 ): Promise<{ entries: SovEntry[]; totalMentions: number }> {
-  const since = new Date(Date.now() - timeframeHours * 60 * 60 * 1000);
-  const prevSince = new Date(Date.now() - timeframeHours * 2 * 60 * 60 * 1000);
+  const now = new Date();
+  const since = new Date(now.getTime() - timeframeHours * 60 * 60 * 1000);
+  const prevSince = new Date(now.getTime() - timeframeHours * 2 * 60 * 60 * 1000);
 
-  // Get org's brand and competitor keywords
+  // Get org's brand, competitor and keyword entries
   const keywords = await db
     .select()
     .from(watchlistKeywordsTable)
@@ -38,7 +33,7 @@ export async function computeShareOfVoice(
       and(
         eq(watchlistKeywordsTable.orgId, orgId),
         eq(watchlistKeywordsTable.isActive, true),
-        sql`${watchlistKeywordsTable.type} IN ('brand', 'competitor', 'keyword')`,
+        inArray(watchlistKeywordsTable.type, ["brand", "competitor", "keyword"]),
       ),
     );
 
@@ -49,7 +44,9 @@ export async function computeShareOfVoice(
 
   for (const kw of keywords) {
     const pattern = `%${kw.keyword.replace(/[%_]/g, "\\$&")}%`;
+    const mentionFilter = sql`(${contentItemsTable.title} ILIKE ${pattern} OR ${contentItemsTable.body} ILIKE ${pattern})`;
 
+    // Current window
     const [current] = await db
       .select({
         n: count(),
@@ -60,10 +57,11 @@ export async function computeShareOfVoice(
         and(
           eq(contentItemsTable.orgId, orgId),
           gte(contentItemsTable.collectedAt, since),
-          sql`(${contentItemsTable.title} ILIKE ${pattern} OR ${contentItemsTable.body} ILIKE ${pattern})`,
+          mentionFilter,
         ),
       );
 
+    // Previous window (prevSince → since) for trend calculation
     const [previous] = await db
       .select({ n: count() })
       .from(contentItemsTable)
@@ -71,8 +69,8 @@ export async function computeShareOfVoice(
         and(
           eq(contentItemsTable.orgId, orgId),
           gte(contentItemsTable.collectedAt, prevSince),
-          sql`collectedAt < ${since}`,
-          sql`(${contentItemsTable.title} ILIKE ${pattern} OR ${contentItemsTable.body} ILIKE ${pattern})`,
+          lt(contentItemsTable.collectedAt, since),
+          mentionFilter,
         ),
       );
 
@@ -87,8 +85,8 @@ export async function computeShareOfVoice(
       mentionCount: currentN,
       sharePercent: 0, // computed after totals
       avgSentiment:
-        current?.avgSentiment !== null
-          ? Math.round(Number(current?.avgSentiment) * 100) / 100
+        current?.avgSentiment != null
+          ? Math.round(Number(current.avgSentiment) * 100) / 100
           : null,
       trend,
     });

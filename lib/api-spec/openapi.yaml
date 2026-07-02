@@ -1439,7 +1439,7 @@ components:
         generatedAt: { type: string, format: date-time }
     OrganicConfidenceResult:
       type: object
-      required: [topic, timeframe, organicConfidence, coordinatedItemRatio, avgBotRisk, highRiskCount, totalAnalyzed]
+      required: [topic, timeframe, organicConfidence, coordinatedItemRatio, avgBotRisk, highRiskCount, totalAnalyzed, coordinatedBurstCount]
       properties:
         topic:                  { type: string }
         timeframe:              { type: string }
@@ -1448,6 +1448,7 @@ components:
         avgBotRisk:             { type: number }
         highRiskCount:          { type: integer }
         totalAnalyzed:          { type: integer }
+        coordinatedBurstCount:  { type: integer, description: "Number of 30-min windows with 5+ distinct accounts posting (cross-account burst = astroturfing signal)" }
         flaggedAccounts:
           type: array
           items: { type: string }

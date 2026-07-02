@@ -180,21 +180,44 @@ export function startContentIngestionWorker(): void {
 
         case "watchlist-scan": {
           if (!orgId) { logger.warn("watchlist-scan job missing orgId — skipping"); break; }
-          const apiKey = getEnv("BING_NEWS_API_KEY");
-          if (!apiKey) { logger.warn("BING_NEWS_API_KEY not set — watchlist-scan skipped"); break; }
+
+          const bingKey = getEnv("BING_NEWS_API_KEY");
+          const serpKey = getEnv("SERP_API_KEY");
+          if (!bingKey && !serpKey) {
+            logger.warn("Neither BING_NEWS_API_KEY nor SERP_API_KEY set — watchlist-scan skipped");
+            break;
+          }
 
           const orgKeywords = await db
-            .select({ keyword: watchlistKeywordsTable.keyword, category: watchlistKeywordsTable.category })
+            .select({
+              id: watchlistKeywordsTable.id,
+              keyword: watchlistKeywordsTable.keyword,
+              category: watchlistKeywordsTable.category,
+            })
             .from(watchlistKeywordsTable)
             .where(and(eq(watchlistKeywordsTable.orgId, orgId), eq(watchlistKeywordsTable.isActive, true)));
 
           let totalFetched = 0, totalDeduplicated = 0, totalStored = 0;
           for (const kw of orgKeywords) {
-            const items = await collectBingNews(kw.keyword, apiKey, kw.category ?? "general");
-            // Tag each item with the org ID so it's tenant-scoped
-            const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, orgId } }));
-            const s = await ingestItems(tagged, orgId);
-            totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
+            const cat = kw.category ?? "general";
+            // Tag raw metadata with orgId and watchlistKeywordId for downstream analysis
+            const metaTag = { orgId, watchlistKeywordId: kw.id };
+
+            // Primary source: Bing News
+            if (bingKey) {
+              const items = await collectBingNews(kw.keyword, bingKey, cat);
+              const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, ...metaTag } }));
+              const s = await ingestItems(tagged, orgId);
+              totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
+            }
+
+            // Secondary source: SerpAPI (organic search results)
+            if (serpKey) {
+              const items = await collectSerp(kw.keyword, serpKey, cat);
+              const tagged = items.map((i) => ({ ...i, rawMetadata: { ...i.rawMetadata, ...metaTag } }));
+              const s = await ingestItems(tagged, orgId);
+              totalFetched += s.fetched; totalDeduplicated += s.deduplicated; totalStored += s.stored;
+            }
           }
           stats = { fetched: totalFetched, deduplicated: totalDeduplicated, stored: totalStored };
           break;

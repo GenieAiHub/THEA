@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { contentItemsTable } from "@workspace/db/schema";
-import { eq, and, gte, sql, avg, count } from "drizzle-orm";
+import { eq, and, gte, sql } from "drizzle-orm";
 
 export interface BotDetectionResult {
   organicConfidence: number;
@@ -9,19 +9,24 @@ export interface BotDetectionResult {
   highRiskCount: number;
   totalAnalyzed: number;
   flaggedAccounts: string[];
+  coordinatedBurstCount: number;
 }
 
 const BOT_RISK_THRESHOLD = 0.7;
 const COORDINATION_WINDOW_MINUTES = 30;
+const BURST_ACCOUNT_THRESHOLD = 5;   // 5+ different accounts = coordinated burst signal
+const REPEAT_POST_THRESHOLD = 3;     // 3+ posts from same account in window = suspect
 
 /**
  * Compute organic confidence (0-100%) for a topic or keyword.
  *
  * Algorithm:
- *   1. Fetch all content items for the topic in the last 6h
- *   2. Compute average bot risk from existing botRiskScore column
- *   3. Detect coordinated posting: same author, multiple posts in 30 min window
- *   4. organic_confidence = 100 - (coordinated_ratio * 60) - (avg_bot_risk * 40)
+ *   1. Fetch all content items for the topic in the last N hours
+ *   2. Average bot risk from existing botRiskScore column
+ *   3. Same-author repeat detection: ≥3 posts in 30-min window = suspect
+ *   4. Cross-account burst detection: ≥5 different accounts posting in the same
+ *      30-min window = coordinated burst signal (astroturfing pattern)
+ *   5. organic_confidence = 100 − (coordinated_ratio × 40) − (burst_penalty × 20) − (avg_bot_risk × 40)
  */
 export async function computeOrganicConfidence(
   orgId: string,
@@ -36,6 +41,7 @@ export async function computeOrganicConfidence(
       author: contentItemsTable.author,
       botRiskScore: contentItemsTable.botRiskScore,
       collectedAt: contentItemsTable.collectedAt,
+      title: contentItemsTable.title,
     })
     .from(contentItemsTable)
     .where(
@@ -48,40 +54,79 @@ export async function computeOrganicConfidence(
     .limit(500);
 
   if (!items.length) {
-    return { organicConfidence: 100, coordinatedItemRatio: 0, avgBotRisk: 0, highRiskCount: 0, totalAnalyzed: 0, flaggedAccounts: [] };
+    return {
+      organicConfidence: 100,
+      coordinatedItemRatio: 0,
+      avgBotRisk: 0,
+      highRiskCount: 0,
+      totalAnalyzed: 0,
+      flaggedAccounts: [],
+      coordinatedBurstCount: 0,
+    };
   }
 
-  // Compute average bot risk
+  // Average bot risk score
   const avgBotRisk =
     items.reduce((sum, i) => sum + (i.botRiskScore ?? 0), 0) / items.length;
 
   const highRiskCount = items.filter((i) => (i.botRiskScore ?? 0) >= BOT_RISK_THRESHOLD).length;
 
-  // Detect coordinated posting: authors posting 3+ times within 30-min window
-  const authorBuckets = new Map<string, Date[]>();
+  const windowMs = COORDINATION_WINDOW_MINUTES * 60 * 1000;
+
+  // ─── Same-author repeat detection ───────────────────────────────────────────
+  const authorBuckets = new Map<string, number[]>();
   for (const item of items) {
     if (!item.author) continue;
     if (!authorBuckets.has(item.author)) authorBuckets.set(item.author, []);
-    authorBuckets.get(item.author)!.push(item.collectedAt);
+    authorBuckets.get(item.author)!.push(item.collectedAt.getTime());
   }
 
-  const windowMs = COORDINATION_WINDOW_MINUTES * 60 * 1000;
-  const coordinatedAuthors = new Set<string>();
+  const repeatingAuthors = new Set<string>();
   for (const [author, timestamps] of authorBuckets) {
-    const sorted = timestamps.map((t) => t.getTime()).sort((a, b) => a - b);
-    for (let i = 0; i <= sorted.length - 3; i++) {
-      if (sorted[i + 2]! - sorted[i]! <= windowMs) {
-        coordinatedAuthors.add(author);
+    const sorted = timestamps.slice().sort((a, b) => a - b);
+    // Sliding window: find any window where ≥REPEAT_POST_THRESHOLD posts exist
+    let l = 0;
+    for (let r = 0; r < sorted.length; r++) {
+      while (sorted[r]! - sorted[l]! > windowMs) l++;
+      if (r - l + 1 >= REPEAT_POST_THRESHOLD) {
+        repeatingAuthors.add(author);
         break;
       }
     }
   }
 
-  const coordinatedItems = items.filter((i) => i.author && coordinatedAuthors.has(i.author)).length;
+  // ─── Cross-account burst detection ──────────────────────────────────────────
+  // Bucket items into 30-minute slots; any slot with ≥BURST_ACCOUNT_THRESHOLD
+  // distinct authors is a coordinated burst.
+  const slotMs = COORDINATION_WINDOW_MINUTES * 60 * 1000;
+  const slotBuckets = new Map<number, Set<string>>();
+  for (const item of items) {
+    if (!item.author) continue;
+    const slot = Math.floor(item.collectedAt.getTime() / slotMs);
+    if (!slotBuckets.has(slot)) slotBuckets.set(slot, new Set());
+    slotBuckets.get(slot)!.add(item.author);
+  }
+
+  let coordinatedBurstCount = 0;
+  for (const [, accounts] of slotBuckets) {
+    if (accounts.size >= BURST_ACCOUNT_THRESHOLD) coordinatedBurstCount++;
+  }
+
+  // Items from repeating authors
+  const coordinatedItems = items.filter((i) => i.author && repeatingAuthors.has(i.author)).length;
   const coordinatedItemRatio = coordinatedItems / items.length;
 
+  // Burst penalty: 0 if no burst slots, up to 0.5 if ≥5 burst slots observed
+  const burstPenalty = Math.min(0.5, coordinatedBurstCount / 10);
+
   const organicConfidence = Math.round(
-    Math.max(0, Math.min(100, 100 - coordinatedItemRatio * 60 - avgBotRisk * 40)),
+    Math.max(
+      0,
+      Math.min(
+        100,
+        100 - coordinatedItemRatio * 40 - burstPenalty * 20 - avgBotRisk * 40,
+      ),
+    ),
   );
 
   return {
@@ -90,6 +135,7 @@ export async function computeOrganicConfidence(
     avgBotRisk: Math.round(avgBotRisk * 100) / 100,
     highRiskCount,
     totalAnalyzed: items.length,
-    flaggedAccounts: [...coordinatedAuthors].slice(0, 10),
+    flaggedAccounts: [...repeatingAuthors].slice(0, 10),
+    coordinatedBurstCount,
   };
 }
