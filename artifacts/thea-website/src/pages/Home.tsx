@@ -92,8 +92,12 @@ const Hero = () => {
           >
             <div className="relative w-full h-full logo-pulse">
               <img src={logo} alt="THEA Logo" className="w-full h-full object-contain" />
-              <div className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full">
-                <div className="scanline"></div>
+              <div className="ai-scan absolute inset-0 flex items-center justify-center overflow-hidden rounded-full">
+                <div className="ai-radar"></div>
+                <div className="ai-scanbar"></div>
+                <span className="ai-ping"></span>
+                <span className="ai-ping ai-ping--delay"></span>
+                <div className="ai-reticle"></div>
               </div>
             </div>
           </motion.div>
