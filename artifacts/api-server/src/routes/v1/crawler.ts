@@ -123,7 +123,7 @@ router.post("/trigger", requireAdminToken, async (req, res) => {
 
   const validSources = [
     "rss-all", "rss-batch", "gdelt", "newsapi", "mediastack", "bing-news",
-    "twitter", "reddit", "youtube", "serp", "brave", "duckduckgo", "telegram", "tiktok",
+    "twitter", "reddit", "youtube", "serp", "brave", "duckduckgo", "social-search", "telegram", "tiktok",
     "instagram", "facebook", "web-crawler",
   ];
   if (!sourceType || !validSources.includes(sourceType)) {

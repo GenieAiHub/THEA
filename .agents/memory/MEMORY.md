@@ -20,6 +20,7 @@
 - [js-yaml v5 import](js-yaml-v5.md) — js-yaml v5 has no default export; use named import: `import { load as yamlLoad } from "js-yaml"` not `import YAML from "js-yaml"`
 - [Brave/DuckDuckGo search](brave-search-collector.md) — Brave (own-key) & DuckDuckGo (keyless) are now SEPARATE worker cases; keyword scheduler emits "duckduckgo"; collectBrave(keyword,category,apiKey)
 - [FB/IG social scraping](social-scraping-fb-ig.md) — dual-engine (Apify preferred, session-cookie fallback); collectors self-resolve creds & WARN/skip; hashtags in rawMetadata; billable → attempts:1
+- [Keyless social search](brave-search-collector.md) — collectSocialSearch = site:<platform> keyword via DDG (all platforms, no creds); route ALL DDG calls via throttledDdgSearch or concurrency soft-blocks
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
 - [Platform config resolver & catalog](platform-config-catalog.md) — DB-first (lowercase key ↔ UPPERCASE env); keep admin_configs DEFAULT_CONFIGS synced w/ all getPlatformConfig* sites; never env→DB

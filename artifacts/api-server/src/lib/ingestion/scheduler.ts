@@ -112,9 +112,26 @@ async function scheduleSearchKeywords(): Promise<void> {
           opts: { attempts: 2, backoff: { type: "exponential", delay: 30000 } },
         }
       );
+
+      // Keyless social-media discovery for the same keyword — searches every
+      // platform (site:instagram.com <kw>, site:facebook.com <kw>, …).
+      await contentIngestion.upsertJobScheduler(
+        `social-search-${slug}-${orgSlug}`,
+        { every: SEARCH_INTERVAL_MS },
+        {
+          name: "social-search",
+          data: {
+            sourceType: "social-search",
+            keyword,
+            category: category ?? "general",
+            orgId,
+          },
+          opts: { attempts: 2, backoff: { type: "exponential", delay: 30000 } },
+        }
+      );
     }
 
-    logger.info({ count: keywords.length }, "DuckDuckGo search keyword schedulers registered from watchlist (all orgs)");
+    logger.info({ count: keywords.length }, "DuckDuckGo web + social search keyword schedulers registered from watchlist (all orgs)");
   } catch (err) {
     logger.warn({ err }, "Could not schedule search keyword jobs from watchlist_keywords");
   }

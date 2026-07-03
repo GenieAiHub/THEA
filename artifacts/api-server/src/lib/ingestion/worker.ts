@@ -21,6 +21,7 @@ import { collectTikTok } from "./collectors/tiktok";
 import { collectInstagram } from "./collectors/instagram";
 import { collectFacebook } from "./collectors/facebook";
 import { collectDuckDuckGo } from "./collectors/duckduckgo";
+import { collectSocialSearch } from "./collectors/social-search";
 import { PRECONFIGURED_SOURCES, getSourcesByCategory } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
@@ -165,6 +166,14 @@ export function startContentIngestionWorker(): void {
         case "duckduckgo": {
           // Keyless web search — works out of the box, no API key required.
           const items = await collectDuckDuckGo(keyword ?? category ?? "news", category ?? "general");
+          stats = await ingestItems(items, orgId);
+          break;
+        }
+
+        case "social-search": {
+          // Keyless social-media discovery via site:-scoped web search — finds
+          // public posts across all platforms by keyword, no token/cookie needed.
+          const items = await collectSocialSearch(keyword ?? category ?? "news", category ?? "general");
           stats = await ingestItems(items, orgId);
           break;
         }

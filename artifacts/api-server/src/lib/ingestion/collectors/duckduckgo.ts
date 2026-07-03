@@ -1,7 +1,8 @@
-import { search, SafeSearchType, SearchTimeType } from "duck-duck-scrape";
+import { SafeSearchType, SearchTimeType } from "duck-duck-scrape";
 import type { NormalizedItem } from "../types";
 import { logger } from "../../logger";
 import { fetchWithJina } from "./serp";
+import { throttledDdgSearch } from "./ddg-throttle";
 
 /**
  * DuckDuckGo is the default web-search collector: it requires no API key, so
@@ -12,7 +13,7 @@ export async function collectDuckDuckGo(keyword: string, category: string): Prom
   if (!keyword) return [];
 
   try {
-    const response = await search(
+    const response = await throttledDdgSearch(
       keyword,
       { safeSearch: SafeSearchType.OFF, time: SearchTimeType.DAY },
       { open_timeout: 15000, response_timeout: 20000 },
