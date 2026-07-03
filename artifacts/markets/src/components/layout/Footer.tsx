@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Activity } from "lucide-react";
+import { WEBSITE_URL } from "@/lib/urls";
 
 const productLinks = [
   { label: "Markets", href: "/" },
@@ -8,7 +9,7 @@ const productLinks = [
   { label: "How it works", href: "/how-it-works" },
 ];
 
-const categoryLinks = ["Politics", "Crypto", "Sports", "Tech", "Culture"];
+const categoryLinks = ["Politics", "Crypto", "Technology", "Sports", "Entertainment"];
 
 export function Footer() {
   return (
@@ -27,7 +28,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground max-w-xs">
-              Live prediction polls powered by THEA's AI trend scanning. Trade opinions, not money.
+              Live prediction markets powered by THEA's AI trend scanning. Vote free today — trade
+              for real as we roll out deposits and payouts.
             </p>
           </div>
 
@@ -74,7 +76,7 @@ export function Footer() {
             <ul className="space-y-2.5">
               <li>
                 <a
-                  href="/"
+                  href={WEBSITE_URL}
                   className="text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
                   Main Site
@@ -94,10 +96,10 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} THEA Markets. All opinions welcome.
+            &copy; {new Date().getFullYear()} THEA Markets. All predictions welcome.
           </p>
           <p className="text-xs text-muted-foreground/70">
-            No real-money wagering. Votes reflect public sentiment only.
+            Free opinion markets today — real-money trading rolling out soon.
           </p>
         </div>
       </div>

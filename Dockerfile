@@ -53,12 +53,15 @@ ARG APP
 ARG BASE_PATH=/
 ARG VITE_MARKETS_URL=
 ARG VITE_SITE_URL=
+ARG VITE_WEBSITE_URL=
 # vite.config.ts validates PORT even for `build`; the value is irrelevant here.
 # VITE_MARKETS_URL is baked into the website bundle (cross-subdomain link).
+# VITE_WEBSITE_URL is baked into the markets bundle (cross-subdomain link back).
 # VITE_SITE_URL is baked into canonical/OG tags, sitemap.xml, and robots.txt.
 ENV PORT=8080 \
     BASE_PATH=${BASE_PATH} \
     VITE_MARKETS_URL=${VITE_MARKETS_URL} \
+    VITE_WEBSITE_URL=${VITE_WEBSITE_URL} \
     VITE_SITE_URL=${VITE_SITE_URL} \
     NODE_ENV=production
 RUN test -n "$APP" || (echo "ERROR: APP build-arg is required" && exit 1) \

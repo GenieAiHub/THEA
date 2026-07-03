@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Activity, Menu, Search, Trophy, Zap, HelpCircle, LayoutGrid, LogOut, User } from "lucide-react";
+import { Activity, Menu, Search, Trophy, Zap, HelpCircle, LayoutGrid, LogOut, User, Globe } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { WEBSITE_URL } from "@/lib/urls";
 
 const navItems = [
   { label: "Markets", href: "/", icon: LayoutGrid, exact: true },
@@ -75,6 +76,13 @@ export function Navbar() {
               </Link>
             );
           })}
+          <a
+            href={WEBSITE_URL}
+            className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-secondary/40 transition-colors inline-flex items-center gap-1.5"
+          >
+            <Globe className="w-4 h-4" />
+            Main site
+          </a>
         </div>
 
         <form onSubmit={submitSearch} className="hidden md:block relative ml-auto w-64">
@@ -174,6 +182,15 @@ export function Navbar() {
                     </SheetClose>
                   );
                 })}
+                <SheetClose asChild>
+                  <a
+                    href={WEBSITE_URL}
+                    className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-secondary/40 transition-colors"
+                  >
+                    <Globe className="w-4 h-4" />
+                    Main site
+                  </a>
+                </SheetClose>
               </div>
 
               {!isSignedIn && (

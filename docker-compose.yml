@@ -156,6 +156,7 @@ services:
       args:
         APP: markets
         BASE_PATH: ${MARKETS_BASE_PATH:-/}
+        VITE_WEBSITE_URL: ${MARKETS_WEBSITE_URL:-https://thea.quest}
     image: thea-markets
     restart: unless-stopped
     environment:
