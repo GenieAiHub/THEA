@@ -11,14 +11,20 @@
 #   ./thea-deploy --no-pull       # skip `git pull` (deploy the current checkout)
 #   ./thea-deploy --no-build      # reuse existing images (no rebuild)
 #   ./thea-deploy --mirofish      # also start the optional MiroFish sidecar
+#   ./thea-deploy --install       # symlink onto PATH so you can run `thea-deploy` anywhere
+#   ./thea-deploy --uninstall     # remove that PATH symlink
 #   ./thea-deploy --help
 #
-# Run it from anywhere — it cd's to its own directory (the repo root).
+# Run it as ./thea-deploy, or run `--install` once to call `thea-deploy` anywhere.
 # ---------------------------------------------------------------------------
 set -Eeuo pipefail
 
-# --- resolve repo root (this script lives at the repo root) ----------------
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# --- resolve repo root (follows symlinks, so a /usr/local/bin symlink works) --
+SOURCE="${BASH_SOURCE[0]}"
+RESOLVED="$(readlink -f "$SOURCE" 2>/dev/null || true)"
+[ -n "$RESOLVED" ] && SOURCE="$RESOLVED"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$SOURCE")" >/dev/null 2>&1 && pwd)"
+SELF="$SCRIPT_DIR/thea-deploy"
 cd "$SCRIPT_DIR"
 
 # --- pretty logging --------------------------------------------------------
@@ -34,7 +40,29 @@ PULL=1
 BUILD=1
 MIROFISH=0
 
-usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '3,18p' "$SELF" | sed 's/^# \{0,1\}//'; exit 0; }
+
+install_self() {
+  local target="/usr/local/bin/thea-deploy"
+  if ln -sf "$SELF" "$target" 2>/dev/null; then
+    ok "Installed: $target -> $SELF"
+    log "You can now run 'thea-deploy' from any directory."
+  else
+    die "Could not write $target (need root?). Try:  sudo ln -sf \"$SELF\" $target"
+  fi
+  exit 0
+}
+
+uninstall_self() {
+  local target="/usr/local/bin/thea-deploy"
+  if [ -L "$target" ] || [ -e "$target" ]; then
+    rm -f "$target" 2>/dev/null && ok "Removed $target" \
+      || die "Could not remove $target (need root?). Try:  sudo rm -f $target"
+  else
+    warn "$target not present — nothing to remove."
+  fi
+  exit 0
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,6 +71,8 @@ while [ $# -gt 0 ]; do
     --no-pull)       PULL=0 ;;
     --no-build)      BUILD=0 ;;
     --mirofish)      MIROFISH=1 ;;
+    --install)       install_self ;;
+    --uninstall)     uninstall_self ;;
     -h|--help)       usage ;;
     *) die "Unknown option: $1  (try --help)" ;;
   esac

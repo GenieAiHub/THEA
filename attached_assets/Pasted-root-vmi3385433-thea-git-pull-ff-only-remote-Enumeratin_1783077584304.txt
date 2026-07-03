@@ -1,0 +1,106 @@
+root@vmi3385433:~/thea# git pull --ff-only
+remote: Enumerating objects: 250, done.
+remote: Counting objects: 100% (250/250), done.
+remote: Compressing objects: 100% (61/61), done.
+remote: Total 174 (delta 122), reused 163 (delta 111), pack-reused 0 (from 0)
+Receiving objects: 100% (174/174), 4.46 MiB | 12.34 MiB/s, done.
+Resolving deltas: 100% (122/122), completed with 61 local objects.
+From https://github.com/GenieAiHub/THEA
+   49a911b..47d765a  main       -> origin/main
+Updating 49a911b..47d765a
+Fast-forward
+ .agents/memory/MEMORY.md                                     |   9 +-
+ .agents/memory/brave-search-collector.md                     |  17 +-
+ .agents/memory/gemini-grounding.md                           |  40 +++
+ .agents/memory/platform-config-catalog.md                    |  42 +++
+ .agents/memory/social-scraping-fb-ig.md                      |  30 ++
+ .agents/memory/thea-branding-assets.md                       |  29 +-
+ .agents/memory/thea-website-preview-auth.md                  |  15 +
+ artifacts/admin-ui/public/logo.png                           | Bin 0 -> 364439 bytes
+ artifacts/admin-ui/src/components/layout.tsx                 |  11 +-
+ artifacts/admin-ui/src/pages/api-keys.tsx                    |  44 ++-
+ artifacts/admin-ui/src/pages/login.tsx                       |   8 +-
+ artifacts/api-server/src/index.ts                            |   2 +-
+ artifacts/api-server/src/lib/alert-dispatch-worker.ts        |  10 +-
+ artifacts/api-server/src/lib/analysis/classifier.ts          |  18 +-
+ artifacts/api-server/src/lib/analysis/embeddings.ts          |  18 +-
+ artifacts/api-server/src/lib/analysis/mirofish.ts            |  33 ++-
+ artifacts/api-server/src/lib/cryptoPayments.ts               |  20 +-
+ artifacts/api-server/src/lib/disinformation.ts               |   3 +-
+ artifacts/api-server/src/lib/emailDeliveryWorker.ts          |  22 +-
+ artifacts/api-server/src/lib/ingestion/collectors/apify.ts   |  61 ++++
+ .../api-server/src/lib/ingestion/collectors/ddg-throttle.ts  |  33 +++
+ .../src/lib/ingestion/collectors/deepseek-crawl.ts           | 100 +++++++
+ .../api-server/src/lib/ingestion/collectors/duckduckgo.ts    |   5 +-
+ .../api-server/src/lib/ingestion/collectors/facebook.ts      | 209 ++++++++++++++
+ .../api-server/src/lib/ingestion/collectors/gemini-search.ts |  99 +++++++
+ .../api-server/src/lib/ingestion/collectors/hashtags.ts      |  67 +++++
+ .../api-server/src/lib/ingestion/collectors/instagram.ts     | 202 +++++++++++++
+ .../api-server/src/lib/ingestion/collectors/social-search.ts | 106 +++++++
+ .../api-server/src/lib/ingestion/collectors/telegram.ts      |  20 +-
+ .../api-server/src/lib/ingestion/collectors/web-crawler.ts   |  20 +-
+ artifacts/api-server/src/lib/ingestion/scheduler.ts          |  57 +++-
+ artifacts/api-server/src/lib/ingestion/worker.ts             | 103 +++++--
+ artifacts/api-server/src/lib/llm.ts                          | 172 +++++++++--
+ artifacts/api-server/src/lib/paypal.ts                       |  32 +-
+ artifacts/api-server/src/lib/plans.ts                        |  21 +-
+ artifacts/api-server/src/lib/platform-config.ts              |  77 +++++
+ artifacts/api-server/src/lib/stripe.ts                       |  42 +--
+ artifacts/api-server/src/lib/stripeProvisioning.ts           |   2 +-
+ artifacts/api-server/src/lib/telegramBot.ts                  |  15 +-
+ artifacts/api-server/src/routes/v1/admin_configs.ts          | 126 ++++++--
+ artifacts/api-server/src/routes/v1/billing.ts                |  72 +++--
+ artifacts/api-server/src/routes/v1/crawler.ts                |   7 +-
+ artifacts/api-server/src/routes/webhooks/stripe.ts           |   4 +-
+ artifacts/markets/public/logo.png                            | Bin 0 -> 364439 bytes
+ artifacts/markets/src/components/layout/Footer.tsx           |  10 +-
+ artifacts/markets/src/components/layout/Navbar.tsx           |  10 +-
+ artifacts/markets/src/pages/SignIn.tsx                       |   8 +-
+ artifacts/markets/src/pages/SignUp.tsx                       |   8 +-
+ artifacts/thea-access/app/login.tsx                          |  16 +-
+ artifacts/thea-access/assets/images/logo.png                 | Bin 0 -> 364439 bytes
+ artifacts/thea-website/public/logo.png                       | Bin 31148 -> 364439 bytes
+ artifacts/thea-website/public/opengraph.jpg                  | Bin 43079 -> 91131 bytes
+ artifacts/thea-website/src/App.tsx                           |   2 +
+ .../thea-website/src/components/layout/DashboardLayout.tsx   |   5 +-
+ artifacts/thea-website/src/components/layout/Footer.tsx      |   9 +-
+ .../thea-website/src/components/layout/PublicNavbar.tsx      |   8 +-
+ .../thea-website/src/components/simulation/IntelGlobe.tsx    | 168 +++++++++++
+ artifacts/thea-website/src/pages/CheckoutPage.tsx            |   2 +-
+ artifacts/thea-website/src/pages/Home.tsx                    |   2 +-
+ artifacts/thea-website/src/pages/OnboardingPage.tsx          |   2 +-
+ artifacts/thea-website/src/pages/SignInPage.tsx              |   2 +-
+ artifacts/thea-website/src/pages/SignUpPage.tsx              |   2 +-
+ artifacts/thea-website/src/pages/SimulationDashboardPage.tsx | 417 +++++++++++++++++++++++++++
+ .../ChatGPT_Image_Jul_2,_2026,_02_06_46_PM_1783074348203.png | Bin 0 -> 1779200 bytes
+ .../ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1783038920659.png | Bin 0 -> 2600109 bytes
+ .../ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1783038920662.png | Bin 0 -> 2600109 bytes
+ attached_assets/thea-logo.png                                | Bin 0 -> 364439 bytes
+ thea-deploy                                                  | 133 +++++++++
+ 68 files changed, 2521 insertions(+), 306 deletions(-)
+ create mode 100644 .agents/memory/gemini-grounding.md
+ create mode 100644 .agents/memory/platform-config-catalog.md
+ create mode 100644 .agents/memory/social-scraping-fb-ig.md
+ create mode 100644 .agents/memory/thea-website-preview-auth.md
+ create mode 100644 artifacts/admin-ui/public/logo.png
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/apify.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/ddg-throttle.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/deepseek-crawl.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/facebook.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/gemini-search.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/hashtags.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/instagram.ts
+ create mode 100644 artifacts/api-server/src/lib/ingestion/collectors/social-search.ts
+ create mode 100644 artifacts/api-server/src/lib/platform-config.ts
+ create mode 100644 artifacts/markets/public/logo.png
+ create mode 100644 artifacts/thea-access/assets/images/logo.png
+ create mode 100644 artifacts/thea-website/src/components/simulation/IntelGlobe.tsx
+ create mode 100644 artifacts/thea-website/src/pages/SimulationDashboardPage.tsx
+ create mode 100644 attached_assets/ChatGPT_Image_Jul_2,_2026,_02_06_46_PM_1783074348203.png
+ create mode 100644 attached_assets/ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1783038920659.png
+ create mode 100644 attached_assets/ChatGPT_Image_Jul_2,_2026,_05_06_19_AM_1783038920662.png
+ create mode 100644 attached_assets/thea-logo.png
+ create mode 100755 thea-deploy
+root@vmi3385433:~/thea# thea-deploy
+thea-deploy: command not found
+root@vmi3385433:~/thea#
