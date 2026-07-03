@@ -22,7 +22,6 @@ const productLinks = [
 const resourceLinks = [
   { href: "/faq", label: "FAQ", desc: "Common questions" },
   { href: "/knowledge-base", label: "Knowledge Base", desc: "Guides & documentation" },
-  { href: "/about", label: "About", desc: "Our purpose & mission" },
 ];
 
 function DesktopDropdown({
@@ -62,13 +61,19 @@ export function PublicNavbar() {
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b border-white/5 bg-background/50 px-6 py-5 backdrop-blur-md md:px-8">
       <Link href="/">
-        <img src={logoSrc} alt="THEA" className="h-9 w-auto object-contain" />
+        <img src={logoSrc} alt="THEA" className="h-14 w-auto object-contain" />
       </Link>
 
       {/* Desktop nav */}
       <div className="hidden items-center gap-7 md:flex">
         <DesktopDropdown label="Product" items={productLinks} />
         <DesktopDropdown label="Resources" items={resourceLinks} />
+        <Link
+          href="/about"
+          className="py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-white"
+        >
+          About
+        </Link>
         <Link
           href="/pricing"
           className="py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-white"
@@ -150,6 +155,13 @@ export function PublicNavbar() {
                       {item.label}
                     </Link>
                   ))}
+                  <Link
+                    href="/about"
+                    onClick={() => setOpen(false)}
+                    className="py-2 text-base text-white/90 hover:text-blue-400"
+                  >
+                    About
+                  </Link>
                   <Link
                     href="/pricing"
                     onClick={() => setOpen(false)}
