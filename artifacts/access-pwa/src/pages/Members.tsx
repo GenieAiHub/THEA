@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { api, ApiError } from "@/lib/api";
+import { createMember, listMembers, ApiError } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -21,7 +21,10 @@ import { toast } from "sonner";
 export default function Members() {
   const { canManage } = useAuth();
   const qc = useQueryClient();
-  const members = useQuery({ queryKey: ["members"], queryFn: api.listMembers });
+  const members = useQuery({
+    queryKey: ["members"],
+    queryFn: () => listMembers().then((r) => r.data),
+  });
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -31,7 +34,7 @@ export default function Members() {
 
   const create = useMutation({
     mutationFn: () =>
-      api.createMember({
+      createMember({
         fullName: fullName.trim(),
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,

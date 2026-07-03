@@ -9,7 +9,7 @@
 - [Cross-artifact API routing](cross-artifact-api-routing.md) — frontends must call the API with root-relative /api/v1/... URLs; prepending BASE_URL hits their own Vite server and returns SPA HTML
 - [Phase 6 intelligence queue architecture](phase6-intelligence-queue.md) — intelligence-jobs is a separate BullMQ queue (concurrency=1); never share with llm-processing to avoid job-stealing
 - [DB package rebuild process](db-rebuild-process.md) — after schema changes, run `cd lib/db && pnpm exec tsc --build tsconfig.json` before API typecheck or the new exports won't be visible
-- [Orval codegen blocker](orval-codegen-blocker.md) — v8.18.0 "Failed to resolve input" persists; set clean:false, always restore from git on failure
+- [Orval codegen RESOLVED](orval-codegen-blocker.md) — "Failed to resolve input" was 3 spec bugs (dup keys, 3.1 nullable arrays, unquoted comma); api-zod barrel must export zod-only
 - [Phase 7 portal architecture](phase7-portal-architecture.md) — self-hosted auth (AuthContext/useAuth + Protected wrapper + HomeRedirect); root-relative /api/v1; hooks need <any> until codegen fixed
 - [Design subagent redesign fidelity](design-subagent-redesign-fidelity.md) — redesign delegations silently drop sections & invent product claims; diff result vs git original before accepting
 - [Public consumer markets auth](public-markets-auth.md) — markets router stays anonymous (optionalAuth, not requireAuth) despite new optional sign-in UI; anon scoped to PLATFORM_ORG_ID

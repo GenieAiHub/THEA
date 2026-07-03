@@ -9,7 +9,11 @@ import {
   ShieldX,
   Users,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import {
+  listAccessEvents,
+  listAccessPoints,
+  listMembers,
+} from "@workspace/api-client-react";
 import { reasonLabel } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,11 +21,17 @@ import { formatDistanceToNow } from "date-fns";
 
 export default function Home() {
   const { user } = useAuth();
-  const members = useQuery({ queryKey: ["members"], queryFn: api.listMembers });
-  const points = useQuery({ queryKey: ["points"], queryFn: api.listPoints });
+  const members = useQuery({
+    queryKey: ["members"],
+    queryFn: () => listMembers().then((r) => r.data),
+  });
+  const points = useQuery({
+    queryKey: ["points"],
+    queryFn: () => listAccessPoints().then((r) => r.data),
+  });
   const events = useQuery({
     queryKey: ["events", 8],
-    queryFn: () => api.listEvents(8),
+    queryFn: () => listAccessEvents({ limit: 8 }).then((r) => r.data),
   });
 
   const firstName = (user?.name ?? "").split(" ")[0] || "there";

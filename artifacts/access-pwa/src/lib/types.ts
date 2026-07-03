@@ -1,87 +1,24 @@
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string | null;
-  role: string;
-  orgId: string;
-}
+/**
+ * Domain types for the app come straight from the shared, generated API client
+ * (`@workspace/api-client-react`) so there is a single source of truth. This
+ * module only re-exports the ones the UI references plus a couple of local
+ * display helpers.
+ */
+export type {
+  AuthUser,
+  AuthOrg,
+  Member,
+  MemberListItem,
+  MemberDetail,
+  EnrolledFace,
+  AccessPoint,
+  AccessGrant,
+  AccessEvent,
+  IdentifyResult,
+} from "@workspace/api-client-react";
 
-export interface AuthOrg {
-  id: string;
-  name: string;
-  slug: string;
-  onboardingCompletedAt: string | null;
-}
-
-export interface Member {
-  id: string;
-  orgId: string;
-  fullName: string;
-  email: string | null;
-  phone: string | null;
-  externalRef: string | null;
-  notes: string | null;
-  status: string;
-  consentGivenAt: string | null;
-  consentVersion: string | null;
-  createdAt: string;
-  updatedAt: string;
-  faceCount?: number;
-}
-
-export interface Face {
-  id: string;
-  quality: number | null;
-  createdAt: string;
-}
-
-export interface MemberDetail extends Member {
-  faces: Face[];
-}
-
-export interface AccessPoint {
-  id: string;
-  orgId: string;
-  name: string;
-  description: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Grant {
-  id: string;
-  memberId: string;
-  accessPointId: string;
-  isActive: boolean;
-  validFrom: string | null;
-  validUntil: string | null;
-  createdAt: string;
-  memberName: string | null;
-  accessPointName: string | null;
-}
-
+/** Access decision returned by the identify endpoint and stored on events. */
 export type Decision = "granted" | "denied";
-
-export interface AccessEvent {
-  id: string;
-  decision: Decision;
-  reason: string;
-  distance: number | null;
-  createdAt: string;
-  memberId: string | null;
-  memberName: string | null;
-  accessPointId: string | null;
-  accessPointName: string | null;
-}
-
-export interface IdentifyResult {
-  decision: Decision;
-  reason: string;
-  member: { id: string; fullName: string } | null;
-  distance: number | null;
-  accessPoint: { id: string; name: string };
-}
 
 /** Maps machine reason codes from the identify endpoint to human copy. */
 export function reasonLabel(reason: string): string {

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { biometricLabel } from "@/lib/biometric";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@workspace/api-client-react";
 
 export default function Lock() {
   const { user, unlockWithBiometric, unlockWithPassword, logout } = useAuth();
@@ -41,7 +41,9 @@ export default function Lock() {
       await unlockWithPassword(password);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Incorrect password.",
+        err instanceof ApiError
+          ? err.message
+          : "Can't reach the server. Check your connection and try again.",
       );
     } finally {
       setBusy(false);

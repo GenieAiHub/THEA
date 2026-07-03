@@ -12,7 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { api, ApiError } from "@/lib/api";
+import {
+  createAccessPoint,
+  deleteAccessPoint,
+  listAccessPoints,
+  updateAccessPoint,
+  ApiError,
+} from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -20,7 +26,10 @@ import { toast } from "sonner";
 export default function AccessPoints() {
   const { canManage } = useAuth();
   const qc = useQueryClient();
-  const points = useQuery({ queryKey: ["points"], queryFn: api.listPoints });
+  const points = useQuery({
+    queryKey: ["points"],
+    queryFn: () => listAccessPoints().then((r) => r.data),
+  });
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -28,7 +37,7 @@ export default function AccessPoints() {
 
   const create = useMutation({
     mutationFn: () =>
-      api.createPoint({
+      createAccessPoint({
         name: name.trim(),
         description: description.trim() || undefined,
       }),
@@ -46,12 +55,12 @@ export default function AccessPoints() {
 
   const toggle = useMutation({
     mutationFn: (p: { id: string; isActive: boolean }) =>
-      api.updatePoint(p.id, { isActive: p.isActive }),
+      updateAccessPoint(p.id, { isActive: p.isActive }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["points"] }),
   });
 
   const del = useMutation({
-    mutationFn: (id: string) => api.deletePoint(id),
+    mutationFn: (id: string) => deleteAccessPoint(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["points"] });
       toast.success("Access point deleted");

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, ShieldCheck, ShieldX } from "lucide-react";
-import { api } from "@/lib/api";
+import { listAccessEvents } from "@workspace/api-client-react";
 import { reasonLabel } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -8,7 +8,7 @@ import { format } from "date-fns";
 export default function Events() {
   const events = useQuery({
     queryKey: ["events", 100],
-    queryFn: () => api.listEvents(100),
+    queryFn: () => listAccessEvents({ limit: 100 }).then((r) => r.data),
   });
 
   return (

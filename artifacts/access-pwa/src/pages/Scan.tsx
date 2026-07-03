@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CameraCapture } from "@/components/CameraCapture";
-import { api } from "@/lib/api";
+import { identifyFace, listAccessPoints } from "@workspace/api-client-react";
 import { reasonLabel, type IdentifyResult } from "@/lib/types";
 import {
   formatCoords,
@@ -29,7 +29,10 @@ import {
 
 export default function Scan() {
   const qc = useQueryClient();
-  const points = useQuery({ queryKey: ["points"], queryFn: api.listPoints });
+  const points = useQuery({
+    queryKey: ["points"],
+    queryFn: () => listAccessPoints().then((r) => r.data),
+  });
   const [pointId, setPointId] = useState<string>("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [result, setResult] = useState<IdentifyResult | null>(null);
@@ -43,7 +46,7 @@ export default function Scan() {
 
   const identify = useMutation({
     mutationFn: (base64: string) =>
-      api.identify(base64, selectedPoint!.id),
+      identifyFace({ imageBase64: base64, accessPointId: selectedPoint!.id }),
     onSuccess: (res) => {
       setResult(res);
       setCameraOpen(false);

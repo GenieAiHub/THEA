@@ -1822,7 +1822,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/IdentifyResult"
-        "400": { description: imageBase64 and accessPointId required, or access point inactive }
+        "400": { description: "imageBase64 and accessPointId required, or access point inactive" }
         "404": { description: Access point not found }
         "422": { description: Invalid image }
   /v1/access/events:
@@ -1841,6 +1841,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccessEventList"
+  /v1/auth/register:
+    post:
+      operationId: authRegister
+      tags: [auth]
+      summary: Register a new organization owner and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created; session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResult"
+        "400": { description: A valid email and password are required }
+        "409": { description: An account with this email already exists }
+  /v1/auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Authenticate with email and password and start a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated; session cookie set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+        "400": { description: Email and password are required }
+        "401": { description: Invalid email or password }
+  /v1/auth/logout:
+    post:
+      operationId: authLogout
+      tags: [auth]
+      summary: Clear the current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResult"
+  /v1/auth/me:
+    get:
+      operationId: authMe
+      tags: [auth]
+      summary: Get the authenticated user, org, tier and feature flags
+      responses:
+        "200":
+          description: Current session context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResult"
+        "401": { description: Unauthenticated }
 
 components:
   securitySchemes:
@@ -1859,6 +1924,80 @@ components:
       bearerFormat: "thea_<key>"
       description: "THEA Developer API key (Enterprise). Create via POST /v1/api-keys. Grants member-level read access."
   schemas:
+    AuthUser:
+      type: object
+      required: [id, email, role, orgId]
+      properties:
+        id:    { type: string, format: uuid }
+        email: { type: string }
+        name:  { type: string, nullable: true }
+        role:  { type: string }
+        orgId: { type: string, format: uuid }
+    AuthOrg:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:   { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        onboardingCompletedAt: { type: string, format: date-time, nullable: true }
+    RegisterInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string }
+        password: { type: string }
+        name:     { type: string }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:    { type: string }
+        password: { type: string }
+    RegisterResult:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [user, org, token, expiresAt]
+          properties:
+            user:      { $ref: "#/components/schemas/AuthUser" }
+            org:       { $ref: "#/components/schemas/AuthOrg" }
+            token:     { type: string }
+            expiresAt: { type: string, format: date-time }
+    LoginResult:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [user, token, expiresAt]
+          properties:
+            user:      { $ref: "#/components/schemas/AuthUser" }
+            token:     { type: string }
+            expiresAt: { type: string, format: date-time }
+    MeResult:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [user, org, tier, featureFlags]
+          properties:
+            user:         { $ref: "#/components/schemas/AuthUser" }
+            org:          { $ref: "#/components/schemas/AuthOrg" }
+            tier:         { type: string, enum: [starter, pro, enterprise] }
+            featureFlags: { type: array, items: { type: string } }
+    LogoutResult:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [success]
+          properties:
+            success: { type: boolean }
     Wallet:
       type: object
       properties:
@@ -2123,35 +2262,6 @@ components:
         usage:
           $ref: "#/components/schemas/LlmUsage"
         durationMs: { type: integer }
-    TalkingPointsInput:
-      type: object
-      required: [topic]
-      properties:
-        topic:    { type: string }
-        context:  { type: string }
-        provider: { type: string, enum: [openai, gemini] }
-    TalkingPointsResult:
-      type: object
-      properties:
-        topic:         { type: string }
-        talkingPoints: { type: string }
-        provider:      { type: string }
-        model:         { type: string }
-    DraftStatementInput:
-      type: object
-      required: [topic]
-      properties:
-        topic:    { type: string }
-        tone:     { type: string }
-        audience: { type: string }
-        provider: { type: string, enum: [openai, gemini] }
-    StatementResult:
-      type: object
-      properties:
-        topic:     { type: string }
-        statement: { type: string }
-        provider:  { type: string }
-        model:     { type: string }
     PlatformConfig:
       type: object
       properties:
@@ -2212,7 +2322,7 @@ components:
             $ref: "#/components/schemas/MarketOption"
         totalVotes:     { type: integer }
         status:         { type: string, enum: [open, closed, resolved] }
-        resolvedOption: { type: ["integer", "null"] }
+        resolvedOption: { type: integer, nullable: true }
         source:         { type: string, enum: [auto, manual] }
         sourceTopic:    { type: string, nullable: true }
         closesAt:       { type: string, nullable: true, format: date-time }
@@ -2305,7 +2415,7 @@ components:
         region:         { type: string, nullable: true }
         intensity:      { type: integer, minimum: 0, maximum: 100 }
         mentionCount:   { type: integer }
-        avgSentiment:   { type: ["number", "null"] }
+        avgSentiment:   { type: number, nullable: true }
     GeoHeatmapResult:
       type: object
       required: [data, topic, timeframe, totalCountries, generatedAt]
@@ -2326,7 +2436,7 @@ components:
         type:           { type: string }
         mentionCount:   { type: integer }
         sharePercent:   { type: number }
-        avgSentiment:   { type: ["number", "null"] }
+        avgSentiment:   { type: number, nullable: true }
         trend:          { type: string, enum: [up, down, stable] }
     ShareOfVoiceResult:
       type: object
@@ -2587,9 +2697,9 @@ components:
         baselinePeriodEnd:      { type: string, nullable: true, format: date-time }
         goal:                   { type: string, nullable: true }
         status:                 { type: string, enum: [active, paused, completed] }
-        baselineKeywordVolume:  { type: ["number", "null"] }
-        baselineSentiment:      { type: ["number", "null"] }
-        baselineSov:            { type: ["number", "null"] }
+        baselineKeywordVolume:  { type: number, nullable: true }
+        baselineSentiment:      { type: number, nullable: true }
+        baselineSov:            { type: number, nullable: true }
         createdAt:              { type: string, format: date-time }
         updatedAt:              { type: string, format: date-time }
     CampaignList:
@@ -2658,7 +2768,7 @@ components:
       required: [id, createdAt]
       properties:
         id:        { type: string, format: uuid }
-        quality:   { type: ["number", "null"] }
+        quality:   { type: number, nullable: true }
         createdAt: { type: string, format: date-time }
     MemberDetail:
       allOf:
@@ -2790,7 +2900,7 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/IdentifyMember"
-        distance: { type: ["number", "null"] }
+        distance: { type: number, nullable: true }
         accessPoint:
           $ref: "#/components/schemas/IdentifyAccessPoint"
     AccessEvent:
@@ -2800,7 +2910,7 @@ components:
         id:              { type: string, format: uuid }
         decision:        { type: string, enum: [granted, denied] }
         reason:          { type: string }
-        distance:        { type: ["number", "null"] }
+        distance:        { type: number, nullable: true }
         createdAt:       { type: string, format: date-time }
         memberId:        { type: string, format: uuid, nullable: true }
         memberName:      { type: string, nullable: true }

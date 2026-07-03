@@ -32,7 +32,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CameraCapture } from "@/components/CameraCapture";
-import { api } from "@/lib/api";
+import {
+  createAccessGrant,
+  deleteAccessGrant,
+  deleteMember,
+  deleteMemberFace,
+  enrollMemberFace,
+  getMember,
+  listAccessGrants,
+  listAccessPoints,
+} from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -47,13 +56,16 @@ export default function MemberDetail() {
 
   const member = useQuery({
     queryKey: ["member", id],
-    queryFn: () => api.getMember(id),
+    queryFn: () => getMember(id),
     enabled: !!id,
   });
-  const points = useQuery({ queryKey: ["points"], queryFn: api.listPoints });
+  const points = useQuery({
+    queryKey: ["points"],
+    queryFn: () => listAccessPoints().then((r) => r.data),
+  });
   const grants = useQuery({
     queryKey: ["grants", { memberId: id }],
-    queryFn: () => api.listGrants({ memberId: id }),
+    queryFn: () => listAccessGrants({ memberId: id }).then((r) => r.data),
     enabled: !!id,
   });
 
@@ -62,7 +74,8 @@ export default function MemberDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const enroll = useMutation({
-    mutationFn: (base64: string) => api.enrollFace(id, base64),
+    mutationFn: (base64: string) =>
+      enrollMemberFace(id, { imageBase64: base64 }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["member", id] });
       void qc.invalidateQueries({ queryKey: ["members"] });
@@ -77,7 +90,7 @@ export default function MemberDetail() {
   });
 
   const removeFace = useMutation({
-    mutationFn: (faceId: string) => api.deleteFace(id, faceId),
+    mutationFn: (faceId: string) => deleteMemberFace(id, faceId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["member", id] });
       toast.success("Face removed");
@@ -86,7 +99,7 @@ export default function MemberDetail() {
 
   const addGrant = useMutation({
     mutationFn: (accessPointId: string) =>
-      api.createGrant({ memberId: id, accessPointId }),
+      createAccessGrant({ memberId: id, accessPointId }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["grants", { memberId: id }] });
       setGrantPoint("");
@@ -97,7 +110,7 @@ export default function MemberDetail() {
   });
 
   const removeGrant = useMutation({
-    mutationFn: (grantId: string) => api.deleteGrant(grantId),
+    mutationFn: (grantId: string) => deleteAccessGrant(grantId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["grants", { memberId: id }] });
       toast.success("Access removed");
@@ -105,7 +118,7 @@ export default function MemberDetail() {
   });
 
   const del = useMutation({
-    mutationFn: () => api.deleteMember(id),
+    mutationFn: () => deleteMember(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["members"] });
       toast.success("Member deleted");

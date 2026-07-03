@@ -1,28 +1,41 @@
 ---
-name: Orval codegen blocker
-description: Orval v8.18.0 fails to regenerate api.ts — root causes, workarounds, and safe fallback procedure.
+name: Orval codegen (RESOLVED)
+description: The long-standing "Failed to resolve input" orval blocker was 3 spec bugs, now fixed. How to keep codegen green.
 ---
 
-# Orval Codegen Blocker
+# Orval codegen — root cause found & fixed
 
-## The rule
-Never run `pnpm run --filter @workspace/api-spec codegen` without being prepared to restore the generated files from git if it fails. Set `clean: false` in `lib/api-spec/orval.config.ts` (already done) so a failed run doesn't wipe the existing files.
+The opaque orval v8.18.0 error `Failed to resolve input: Please provide a valid
+string value or pass a loader to process the input` was NEVER an orval/redocly
+bug. It was `lib/api-spec/openapi.yaml` failing to parse/validate. Three distinct
+spec bugs stacked up (fix them in this order; each unmasks the next):
 
-**Why:** Orval v8.18.0 produces "Failed to resolve input: Please provide a valid string value or pass a loader to process the input" even after all known fixes were applied. The generated files are the only source of truth for the API client hooks.
+1. **Duplicate mapping keys** — the YAML loader rejects the whole file, surfacing
+   the opaque "Failed to resolve input". Symptom is generic; cause is a repeated
+   `components.schemas.<Name>`. (Was: TalkingPointsInput/Result + DraftStatementInput/StatementResult defined twice — kept the richer, API-matching copies.)
+2. **OpenAPI 3.1 nullable array syntax** — `type: ["number","null"]` is invalid in
+   3.0.3 (spec is 3.0.3). Convert every one to `type: number, nullable: true`.
+   `perl -i -pe 's/type: \["(\w+)", "null"\]/type: $1, nullable: true/g' openapi.yaml`
+3. **Unquoted comma inside a YAML flow mapping** — `{ description: a, b }` parses
+   as two keys. Quote any inline `{ description: "...," }` that contains a comma.
 
-## Root causes investigated (none fully resolved)
-1. **Duplicate path key** — `/v1/intelligence/simulate` appeared twice in `lib/api-spec/openapi.yaml`. The stub version (lines ~776–783, operationId: runWhatIfSimulation, 501 response) was removed. The real one remains at ~line 1157.
-2. **OpenAPI 3.1 nullable syntax** — 19 instances of `type: ["string", "null"]` were converted to `type: string, nullable: true`. Version header changed from `openapi: 3.1.0` to `openapi: 3.0.3`.
-3. **Deeper YAML issue** — The error persists even after the above fixes, even with `validation: false` and absolute paths. The problem is in paths defined in the second half of the file (lines 608+). Further binary-search debugging is needed.
+After these, `pnpm --filter @workspace/api-spec run codegen` succeeds and also runs
+`typecheck:libs`.
 
-## Safe fallback procedure
-If generated files are ever missing:
-```bash
-git --no-optional-locks show HEAD:lib/api-client-react/src/generated/api.ts > lib/api-client-react/src/generated/api.ts
-git --no-optional-locks show HEAD:lib/api-client-react/src/generated/api.schemas.ts > lib/api-client-react/src/generated/api.schemas.ts
-```
+## api-zod inline-body name collision (TS2308)
+Operations with an **inline** requestBody or query params make orval-zod emit the
+SAME name as both a zod const in `generated/api.ts` and a TS type in
+`generated/types/` (e.g. `CreateApiKeyBody`, `GetCampaignMeasurementsParams`).
+Star-exporting both barrels → `TS2308 already exported a member`. `export type *`
+does NOT fix it. Fix: `lib/api-zod/src/index.ts` re-exports ONLY the zod schemas
+(`export * from "./generated/api"`). api-zod is a runtime-validation package; TS
+types come from `@workspace/api-client-react`. `src/index.ts` is hand-maintained
+(orval only writes under `generated/`), so this edit survives codegen.
+**Why:** avoids maintaining 9 explicit re-exports that grow with every new inline-body op.
 
-## How to apply
-- Before any `pnpm run codegen`, confirm `clean: false` in `lib/api-spec/orval.config.ts`
-- After any failed codegen, immediately restore from git as above
-- The `<any>` generic workarounds in Phase 7 pages are intentional until codegen is fixed
+## Rules to keep it green
+- Keep `clean: false` in `lib/api-spec/orval.config.ts` (a failed run won't wipe files).
+- When adding endpoints, prefer `$ref` to a named component schema over inline
+  request bodies to avoid new `<Op>Body` collisions.
+- Never name a component schema `<OperationIdPascal>Body`/`Response`/`Params` —
+  orval auto-generates those and they collide (TS2308).

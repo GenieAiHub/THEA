@@ -1,5 +1,5 @@
 import { Route, Router as WouterRouter, Switch } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Loader2, ScanFace } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,20 +15,9 @@ import AccessPoints from "@/pages/AccessPoints";
 import Events from "@/pages/Events";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
-import { ApiError } from "@/lib/api";
+import { queryClient, persister, APP_CACHE_VERSION } from "@/lib/queryClient";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: (count, error) => {
-        if (error instanceof ApiError && error.status === 401) return false;
-        return count < 1;
-      },
-      refetchOnWindowFocus: false,
-      staleTime: 15_000,
-    },
-  },
-});
+const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
 
 function AuthedApp() {
   return (
@@ -68,7 +57,17 @@ function Gate() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister,
+        maxAge: WEEK_MS,
+        buster: APP_CACHE_VERSION,
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query) => query.state.status === "success",
+        },
+      }}
+    >
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
@@ -77,7 +76,7 @@ function App() {
           <Toaster position="top-center" richColors />
         </AuthProvider>
       </TooltipProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 
