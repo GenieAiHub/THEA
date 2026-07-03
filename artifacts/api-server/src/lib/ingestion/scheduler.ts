@@ -12,6 +12,7 @@ const TELEGRAM_INTERVAL_MS = 30 * 60 * 1000;
 const SOCIAL_INTERVAL_MS = 60 * 60 * 1000;
 const NEWS_API_INTERVAL_MS = 60 * 60 * 1000;
 const TIKTOK_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const SOCIAL_SCRAPE_INTERVAL_MS = 3 * 60 * 60 * 1000;
 const CRAWLER_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const SEARCH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
@@ -101,9 +102,9 @@ async function scheduleSearchKeywords(): Promise<void> {
         `search-keyword-${slug}-${orgSlug}`,
         { every: SEARCH_INTERVAL_MS },
         {
-          name: "brave",
+          name: "duckduckgo",
           data: {
-            sourceType: "brave",
+            sourceType: "duckduckgo",
             keyword,
             category: category ?? "general",
             orgId,
@@ -249,6 +250,22 @@ export async function scheduleIngestion(): Promise<void> {
           opts: { attempts: 1 },
         }
       );
+    }
+
+    // Facebook & Instagram scrapers (Apify managed service or session cookies).
+    // attempts:1 — managed-scraper runs are billable, so never retry automatically.
+    for (const type of ["instagram", "facebook"] as const) {
+      for (const category of allCategories) {
+        await contentIngestion.upsertJobScheduler(
+          `${type}-${category}`,
+          { every: SOCIAL_SCRAPE_INTERVAL_MS },
+          {
+            name: type,
+            data: { sourceType: type, category },
+            opts: { attempts: 1 },
+          }
+        );
+      }
     }
 
     const newsApiSources: Array<{ type: string; backoffDelay: number }> = [

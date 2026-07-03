@@ -123,7 +123,8 @@ router.post("/trigger", requireAdminToken, async (req, res) => {
 
   const validSources = [
     "rss-all", "rss-batch", "gdelt", "newsapi", "mediastack", "bing-news",
-    "twitter", "reddit", "youtube", "serp", "brave", "duckduckgo", "telegram", "tiktok", "web-crawler",
+    "twitter", "reddit", "youtube", "serp", "brave", "duckduckgo", "telegram", "tiktok",
+    "instagram", "facebook", "web-crawler",
   ];
   if (!sourceType || !validSources.includes(sourceType)) {
     res.status(400).json({ error: `sourceType must be one of: ${validSources.join(", ")}` });

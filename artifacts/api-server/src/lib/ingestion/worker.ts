@@ -18,6 +18,9 @@ import { collectBrave } from "./collectors/brave";
 import { crawlUrls } from "./collectors/web-crawler";
 import { collectTelegram, collectTelegramAllCategories } from "./collectors/telegram";
 import { collectTikTok } from "./collectors/tiktok";
+import { collectInstagram } from "./collectors/instagram";
+import { collectFacebook } from "./collectors/facebook";
+import { collectDuckDuckGo } from "./collectors/duckduckgo";
 import { PRECONFIGURED_SOURCES, getSourcesByCategory } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
@@ -151,11 +154,17 @@ export function startContentIngestionWorker(): void {
           break;
         }
 
-        case "brave":
-        case "duckduckgo": {
+        case "brave": {
           const braveApiKey = await cfg("BRAVE_API_KEY");
           if (!braveApiKey) { logger.warn("BRAVE_API_KEY not set — skipping Brave Search collection"); break; }
           const items = await collectBrave(keyword ?? category ?? "news", category ?? "general", braveApiKey);
+          stats = await ingestItems(items, orgId);
+          break;
+        }
+
+        case "duckduckgo": {
+          // Keyless web search — works out of the box, no API key required.
+          const items = await collectDuckDuckGo(keyword ?? category ?? "news", category ?? "general");
           stats = await ingestItems(items, orgId);
           break;
         }
@@ -182,6 +191,20 @@ export function startContentIngestionWorker(): void {
           const clientSecret = await cfg("TIKTOK_CLIENT_SECRET");
           if (!clientKey || !clientSecret) { logger.warn("TIKTOK_CLIENT_KEY/SECRET not set — skipping TikTok collection"); break; }
           const items = await collectTikTok(category ?? "general", clientKey, clientSecret);
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "instagram": {
+          // Credentials (Apify token / session cookie) resolved inside the collector.
+          const items = await collectInstagram(category ?? "general");
+          stats = await ingestItems(items);
+          break;
+        }
+
+        case "facebook": {
+          // Credentials (Apify token / session cookie) resolved inside the collector.
+          const items = await collectFacebook(category ?? "general");
           stats = await ingestItems(items);
           break;
         }

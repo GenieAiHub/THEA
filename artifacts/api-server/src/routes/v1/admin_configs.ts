@@ -46,6 +46,11 @@ const DEFAULT_CONFIGS: Array<{
   { key: "telegram_api_hash",                    label: "Telegram API Hash",           description: "GramJS api_hash from my.telegram.org",             category: "social",        isSecret: true  },
   { key: "telegram_session",                     label: "Telegram Session String",     description: "GramJS StringSession for channel scraping",         category: "social",        isSecret: true  },
   { key: "rsshub_url",                           label: "RSSHub Base URL",             description: "RSSHub instance for Telegram fallback feeds",       category: "social",        isSecret: false },
+  { key: "apify_token",                          label: "Apify API Token",             description: "Managed scraper token for Facebook/Instagram (apify.com)",           category: "social", isSecret: true  },
+  { key: "apify_instagram_actor",                label: "Apify Instagram Actor",       description: "Actor id for IG scraping (default apify/instagram-hashtag-scraper)", category: "social", isSecret: false },
+  { key: "apify_facebook_actor",                 label: "Apify Facebook Actor",        description: "Actor id for FB scraping (default apify/facebook-posts-scraper)",    category: "social", isSecret: false },
+  { key: "instagram_session_cookie",             label: "Instagram Session Cookie",    description: "Logged-in sessionid cookie for direct IG scraping (fallback)",       category: "social", isSecret: true  },
+  { key: "facebook_session_cookie",              label: "Facebook Session Cookie",     description: "Logged-in cookie string for direct FB scraping (fallback)",          category: "social", isSecret: true  },
 
   // ── Web crawler ──────────────────────────────────────────────────────────────
   { key: "crawler_proxy_urls",                   label: "Crawler Proxy URLs",          description: "Comma-separated proxy URLs (optional)",             category: "crawler",       isSecret: false },
