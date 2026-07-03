@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { WalletControls } from "@/components/wallet/WalletControls";
 import { WEBSITE_URL } from "@/lib/urls";
 
 const navItems = [
@@ -96,6 +97,7 @@ export function Navbar() {
         </form>
 
         <div className="hidden lg:flex items-center gap-3 shrink-0 ml-2">
+          <WalletControls variant="desktop" />
           {isSignedIn ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -161,6 +163,10 @@ export function Navbar() {
                   className="w-full pl-9 pr-3 h-10 rounded-lg bg-secondary/30 border border-primary/20 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </form>
+
+              <div className="mt-4">
+                <WalletControls variant="mobile" />
+              </div>
 
               <div className="mt-6 flex flex-col gap-1 flex-1">
                 {navItems.map((item) => {

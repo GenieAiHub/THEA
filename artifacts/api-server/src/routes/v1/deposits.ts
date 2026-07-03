@@ -27,6 +27,17 @@ router.use(requireAuth);
 const MIN_DEPOSIT_USD = 1n;
 const MAX_DEPOSIT_USD = 100_000n;
 const INTENT_TTL_MIN = 60;
+/**
+ * Grace window (minutes) after an intent's display TTL during which a tx can
+ * still be verified & credited. A user can broadcast a transfer just before
+ * expiry whose confirmations only land after it — without this grace, verify
+ * would 410 and their real on-chain funds would never be credited. Late
+ * verification is safe: the on-chain check requires an EXACT, dust-unique
+ * amount to the receiving address, each tx hash credits at most one intent,
+ * and any tx whose block predates the request is rejected — so widening the
+ * verification window cannot cause a mis-credit or double-credit.
+ */
+const VERIFY_GRACE_MIN = 24 * 60;
 /** Max simultaneous open (pending, unexpired) intents per user. */
 const MAX_OPEN_INTENTS = 20;
 /** Cap dust value at ~$0.99 while keeping enough entropy for unique amounts. */
@@ -225,7 +236,11 @@ router.post("/verify", async (req, res) => {
     });
     return;
   }
-  if (new Date() > intent.expiresAt) {
+  // Only hard-expire once the grace window is also past. Within grace we still
+  // attempt on-chain verification so a tx broadcast in time (but confirming
+  // slowly) is credited rather than lost. See VERIFY_GRACE_MIN.
+  const graceDeadline = intent.expiresAt.getTime() + VERIFY_GRACE_MIN * 60 * 1000;
+  if (Date.now() > graceDeadline) {
     await db
       .update(depositIntentsTable)
       .set({ status: "expired" })
@@ -246,11 +261,13 @@ router.post("/verify", async (req, res) => {
     return;
   }
 
-  // One transaction can back at most one deposit.
+  // One transaction can back at most one deposit. Exclude THIS intent, whose
+  // hash we persist below so verification can resume after a client reload
+  // without the re-check flagging the intent against itself.
   const [used] = await db
     .select({ id: depositIntentsTable.id })
     .from(depositIntentsTable)
-    .where(eq(depositIntentsTable.txHash, normalized))
+    .where(and(eq(depositIntentsTable.txHash, normalized), ne(depositIntentsTable.id, intent.id)))
     .limit(1);
   if (used) {
     res.status(409).json({ error: "This transaction has already been used" });
@@ -291,6 +308,31 @@ router.post("/verify", async (req, res) => {
     expectedBaseUnits: BigInt(intent.amountBaseUnits),
     createdAt: intent.createdAt,
   });
+
+  // Bind the hash to this intent ONLY once the chain proves the tx pays this
+  // intent's EXACT dust-unique amount to the receiving address (result.ok, or
+  // result.matched while finality is pending). Because the amount is unique per
+  // intent, nobody but the real depositor can produce a matching tx — so this
+  // both lets a client resume after a lost local record (via GET /intents) and
+  // prevents tx-hash squatting on the shared, publicly-visible deposit address.
+  if ((result.ok || result.matched) && intent.txHash !== normalized) {
+    try {
+      await db
+        .update(depositIntentsTable)
+        .set({ txHash: normalized })
+        .where(
+          and(eq(depositIntentsTable.id, intent.id), eq(depositIntentsTable.status, "pending")),
+        );
+    } catch (e) {
+      // Another intent claimed this hash between the check above and now.
+      if (isUniqueViolation(e)) {
+        res.status(409).json({ error: "This transaction has already been used" });
+        return;
+      }
+      throw e;
+    }
+  }
+
   if (!result.ok) {
     res.status(202).json({ pending: true, reason: result.reason });
     return;

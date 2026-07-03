@@ -90,6 +90,26 @@ const DEFAULT_CONFIGS: Array<{
   { key: "crypto_min_confirmations",             label: "Min Confirmations",           description: "Block confirmations before crediting a payment",    category: "crypto",        isSecret: false },
   { key: "crypto_intent_ttl_min",                label: "Payment Intent TTL (min)",    description: "Minutes a crypto payment intent stays valid",       category: "crypto",        isSecret: false },
 
+  // ── Markets deposit wallets (real-money custodial balance) ───────────────────
+  // Receiving addresses + chain settings for user deposits on THEA Markets. A coin
+  // only becomes available for deposit once its address (and RPC/price where
+  // required) is set here — no code change needed to go live. Public data, not secrets.
+  { key: "btc_receiving_address",                label: "BTC Receiving Address",       description: "Bitcoin address that receives BTC deposits",                          category: "deposits",      isSecret: false },
+  { key: "btc_min_confirmations",                label: "BTC Min Confirmations",       description: "Confirmations before crediting a BTC deposit (default 3)",             category: "deposits",      isSecret: false },
+  { key: "btc_price_usd",                        label: "BTC Price Override (USD)",    description: "Fixed USD price — OVERRIDES the live CoinGecko feed. Leave blank for market price.", category: "deposits", isSecret: false },
+  { key: "eth_receiving_address",                label: "ETH Receiving Address",       description: "Ethereum address that receives native ETH deposits",                   category: "deposits",      isSecret: false },
+  { key: "eth_rpc_url",                          label: "ETH RPC URL",                 description: "Ethereum mainnet JSON-RPC endpoint (required for ETH deposits)",       category: "deposits",      isSecret: false },
+  { key: "eth_min_confirmations",                label: "ETH Min Confirmations",       description: "Confirmations before crediting an ETH deposit (default 12)",           category: "deposits",      isSecret: false },
+  { key: "eth_price_usd",                        label: "ETH Price Override (USD)",    description: "Fixed USD price — OVERRIDES the live CoinGecko feed. Leave blank for market price.", category: "deposits", isSecret: false },
+  { key: "bsc_receiving_address",                label: "BSC Receiving Address",       description: "BSC address that receives USDT and CG deposits (SHARED by both)",       category: "deposits",      isSecret: false },
+  { key: "bsc_rpc_url",                          label: "BSC RPC URL",                 description: "BSC mainnet JSON-RPC endpoint (required for USDT + CG deposits)",       category: "deposits",      isSecret: false },
+  { key: "bsc_min_confirmations",                label: "BSC Min Confirmations",       description: "Confirmations before crediting a BSC deposit (default 15)",             category: "deposits",      isSecret: false },
+  { key: "bsc_usdt_address",                     label: "BSC USDT Contract",           description: "USDT (BEP-20) contract on BSC (default 0x55d398...197955)",             category: "deposits",      isSecret: false },
+  { key: "bsc_usdt_decimals",                    label: "BSC USDT Decimals",           description: "USDT token decimals on BSC (default 18)",                              category: "deposits",      isSecret: false },
+  { key: "cg_token_address",                     label: "CG Token Contract",           description: "Crypto Genie (CG, BEP-20) contract address on BSC",                    category: "deposits",      isSecret: false },
+  { key: "cg_token_decimals",                    label: "CG Token Decimals",           description: "CG token decimals on BSC (default 18)",                                category: "deposits",      isSecret: false },
+  { key: "cg_price_usd",                         label: "CG Price (USD)",              description: "Fixed USD price per CG — REQUIRED before CG deposits are available",   category: "deposits",      isSecret: false },
+
   // ── Email delivery ───────────────────────────────────────────────────────────
   { key: "resend_api_key",                       label: "Resend API Key",              description: "re_... key from resend.com",                       category: "email",         isSecret: true  },
   { key: "resend_from_email",                    label: "Resend From Email",           description: "Verified sender, e.g. THEA <alerts@thea.ai>",       category: "email",         isSecret: false },

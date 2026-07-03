@@ -237,7 +237,11 @@ export interface VerifyArgs {
 
 export type DepositVerifyResult =
   | { ok: true; valueBaseUnits: bigint }
-  | { ok: false; reason: string };
+  // `matched` = the chain already proves this tx pays THIS intent's exact
+  // dust-unique amount to the receiving address (only finality is pending).
+  // The caller may safely bind the hash to the intent once matched — nobody but
+  // the real depositor can produce a tx with the unique amount.
+  | { ok: false; reason: string; matched?: boolean };
 
 const TRANSFER_EVENT = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
@@ -253,15 +257,8 @@ async function verifyErc20(r: ResolvedCoin, args: VerifyArgs): Promise<DepositVe
   }
   if (receipt.status !== "success") return { ok: false, reason: "Transaction failed on-chain" };
 
-  const currentBlock = await client.getBlockNumber();
-  const confirmations = currentBlock - receipt.blockNumber + 1n;
-  if (confirmations < BigInt(r.minConfirmations)) {
-    return {
-      ok: false,
-      reason: `Waiting for confirmations (${confirmations.toString()}/${r.minConfirmations})`,
-    };
-  }
-
+  // Prove the exact-amount/address match BEFORE checking finality so a matched
+  // but not-yet-final tx can be reported as `matched` (see DepositVerifyResult).
   const events = parseEventLogs({ abi: [TRANSFER_EVENT], logs: receipt.logs, eventName: "Transfer" });
   const match = events.find(
     (e) =>
@@ -276,9 +273,19 @@ async function verifyErc20(r: ResolvedCoin, args: VerifyArgs): Promise<DepositVe
     };
   }
 
+  const currentBlock = await client.getBlockNumber();
+  const confirmations = currentBlock - receipt.blockNumber + 1n;
+  if (confirmations < BigInt(r.minConfirmations)) {
+    return {
+      ok: false,
+      matched: true,
+      reason: `Waiting for confirmations (${confirmations.toString()}/${r.minConfirmations})`,
+    };
+  }
+
   const block = await client.getBlock({ blockNumber: receipt.blockNumber });
   if (Number(block.timestamp) * 1000 < args.createdAt.getTime() - 15 * 60 * 1000) {
-    return { ok: false, reason: "Transaction predates this deposit request" };
+    return { ok: false, matched: true, reason: "Transaction predates this deposit request" };
   }
   return { ok: true, valueBaseUnits: match.args.value as bigint };
 }
@@ -294,14 +301,8 @@ async function verifyNativeEvm(r: ResolvedCoin, args: VerifyArgs): Promise<Depos
   }
   if (receipt.status !== "success") return { ok: false, reason: "Transaction failed on-chain" };
 
-  const currentBlock = await client.getBlockNumber();
-  const confirmations = currentBlock - receipt.blockNumber + 1n;
-  if (confirmations < BigInt(r.minConfirmations)) {
-    return {
-      ok: false,
-      reason: `Waiting for confirmations (${confirmations.toString()}/${r.minConfirmations})`,
-    };
-  }
+  // Prove the exact-amount/address match BEFORE checking finality so a matched
+  // but not-yet-final tx can be reported as `matched` (see DepositVerifyResult).
   if (!tx.to || tx.to.toLowerCase() !== r.receivingAddress) {
     return { ok: false, reason: "Transaction was not sent to the deposit address" };
   }
@@ -311,9 +312,19 @@ async function verifyNativeEvm(r: ResolvedCoin, args: VerifyArgs): Promise<Depos
       reason: "No transfer of the exact requested amount to the deposit address was found",
     };
   }
+
+  const currentBlock = await client.getBlockNumber();
+  const confirmations = currentBlock - receipt.blockNumber + 1n;
+  if (confirmations < BigInt(r.minConfirmations)) {
+    return {
+      ok: false,
+      matched: true,
+      reason: `Waiting for confirmations (${confirmations.toString()}/${r.minConfirmations})`,
+    };
+  }
   const block = await client.getBlock({ blockNumber: receipt.blockNumber });
   if (Number(block.timestamp) * 1000 < args.createdAt.getTime() - 15 * 60 * 1000) {
-    return { ok: false, reason: "Transaction predates this deposit request" };
+    return { ok: false, matched: true, reason: "Transaction predates this deposit request" };
   }
   return { ok: true, valueBaseUnits: tx.value };
 }
@@ -351,7 +362,11 @@ async function verifyBtc(r: ResolvedCoin, args: VerifyArgs): Promise<DepositVeri
     };
   }
   if (!tx.status?.confirmed) {
-    return { ok: false, reason: "Waiting for the transaction to be confirmed in a block" };
+    return {
+      ok: false,
+      matched: true,
+      reason: "Waiting for the transaction to be confirmed in a block",
+    };
   }
 
   let tipHeight = NaN;
@@ -366,12 +381,13 @@ async function verifyBtc(r: ResolvedCoin, args: VerifyArgs): Promise<DepositVeri
   if (confirmations < r.minConfirmations) {
     return {
       ok: false,
+      matched: true,
       reason: `Waiting for confirmations (${Math.max(0, confirmations)}/${r.minConfirmations})`,
     };
   }
   const blockMs = (tx.status.block_time ?? 0) * 1000;
   if (blockMs && blockMs < args.createdAt.getTime() - 15 * 60 * 1000) {
-    return { ok: false, reason: "Transaction predates this deposit request" };
+    return { ok: false, matched: true, reason: "Transaction predates this deposit request" };
   }
   return { ok: true, valueBaseUnits: total };
 }
