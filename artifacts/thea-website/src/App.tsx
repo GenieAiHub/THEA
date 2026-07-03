@@ -14,6 +14,7 @@ import TrendDetailPage from "@/pages/TrendDetailPage";
 import WatchlistPage from "@/pages/WatchlistPage";
 import AlertsPage from "@/pages/AlertsPage";
 import AiToolsPage from "@/pages/AiToolsPage";
+import SimulationDashboardPage from "@/pages/SimulationDashboardPage";
 import DataExplorerPage from "@/pages/DataExplorerPage";
 import CampaignsPage from "@/pages/CampaignsPage";
 import CompetitorIntelligencePage from "@/pages/CompetitorIntelligencePage";
@@ -67,6 +68,7 @@ function AppRoutes() {
       <Route path="/alerts">{() => <Protected><AlertsPage /></Protected>}</Route>
       <Route path="/ai-tools">{() => <Protected><AiToolsPage /></Protected>}</Route>
       <Route path="/intelligence">{() => <Protected><AiToolsPage /></Protected>}</Route>
+      <Route path="/simulation">{() => <Protected><SimulationDashboardPage /></Protected>}</Route>
       <Route path="/data-explorer">{() => <Protected><DataExplorerPage /></Protected>}</Route>
       <Route path="/campaigns">{() => <Protected><CampaignsPage /></Protected>}</Route>
       <Route path="/competitors">{() => <Protected><CompetitorIntelligencePage /></Protected>}</Route>
