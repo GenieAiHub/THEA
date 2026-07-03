@@ -23,6 +23,8 @@
 - [Keyless social search](brave-search-collector.md) — collectSocialSearch = site:<platform> keyword via DDG (all platforms, no creds); route ALL DDG calls via throttledDdgSearch or concurrency soft-blocks
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
+- [Custodial wallet + ledger core](wallet-ledger-core.md) — real-money markets use bigint micro-USD; `.default(sql\`0\`)` not `0n` (push dies); idempotent postLedgerEntry under wallet FOR UPDATE lock
+- [Multi-coin custodial deposits](deposits-multicoin.md) — 4 coins→1 USD wallet, config-driven; verify EXACT-amount match + pending-amount unique index + open-intent cap anti-theft; BSC-USDT 18 decimals
 - [Marketing site SEO absolute URLs](marketing-seo-urls.md) — bake absolute OG/og:url into index.html at build (Vite won't rewrite meta attrs); VITE_SITE_URL is the only knob, default thea.quest
 - [Org suspension enforcement](org-suspension-enforcement.md) — pausedAt enforced in requireAuth (both paths); admin surface uses requireOperator (exempt); platform org can't be suspended; optionalAuth/markets skips it
 - [Preview auth-gated thea-website pages](thea-website-preview-auth.md) — no dev login/bypass; screenshot tool can't sign in. Extract page body, add temp unprotected route, screenshot, revert

@@ -26,6 +26,8 @@ import campaignsRouter from "./campaigns";
 import apiKeysRouter from "./api-keys";
 import membersRouter from "./members";
 import accessRouter from "./access";
+import walletRouter from "./wallet";
+import depositsRouter from "./deposits";
 
 const router = Router();
 
@@ -65,5 +67,7 @@ router.use("/campaigns", campaignsRouter);
 router.use("/api-keys", apiKeysRouter);
 router.use("/members", membersRouter);
 router.use("/access", accessRouter);
+router.use("/wallet/deposit", depositsRouter);
+router.use("/wallet", walletRouter);
 
 export default router;
