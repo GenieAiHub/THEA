@@ -24,6 +24,7 @@
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
 - [Plan catalogue + comp grants](plan-catalog.md) — subscription_plans = catalogue/display only (checkout charges stay in lib/plans.ts); seed-if-empty; comp periodEnd null clears expiry; 409 only for LIVE stripe sub so cancel webhook must null stripeSubscriptionId
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
+- [THEA Access PWA (m.thea.quest)](thea-access-pwa.md) — installable PWA at subdomain root; cookie auth; "locked" is a client-only convenience gate (not a security boundary); geolocation on Scan is display-only, not persisted
 - [Markets web3 wallet deposits](markets-web3-deposits.md) — EIP-6963 picker (no wagmi); viem only for ERC20 calldata; re-check chainId before send; verify grace window keeps late txs safe
 - [Custodial wallet + ledger core](wallet-ledger-core.md) — real-money markets use bigint micro-USD; `.default(sql\`0\`)` not `0n` (push dies); idempotent postLedgerEntry under wallet FOR UPDATE lock
 - [Multi-coin custodial deposits](deposits-multicoin.md) — 4 coins→1 USD wallet, config-driven; verify EXACT-amount match + pending-amount unique index + open-intent cap anti-theft; BSC-USDT 18 decimals

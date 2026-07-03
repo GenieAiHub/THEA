@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/access-pwa/"
+title = "THEA Access PWA"
+version = "1.0.0"
+id = "artifacts/access-pwa"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/access-pwa/" ]
+localPort = 24798
+
+[services.development]
+run = "pnpm --filter @workspace/access-pwa run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/access-pwa", "run", "build" ]
+publicDir = "artifacts/access-pwa/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24798"
+BASE_PATH = "/access-pwa/"

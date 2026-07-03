@@ -31,6 +31,18 @@ server {
         proxy_send_timeout 3600s;
     }
 
+    # PWA service worker + manifest must never be cached by intermediaries, or
+    # clients won't pick up new deploys (the update prompt re-fetches sw.js).
+    # Harmless for the non-PWA SPAs — they simply don't ship these files.
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     # Single-page app: serve static assets, fall back to index.html for routing.
     location / {
         try_files $uri $uri/ /index.html;

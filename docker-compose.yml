@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# THEA — standalone stack (db + redis + elasticsearch + migrate + api + 3 SPAs).
+# THEA — standalone stack (db + redis + elasticsearch + migrate + api + 4 SPAs).
 # Publishes each SPA on a host port for direct testing. To place it behind the
 # shared Caddy reverse proxy instead, add the override:
 #   docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
@@ -166,6 +166,26 @@ services:
       - api
     ports:
       - "${MARKETS_PORT:-8093}:80"
+    networks: [internal]
+
+  # Installable mobile-first PWA (m.thea.quest). Same nginx/web target as the
+  # other SPAs; the service worker + manifest are baked into dist at build time.
+  access-pwa:
+    build:
+      context: .
+      target: web
+      args:
+        APP: access-pwa
+        BASE_PATH: ${ACCESS_PWA_BASE_PATH:-/}
+    image: thea-access-pwa
+    restart: unless-stopped
+    environment:
+      API_HOST: api
+      API_PORT: "5000"
+    depends_on:
+      - api
+    ports:
+      - "${ACCESS_PWA_PORT:-8094}:80"
     networks: [internal]
 
   # Optional on-demand "What-If" simulation engine (github.com/666ghj/MiroFish,

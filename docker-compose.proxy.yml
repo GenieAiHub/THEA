@@ -37,6 +37,13 @@ services:
       web:
         aliases: [thea-markets]
 
+  access-pwa:
+    ports: !reset []
+    networks:
+      internal: {}
+      web:
+        aliases: [thea-access-pwa]
+
 networks:
   web:
     external: true
