@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# thea-deploy — one-shot VPS deploy for the THEA stack.
+#
+# Pulls the latest code, (re)builds the images, applies the DB schema via the
+# one-shot `migrate` service, and brings the whole stack up with docker compose.
+#
+# Usage:
+#   ./thea-deploy                 # proxy mode (behind the shared Caddy) — default
+#   ./thea-deploy --standalone    # publish SPAs on host ports (no Caddy)
+#   ./thea-deploy --no-pull       # skip `git pull` (deploy the current checkout)
+#   ./thea-deploy --no-build      # reuse existing images (no rebuild)
+#   ./thea-deploy --mirofish      # also start the optional MiroFish sidecar
+#   ./thea-deploy --help
+#
+# Run it from anywhere — it cd's to its own directory (the repo root).
+# ---------------------------------------------------------------------------
+set -Eeuo pipefail
+
+# --- resolve repo root (this script lives at the repo root) ----------------
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+cd "$SCRIPT_DIR"
+
+# --- pretty logging --------------------------------------------------------
+c_reset=$'\033[0m'; c_blue=$'\033[1;34m'; c_green=$'\033[1;32m'; c_red=$'\033[1;31m'; c_yellow=$'\033[1;33m'
+log()  { printf '%s==>%s %s\n' "$c_blue"  "$c_reset" "$*"; }
+ok()   { printf '%s✓%s %s\n'   "$c_green" "$c_reset" "$*"; }
+warn() { printf '%s!%s %s\n'   "$c_yellow" "$c_reset" "$*" >&2; }
+die()  { printf '%s✗%s %s\n'   "$c_red"   "$c_reset" "$*" >&2; exit 1; }
+
+# --- options ---------------------------------------------------------------
+PROXY=1        # default: behind the shared Caddy reverse proxy
+PULL=1
+BUILD=1
+MIROFISH=0
+
+usage() { sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -s|--standalone) PROXY=0 ;;
+    --proxy)         PROXY=1 ;;
+    --no-pull)       PULL=0 ;;
+    --no-build)      BUILD=0 ;;
+    --mirofish)      MIROFISH=1 ;;
+    -h|--help)       usage ;;
+    *) die "Unknown option: $1  (try --help)" ;;
+  esac
+  shift
+done
+
+# --- preflight: docker + compose ------------------------------------------
+command -v docker >/dev/null 2>&1 || die "docker is not installed or not on PATH."
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE=(docker compose)
+else
+  die "Docker Compose v2 is required (the 'docker compose' plugin). The proxy override uses the '!reset' tag, which needs Compose v2.17+. Install a recent Docker Engine with the compose plugin."
+fi
+
+# --- preflight: .env -------------------------------------------------------
+if [ ! -f .env ]; then
+  die ".env not found in $SCRIPT_DIR. Create it first:  cp .env.docker.example .env  (then fill in the values)."
+fi
+
+# --- assemble the compose file list ----------------------------------------
+FILES=(-f docker-compose.yml)
+if [ "$PROXY" -eq 1 ]; then
+  FILES+=(-f docker-compose.proxy.yml)
+  # The proxy override attaches the SPAs to the external `web` network created
+  # by the shared reverse-proxy stack. Create it if it's missing so the first
+  # deploy on a fresh host doesn't fail.
+  if ! docker network inspect web >/dev/null 2>&1; then
+    warn "External 'web' network not found — creating it (docker network create web)."
+    docker network create web >/dev/null
+  fi
+fi
+
+PROFILE=()
+[ "$MIROFISH" -eq 1 ] && PROFILE=(--profile mirofish)
+
+MODE="proxy (behind shared Caddy)"; [ "$PROXY" -eq 0 ] && MODE="standalone (host ports)"
+log "THEA deploy — mode: $MODE"
+
+# --- pull latest -----------------------------------------------------------
+if [ "$PULL" -eq 1 ]; then
+  if [ -d .git ] && command -v git >/dev/null 2>&1; then
+    log "Pulling latest code (git pull --ff-only)…"
+    git pull --ff-only || die "git pull failed (local changes or diverged history). Resolve, or re-run with --no-pull."
+    ok "Repository up to date."
+  else
+    warn "Not a git checkout (or git missing) — skipping pull."
+  fi
+else
+  log "Skipping git pull (--no-pull)."
+fi
+
+# --- build -----------------------------------------------------------------
+if [ "$BUILD" -eq 1 ]; then
+  log "Building images…"
+  "${COMPOSE[@]}" "${FILES[@]}" "${PROFILE[@]}" build
+  ok "Images built."
+else
+  log "Skipping image build (--no-build)."
+fi
+
+# --- migrate (one-shot: enables pgvector, then pushes the Drizzle schema) ---
+# `run --rm` starts db (honoring its service_healthy condition), streams the
+# migration output in the foreground so failures are visible, propagates the
+# exit code, and — unlike `up --exit-code-from` — does NOT stop the live db on
+# a redeploy. `up -d` below re-runs migrate as its dependency gate (a no-op on
+# an already-pushed schema).
+log "Applying database schema (one-shot migrate)…"
+"${COMPOSE[@]}" "${FILES[@]}" run --rm migrate \
+  || die "Database migration failed — see the log above. The app was NOT started."
+ok "Schema applied."
+
+# --- bring the stack up ----------------------------------------------------
+log "Starting the stack…"
+"${COMPOSE[@]}" "${FILES[@]}" "${PROFILE[@]}" up -d --remove-orphans
+ok "Stack is up."
+
+# --- tidy: drop dangling images from previous builds -----------------------
+log "Pruning dangling images…"
+docker image prune -f >/dev/null || true
+
+# --- status ----------------------------------------------------------------
+echo
+"${COMPOSE[@]}" "${FILES[@]}" ps
+echo
+ok "Deploy complete."
+[ "$PROXY" -eq 1 ] && log "SPAs are served via the shared Caddy proxy (thea.quest / admin.thea.quest / markets.thea.quest)."
+[ "$PROXY" -eq 0 ] && log "SPAs on host ports — website:\${WEBSITE_PORT:-8091} admin:\${ADMIN_PORT:-8092} markets:\${MARKETS_PORT:-8093}."
+log "Tail logs with:  ${COMPOSE[*]} ${FILES[*]} logs -f api"
