@@ -22,6 +22,7 @@
 - [FB/IG social scraping](social-scraping-fb-ig.md) — dual-engine (Apify preferred, session-cookie fallback); collectors self-resolve creds & WARN/skip; hashtags in rawMetadata; billable → attempts:1
 - [Keyless social search](brave-search-collector.md) — collectSocialSearch = site:<platform> keyword via DDG (all platforms, no creds); route ALL DDG calls via throttledDdgSearch or concurrency soft-blocks
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
+- [Plan catalogue + comp grants](plan-catalog.md) — subscription_plans = catalogue/display only (checkout charges stay in lib/plans.ts); seed-if-empty; comp periodEnd null clears expiry; 409 only for LIVE stripe sub so cancel webhook must null stripeSubscriptionId
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
 - [Markets web3 wallet deposits](markets-web3-deposits.md) — EIP-6963 picker (no wagmi); viem only for ERC20 calldata; re-check chainId before send; verify grace window keeps late txs safe
 - [Custodial wallet + ledger core](wallet-ledger-core.md) — real-money markets use bigint micro-USD; `.default(sql\`0\`)` not `0n` (push dies); idempotent postLedgerEntry under wallet FOR UPDATE lock

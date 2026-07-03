@@ -28,6 +28,7 @@ if (missing.length > 0) {
 import { bootstrapPgVector } from "./lib/pgvector";
 import { ensureContentItemsIndex } from "./lib/elasticsearch";
 import { seedPlatformConfigs } from "./routes/v1/admin_configs";
+import { seedSubscriptionPlans } from "./lib/plans";
 import { createWorker } from "./lib/queues";
 import { generateMarketsNow, getMarketSettings, syncMarketGenerationSchedule } from "./lib/markets";
 import { startContentIngestionWorker, scheduleIngestion, ensurePlatformOrg } from "./lib/ingestion";
@@ -90,6 +91,9 @@ app.listen(port, async (err) => {
     ),
     seedPlatformConfigs().catch((err) =>
       logger.warn({ err }, "Platform config seed failed — will retry on next startup")
+    ),
+    seedSubscriptionPlans().catch((err) =>
+      logger.warn({ err }, "Subscription plans seed failed — will retry on next startup")
     ),
     ensurePlatformOrg().catch((err) =>
       logger.warn({ err }, "Platform org seed failed — will retry on next startup")

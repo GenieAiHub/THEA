@@ -1,5 +1,9 @@
-import type { Tier } from "../middlewares/featureGate";
+import { db } from "@workspace/db";
+import { subscriptionPlansTable } from "@workspace/db/schema";
+import { count } from "drizzle-orm";
+import { TIER_LIMITS, type Tier } from "../middlewares/featureGate";
 import { getPlatformConfig } from "./platform-config";
+import { logger } from "./logger";
 
 /**
  * PR subscription packages. These are the audience-facing product packages the
@@ -89,4 +93,43 @@ export async function priceIdForPlan(key: PlanKey, interval: BillingInterval): P
 export function amountForPlan(key: PlanKey, interval: BillingInterval): number {
   const plan = PLANS[key];
   return interval === "annual" ? plan.priceAnnual * 12 : plan.priceMonthly;
+}
+
+/** Factual, tier-derived marketing bullets used to seed a new plan's display list. */
+function featuresForTier(tier: Tier): string[] {
+  const l = TIER_LIMITS[tier];
+  return [
+    l.maxKeywords >= 9999 ? "Unlimited tracked keywords" : `Up to ${l.maxKeywords} tracked keywords`,
+    l.maxCategories >= 99 ? "Unlimited categories" : `${l.maxCategories} categories`,
+    `${l.historyDays} days of history`,
+  ];
+}
+
+/**
+ * One-time backfill of the operator-managed plan catalogue from the hard-coded
+ * PLANS baseline. Seeds ONLY when the table is empty so it never clobbers
+ * operator edits or resurrects a plan the operator has deleted.
+ */
+export async function seedSubscriptionPlans(): Promise<void> {
+  const [row] = await db.select({ c: count() }).from(subscriptionPlansTable);
+  if (Number(row?.c ?? 0) > 0) return;
+
+  const order: PlanKey[] = ["professional", "business", "political"];
+  await db.insert(subscriptionPlansTable).values(
+    order.map((key, i) => {
+      const p = PLANS[key];
+      return {
+        key: p.key,
+        name: p.name,
+        description: p.segment,
+        tier: p.tier,
+        priceMonthly: p.priceMonthly,
+        priceAnnual: p.priceAnnual,
+        features: featuresForTier(p.tier),
+        active: true,
+        sortOrder: i,
+      };
+    }),
+  );
+  logger.info({ count: order.length }, "Seeded subscription plans catalogue");
 }

@@ -14,6 +14,7 @@ import MonitoringPage from "@/pages/monitoring";
 import SchedulerPage from "@/pages/scheduler";
 import MobileAppPage from "@/pages/mobile-app";
 import MarketsPage from "@/pages/markets";
+import PlansPage from "@/pages/plans";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -42,6 +43,7 @@ function Router() {
         <Route path="/scheduler" component={SchedulerPage} />
         <Route path="/mobile-app" component={MobileAppPage} />
         <Route path="/markets" component={MarketsPage} />
+        <Route path="/plans" component={PlansPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

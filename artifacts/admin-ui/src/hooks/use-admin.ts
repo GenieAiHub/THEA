@@ -271,3 +271,80 @@ export function useAdminGenerateMarkets() {
     },
   });
 }
+
+// ─── Subscription plans ─────────────────────────────────────────────────────
+
+export interface AdminPlan {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  tier: string;
+  priceMonthly: number;
+  priceAnnual: number;
+  features: string[];
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlanInput {
+  key: string;
+  name: string;
+  description?: string | null;
+  tier: string;
+  priceMonthly?: number;
+  priceAnnual?: number;
+  features?: string[];
+  active?: boolean;
+  sortOrder?: number;
+}
+
+export function useAdminPlans() {
+  return useQuery<AdminPlan[]>({
+    queryKey: ["admin", "plans"],
+    queryFn: () => adminFetch("/plans").then((res) => res.data),
+  });
+}
+
+export function useAdminCreatePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: PlanInput) =>
+      adminFetch("/plans", { method: "POST", body: JSON.stringify(data) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "plans"] }),
+  });
+}
+
+export function useAdminUpdatePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: Partial<PlanInput> & { id: string }) =>
+      adminFetch(`/plans/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "plans"] }),
+  });
+}
+
+export function useAdminDeletePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminFetch(`/plans/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "plans"] }),
+  });
+}
+
+export function useAdminActivatePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orgId, planId, expiresAt }: { orgId: string; planId: string; expiresAt?: string | null }) =>
+      adminFetch(`/orgs/${orgId}/activate-plan`, {
+        method: "POST",
+        body: JSON.stringify({ planId, expiresAt: expiresAt || null }),
+      }),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "orgs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "orgs", v.orgId] });
+    },
+  });
+}

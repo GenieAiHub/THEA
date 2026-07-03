@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { TIER_LIMITS, type Tier } from "../middlewares/featureGate";
 import { logger } from "./logger";
 
-export type PaymentProvider = "stripe" | "paypal" | "crypto";
+export type PaymentProvider = "stripe" | "paypal" | "crypto" | "manual";
 
 export interface ActivateSubscriptionArgs {
   orgId: string;
@@ -18,7 +18,13 @@ export interface ActivateSubscriptionArgs {
   amount?: string;
   currency?: string;
   periodStart?: Date;
-  periodEnd?: Date;
+  /**
+   * `undefined` leaves currentPeriodEnd unchanged; a `Date` sets it; `null`
+   * explicitly clears it (a no-expiry grant). Clearing matters for manual/
+   * operator grants — leaving a stale lapsed value would make resolveOrgContext
+   * silently downgrade the org back to starter on the next request.
+   */
+  periodEnd?: Date | null;
   /** Subscription status to persist (defaults to "active"). */
   status?: string;
   stripe?: {
@@ -83,6 +89,7 @@ export async function activateSubscription(args: ActivateSubscriptionArgs): Prom
         tier: args.tier,
         status: args.status ?? "active",
         currentPeriodStart: args.periodStart ?? new Date(),
+        // undefined = leave unchanged; Date = set; null = explicitly clear.
         ...(args.periodEnd !== undefined ? { currentPeriodEnd: args.periodEnd } : {}),
         ...limits,
         ...(args.stripe?.customerId ? { stripeCustomerId: args.stripe.customerId } : {}),

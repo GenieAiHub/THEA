@@ -115,7 +115,18 @@ export async function handleStripeSubscriptionUpsert(
 export async function handleStripeSubscriptionDeleted(customerId: string): Promise<void> {
   await db
     .update(subscriptionsTable)
-    .set({ status: "canceled", tier: "starter", ...TIER_LIMITS.starter, updatedAt: new Date() })
+    // Clear the Stripe sub/price refs so this row no longer represents a LIVE
+    // Stripe subscription. Operators gate manual comps on stripeSubscriptionId
+    // being set, so leaving a stale id here would permanently block a comp for
+    // any org that ever subscribed via Stripe.
+    .set({
+      status: "canceled",
+      tier: "starter",
+      ...TIER_LIMITS.starter,
+      stripeSubscriptionId: null,
+      stripePriceId: null,
+      updatedAt: new Date(),
+    })
     .where(eq(subscriptionsTable.stripeCustomerId, customerId));
 
   logger.info({ customerId }, "Stripe subscription cancelled — org downgraded to starter");

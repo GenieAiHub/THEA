@@ -2,6 +2,7 @@ export * from "./organizations";
 export * from "./users";
 export * from "./sessions";
 export * from "./subscriptions";
+export * from "./subscription_plans";
 export * from "./payments";
 export * from "./crypto_payment_intents";
 export * from "./content_items";

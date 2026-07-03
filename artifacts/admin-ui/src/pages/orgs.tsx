@@ -4,9 +4,11 @@ import {
   useAdminOrg,
   useAdminSetOrgTier,
   useAdminPauseOrg,
+  useAdminPlans,
+  useAdminActivatePlan,
 } from "@/hooks/use-admin";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Users, X, Ban, CheckCircle2, Package } from "lucide-react";
+import { Building2, Users, X, Ban, CheckCircle2, Package, Gift } from "lucide-react";
 
 const TIERS = ["starter", "pro", "enterprise"];
 
@@ -59,6 +61,8 @@ function OrgDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
               <Field label="Onboarding" value={org.onboardingCompletedAt ? "complete" : "pending"} />
             </div>
 
+            <ActivatePlanPanel orgId={id} hasStripe={!!org.subscription?.stripeSubscriptionId} />
+
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-3.5 w-3.5 text-primary" />
@@ -105,6 +109,86 @@ function Field({ label, value }: { label: string; value: string }) {
     <div className="space-y-1">
       <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
       <div className="text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function ActivatePlanPanel({ orgId, hasStripe }: { orgId: string; hasStripe: boolean }) {
+  const { data: plans } = useAdminPlans();
+  const activate = useAdminActivatePlan();
+  const { toast } = useToast();
+  const [planId, setPlanId] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+
+  const grantable = (plans ?? []).filter((p) => p.active);
+
+  const submit = () => {
+    if (!planId) {
+      toast({ title: "Select a plan to grant", variant: "destructive" });
+      return;
+    }
+    activate.mutate(
+      { orgId, planId, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null },
+      {
+        onSuccess: () => {
+          toast({ title: "Plan granted", description: expiresAt ? `Expires ${new Date(expiresAt).toLocaleDateString()}` : "No expiry" });
+          setPlanId("");
+          setExpiresAt("");
+        },
+        onError: (e: any) => toast({ title: "Grant failed", description: e.message, variant: "destructive" }),
+      },
+    );
+  };
+
+  return (
+    <div className="border border-primary/30 rounded-sm p-4 space-y-3 bg-primary/5">
+      <div className="flex items-center gap-2">
+        <Gift className="h-3.5 w-3.5 text-primary" />
+        <span className="text-xs font-mono font-bold">Grant a plan (free / comp)</span>
+      </div>
+
+      {hasStripe ? (
+        <p className="text-[11px] font-mono text-amber-400">
+          This account has an active Stripe subscription. Cancel it in Stripe before granting a plan manually.
+        </p>
+      ) : (
+        <>
+          <p className="text-[11px] font-mono text-muted-foreground">
+            Grants the plan's tier at no charge. Leave expiry empty for an open-ended comp.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <select
+              value={planId}
+              onChange={(e) => setPlanId(e.target.value)}
+              className="sm:col-span-2 px-3 py-2 text-xs font-mono bg-background border border-border rounded-sm text-foreground"
+              data-testid="select-grant-plan"
+            >
+              <option value="">Select a plan…</option>
+              {grantable.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {p.tier} (${p.priceMonthly}/mo)
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              min={new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)}
+              className="px-3 py-2 text-xs font-mono bg-background border border-border rounded-sm text-foreground"
+              data-testid="input-grant-expiry"
+            />
+          </div>
+          <button
+            onClick={submit}
+            disabled={activate.isPending}
+            className="px-4 py-2 text-xs font-mono bg-primary text-primary-foreground rounded-sm hover:opacity-90 disabled:opacity-50"
+            data-testid="button-grant-plan"
+          >
+            {activate.isPending ? "Granting..." : "Grant plan"}
+          </button>
+        </>
+      )}
     </div>
   );
 }

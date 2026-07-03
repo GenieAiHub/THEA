@@ -1,20 +1,30 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { db } from "@workspace/db";
 import {
   organizationsTable,
   subscriptionsTable,
+  subscriptionPlansTable,
+  insertSubscriptionPlanSchema,
   collectionRunsTable,
   llmUsageLogsTable,
   usersTable,
 } from "@workspace/db/schema";
-import { desc, count, eq } from "drizzle-orm";
-import { TIER_LIMITS } from "../../middlewares/featureGate";
+import { desc, asc, count, eq } from "drizzle-orm";
+import { TIER_LIMITS, type Tier } from "../../middlewares/featureGate";
+import { activateSubscription } from "../../lib/subscriptionService";
 import { requireOperator } from "../../middlewares/operator";
 import { PLATFORM_ORG_ID } from "../../lib/tenantScope";
 
 const router = Router();
 
 router.use(requireOperator);
+
+/** True if `e` is a Postgres unique-constraint violation (SQLSTATE 23505). */
+function isUniqueViolation(e: unknown): boolean {
+  const err = e as { code?: string; cause?: { code?: string } };
+  return err?.code === "23505" || err?.cause?.code === "23505";
+}
 
 router.get("/orgs", async (_req, res) => {
   const orgs = await db.select().from(organizationsTable).orderBy(desc(organizationsTable.createdAt));
@@ -97,6 +107,145 @@ router.patch("/orgs/:id/pause", async (req, res) => {
 router.get("/subscriptions", async (_req, res) => {
   const subs = await db.select().from(subscriptionsTable).orderBy(desc(subscriptionsTable.createdAt));
   res.json({ data: subs });
+});
+
+// ─── Subscription plan catalogue (CRUD) ───────────────────────────────────────
+// NOTE: this is the catalogue source of truth (what plans exist, their display
+// prices, and the tier each grants). It does NOT change what real customers are
+// charged at checkout — Stripe/PayPal/crypto amounts stay wired to lib/plans.ts.
+
+router.get("/plans", async (_req, res) => {
+  const plans = await db
+    .select()
+    .from(subscriptionPlansTable)
+    .orderBy(asc(subscriptionPlansTable.sortOrder), asc(subscriptionPlansTable.priceMonthly));
+  res.json({ data: plans });
+});
+
+router.post("/plans", async (req, res) => {
+  const parsed = insertSubscriptionPlanSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid plan" });
+    return;
+  }
+  try {
+    const [created] = await db.insert(subscriptionPlansTable).values(parsed.data).returning();
+    res.status(201).json({ data: created });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      res.status(409).json({ error: `A plan with key "${parsed.data.key}" already exists` });
+      return;
+    }
+    throw e;
+  }
+});
+
+router.patch("/plans/:id", async (req, res) => {
+  const parsed = insertSubscriptionPlanSchema.partial().safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid plan" });
+    return;
+  }
+  try {
+    const [updated] = await db
+      .update(subscriptionPlansTable)
+      .set({ ...parsed.data, updatedAt: new Date() })
+      .where(eq(subscriptionPlansTable.id, req.params.id))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "Plan not found" }); return; }
+    res.json({ data: updated });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      res.status(409).json({ error: "A plan with that key already exists" });
+      return;
+    }
+    throw e;
+  }
+});
+
+router.delete("/plans/:id", async (req, res) => {
+  // Safe to hard-delete: subscriptions store the granted `tier` (denormalized),
+  // never a plan id, so removing a plan cannot strand an org's active grant.
+  const [deleted] = await db
+    .delete(subscriptionPlansTable)
+    .where(eq(subscriptionPlansTable.id, req.params.id))
+    .returning({ id: subscriptionPlansTable.id });
+  if (!deleted) { res.status(404).json({ error: "Plan not found" }); return; }
+  res.json({ data: { id: deleted.id } });
+});
+
+// ─── Manual (comp) plan activation for an account ─────────────────────────────
+// Grants a plan's tier to an org for free, with an optional expiry. Goes through
+// the single authoritative activateSubscription path (audit row + tier limits).
+router.post("/orgs/:id/activate-plan", async (req, res) => {
+  const { planId, expiresAt } = req.body as { planId?: string; expiresAt?: string | null };
+  if (!planId) { res.status(400).json({ error: "planId is required" }); return; }
+
+  const [plan] = await db
+    .select()
+    .from(subscriptionPlansTable)
+    .where(eq(subscriptionPlansTable.id, planId))
+    .limit(1);
+  if (!plan) { res.status(404).json({ error: "Plan not found" }); return; }
+  if (!plan.active) { res.status(400).json({ error: "Cannot activate an inactive plan" }); return; }
+
+  let periodEnd: Date | null = null;
+  if (expiresAt) {
+    const d = new Date(expiresAt);
+    if (Number.isNaN(d.getTime())) { res.status(400).json({ error: "expiresAt is not a valid date" }); return; }
+    if (d.getTime() <= Date.now()) { res.status(400).json({ error: "expiresAt must be in the future" }); return; }
+    periodEnd = d;
+  }
+
+  const [sub] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.orgId, req.params.id))
+    .limit(1);
+  if (!sub) { res.status(404).json({ error: "Subscription not found for this org" }); return; }
+  // A live Stripe subscription is driven by Stripe's own webhooks and is exempt
+  // from the expiry downgrade. A manual grant over it would be silently
+  // overwritten on the next renewal and its expiry would never fire, so refuse.
+  if (sub.stripeSubscriptionId) {
+    res.status(409).json({
+      error: "This account has an active Stripe subscription — cancel it before granting a plan manually",
+    });
+    return;
+  }
+
+  await activateSubscription({
+    orgId: req.params.id,
+    tier: plan.tier as Tier,
+    provider: "manual",
+    providerRef: randomUUID(),
+    planKey: plan.key,
+    interval: "one_time",
+    amount: "0.00",
+    currency: "usd",
+    periodStart: new Date(),
+    periodEnd,
+    metadata: {
+      grantedBy: "operator",
+      planId: plan.id,
+      planKey: plan.key,
+      expiresAt: periodEnd?.toISOString() ?? null,
+    },
+  });
+
+  const [updated] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.orgId, req.params.id))
+    .limit(1);
+  res.json({
+    data: {
+      orgId: req.params.id,
+      tier: updated?.tier,
+      status: updated?.status,
+      currentPeriodEnd: updated?.currentPeriodEnd ?? null,
+      planKey: plan.key,
+    },
+  });
 });
 
 router.get("/llm-usage", async (req, res) => {
