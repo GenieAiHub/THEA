@@ -191,6 +191,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
           res.status(401).json({ error: "Invalid or expired API key" });
           return;
         }
+        if (context.org.pausedAt) {
+          res.status(403).json({ error: "Organization suspended" });
+          return;
+        }
         req.thea = context;
         next();
       })
@@ -222,6 +226,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       const context = await resolveOrgContext(user);
       if (!context) {
         res.status(403).json({ error: "Organization not found" });
+        return;
+      }
+      if (context.org.pausedAt) {
+        res.status(403).json({ error: "Organization suspended" });
         return;
       }
       req.thea = context;

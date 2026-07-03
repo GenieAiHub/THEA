@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getToken, clearToken } from "@/lib/auth";
 
-export async function adminFetch(path: string, options: RequestInit = {}) {
+async function request(url: string, options: RequestInit = {}) {
   const token = getToken();
   const headers = new Headers(options.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -9,20 +9,37 @@ export async function adminFetch(path: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`/api/v1/admin${path}`, { ...options, headers });
-  
+  const res = await fetch(url, { ...options, headers });
+
   if (res.status === 401 || res.status === 403) {
     clearToken();
     window.location.reload();
   }
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.statusText}`);
+    let detail = res.statusText;
+    try {
+      const body = await res.json();
+      detail = body?.error ?? body?.detail ?? detail;
+    } catch { /* non-JSON body */ }
+    throw new Error(detail || `API error: ${res.status}`);
   }
-  
+
   // Some endpoints might return 204 No Content
   if (res.status === 204) return null;
   return res.json();
+}
+
+// Admin-scoped fetch — prefixes /api/v1/admin (org mgmt, configs, monitoring, scheduler).
+export async function adminFetch(path: string, options: RequestInit = {}) {
+  return request(`/api/v1/admin${path}`, options);
+}
+
+// Generic API fetch — hits any /api/v1 path with the operator token. Used for
+// endpoints outside the /admin namespace that accept ADMIN_INTERNAL_TOKEN
+// (e.g. /analysis/run, /crawler/trigger, /crawler/runs).
+export async function apiFetch(path: string, options: RequestInit = {}) {
+  return request(`/api/v1${path}`, options);
 }
 
 export function useAdminStats() {
@@ -57,6 +74,87 @@ export function useAdminOrgs() {
   return useQuery({
     queryKey: ["admin", "orgs"],
     queryFn: () => adminFetch("/orgs").then(res => res.data),
+  });
+}
+
+export function useAdminOrg(id: string | null) {
+  return useQuery({
+    queryKey: ["admin", "orgs", id],
+    queryFn: () => adminFetch(`/orgs/${id}`).then((res) => res.data),
+    enabled: !!id,
+  });
+}
+
+export function useAdminSetOrgTier() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, tier }: { id: string; tier: string }) =>
+      adminFetch(`/orgs/${id}/tier`, { method: "PATCH", body: JSON.stringify({ tier }) }),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "orgs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "orgs", v.id] });
+    },
+  });
+}
+
+export function useAdminPauseOrg() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, paused }: { id: string; paused: boolean }) =>
+      adminFetch(`/orgs/${id}/pause`, { method: "PATCH", body: JSON.stringify({ paused }) }),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "orgs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "orgs", v.id] });
+    },
+  });
+}
+
+// ─── Monitoring ───────────────────────────────────────────────────────────────
+
+export function useAdminMonitoring() {
+  return useQuery({
+    queryKey: ["admin", "monitoring"],
+    queryFn: () => adminFetch("/monitoring").then((res) => res.data),
+    refetchInterval: 15_000,
+  });
+}
+
+// ─── Scheduler ────────────────────────────────────────────────────────────────
+
+export function useAdminScheduler() {
+  return useQuery({
+    queryKey: ["admin", "scheduler"],
+    queryFn: () => adminFetch("/scheduler").then((res) => res.data),
+  });
+}
+
+export function useReloadScheduler() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminFetch("/scheduler/reload", { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "scheduler"] }),
+  });
+}
+
+export function useTriggerAnalysis() {
+  return useMutation({
+    mutationFn: (data: { category?: string; windowHours?: number }) =>
+      apiFetch("/analysis/run", { method: "POST", body: JSON.stringify(data) }),
+  });
+}
+
+export function useTriggerCollection() {
+  return useMutation({
+    mutationFn: (data: { sourceType: string; category?: string; keyword?: string; urls?: string[] }) =>
+      apiFetch("/crawler/trigger", { method: "POST", body: JSON.stringify(data) }),
+  });
+}
+
+export function useCollectionRuns(limit = 25) {
+  return useQuery({
+    queryKey: ["admin", "collection-runs", limit],
+    queryFn: () => adminFetch(`/collection-runs?limit=${limit}`).then((res) => res.data),
+    refetchInterval: 20_000,
   });
 }
 

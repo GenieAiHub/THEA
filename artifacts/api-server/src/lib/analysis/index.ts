@@ -7,4 +7,4 @@ export { scoreTrends } from "./trend-scorer";
 export { aggregateEntityMentions, getTopEntities } from "./entity-tracker";
 export { startLlmProcessingWorker } from "./llm-worker";
 export { startMiroFishWorker } from "./mirofish-worker";
-export { scheduleAnalysis } from "./analysis-scheduler";
+export { scheduleAnalysis, getActiveCategories } from "./analysis-scheduler";

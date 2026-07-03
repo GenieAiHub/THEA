@@ -23,6 +23,7 @@
 - [Keyless social search](brave-search-collector.md) — collectSocialSearch = site:<platform> keyword via DDG (all platforms, no creds); route ALL DDG calls via throttledDdgSearch or concurrency soft-blocks
 - [Payments & tier grants](payments-subscriptions.md) — activateSubscription = single idempotent tier-grant path for PayPal/crypto; Stripe keeps own webhook upsert; priceId resolved server-side
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
+- [Org suspension enforcement](org-suspension-enforcement.md) — pausedAt enforced in requireAuth (both paths); admin surface uses requireOperator (exempt); platform org can't be suspended; optionalAuth/markets skips it
 - [Preview auth-gated thea-website pages](thea-website-preview-auth.md) — no dev login/bypass; screenshot tool can't sign in. Extract page body, add temp unprotected route, screenshot, revert
 - [Gemini Google Search grounding](gemini-grounding.md) — use `googleSearch` tool + 2.x model (1.x retired); old SDK forwards tools verbatim so no new dep; grounding text not dedup-stable
 - [Platform config resolver & catalog](platform-config-catalog.md) — DB-first (lowercase key ↔ UPPERCASE env); keep admin_configs DEFAULT_CONFIGS synced w/ all getPlatformConfig* sites; never env→DB

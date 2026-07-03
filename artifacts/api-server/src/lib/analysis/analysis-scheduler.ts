@@ -3,11 +3,15 @@ import { db } from "@workspace/db";
 import { crawlerSourcesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { PRECONFIGURED_SOURCES } from "../ingestion/sources-config";
+import { getPlatformConfigNumber } from "../platform-config";
 import { logger } from "../logger";
 
-const MIROFISH_INTERVAL_MS = 60 * 60 * 1000;
-const LLM_CLASSIFY_INTERVAL_MS = 15 * 60 * 1000;
-const LLM_EMBED_INTERVAL_MS = 30 * 60 * 1000;
+// Default cadences (minutes). Operators can override each via platform_configs
+// (mirofish_interval_minutes / llm_classify_interval_minutes / llm_embed_interval_minutes)
+// from the Super Admin → Scheduler page; re-run scheduleAnalysis() to apply.
+const DEFAULT_MIROFISH_INTERVAL_MIN = 60;
+const DEFAULT_LLM_CLASSIFY_INTERVAL_MIN = 15;
+const DEFAULT_LLM_EMBED_INTERVAL_MIN = 30;
 
 const VALID_CATEGORIES = [
   "Politics", "News", "Technology", "Society", "Media", "Branding",
@@ -25,7 +29,7 @@ function canonicalizeCategory(raw: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
 
-async function getActiveCategories(): Promise<string[]> {
+export async function getActiveCategories(): Promise<string[]> {
   let rawCategories: string[];
   try {
     const rows = await db
@@ -45,9 +49,20 @@ export async function scheduleAnalysis(): Promise<void> {
   const { llmProcessing, miroFishRuns } = getQueues();
   const categories = await getActiveCategories();
 
+  const [mirofishMin, classifyMin, embedMin] = await Promise.all([
+    getPlatformConfigNumber("mirofish_interval_minutes", DEFAULT_MIROFISH_INTERVAL_MIN),
+    getPlatformConfigNumber("llm_classify_interval_minutes", DEFAULT_LLM_CLASSIFY_INTERVAL_MIN),
+    getPlatformConfigNumber("llm_embed_interval_minutes", DEFAULT_LLM_EMBED_INTERVAL_MIN),
+  ]);
+
+  // Guard against a mis-typed 0/negative interval that would spam the queue.
+  const mirofishMs = Math.max(1, mirofishMin) * 60 * 1000;
+  const classifyMs = Math.max(1, classifyMin) * 60 * 1000;
+  const embedMs = Math.max(1, embedMin) * 60 * 1000;
+
   await llmProcessing.upsertJobScheduler(
     "llm-classify-pending",
-    { every: LLM_CLASSIFY_INTERVAL_MS },
+    { every: classifyMs },
     {
       name: "classify",
       data: { operation: "classify_and_embed" },
@@ -57,7 +72,7 @@ export async function scheduleAnalysis(): Promise<void> {
 
   await llmProcessing.upsertJobScheduler(
     "llm-embed-pending",
-    { every: LLM_EMBED_INTERVAL_MS },
+    { every: embedMs },
     {
       name: "embed",
       data: { operation: "embed" },
@@ -68,7 +83,7 @@ export async function scheduleAnalysis(): Promise<void> {
   for (const category of categories) {
     await miroFishRuns.upsertJobScheduler(
       `mirofish-${category.toLowerCase()}`,
-      { every: MIROFISH_INTERVAL_MS },
+      { every: mirofishMs },
       {
         name: "mirofish",
         data: { category, windowHours: 24, triggeredBy: "scheduler" },
@@ -77,5 +92,8 @@ export async function scheduleAnalysis(): Promise<void> {
     );
   }
 
-  logger.info({ categories: categories.length, categoryList: categories }, "Analysis schedulers registered");
+  logger.info(
+    { categories: categories.length, categoryList: categories, mirofishMin, classifyMin, embedMin },
+    "Analysis schedulers registered"
+  );
 }

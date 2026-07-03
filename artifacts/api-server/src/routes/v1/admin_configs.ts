@@ -4,9 +4,15 @@ import { platformConfigsTable } from "@workspace/db/schema";
 import { eq, asc, and, inArray, isNull } from "drizzle-orm";
 import { encrypt, safeDecrypt } from "../../lib/crypto";
 import { clearConfigCache } from "../../lib/llm";
+import { requireOperator } from "../../middlewares/operator";
 import { logger } from "../../lib/logger";
 
 const router = Router();
+
+// Platform config is operator-only. This router is currently mounted after other
+// requireOperator-guarded /admin routers, so it's transitively protected — but
+// guard it explicitly here so it can never be exposed by a change in mount order.
+router.use(requireOperator);
 
 // ─── Default seed config catalogue ───────────────────────────────────────────
 // Every runtime setting the platform reads is listed here so an operator can
@@ -105,6 +111,15 @@ const DEFAULT_CONFIGS: Array<{
   // ── General platform ─────────────────────────────────────────────────────────
   { key: "platform_name",                        label: "Platform Name",               description: "Displayed in UI and emails",                       category: "general",       isSecret: false },
   { key: "support_email",                        label: "Support Email",               description: "User-facing support contact email",                category: "general",       isSecret: false },
+
+  // ── Mobile app ───────────────────────────────────────────────────────────────
+  { key: "mobile_app_android_url",               label: "Android Download URL",        description: "Play Store or direct APK link for THEA Access",     category: "mobile",        isSecret: false },
+  { key: "mobile_app_ios_url",                   label: "iOS Download URL",            description: "App Store / TestFlight link for THEA Access",       category: "mobile",        isSecret: false },
+
+  // ── Scheduler cadence ────────────────────────────────────────────────────────
+  { key: "mirofish_interval_minutes",            label: "MiroFish Run Interval (min)", description: "How often scheduled MiroFish analysis runs (default 60)",   category: "scheduler", isSecret: false },
+  { key: "llm_classify_interval_minutes",        label: "LLM Classify Interval (min)", description: "How often pending items are classified & embedded (default 15)", category: "scheduler", isSecret: false },
+  { key: "llm_embed_interval_minutes",           label: "LLM Embed Interval (min)",    description: "How often the embed backfill sweep runs (default 30)",      category: "scheduler", isSecret: false },
 ];
 
 // Keys from earlier revisions that have been superseded (Serper→Brave/SerpAPI,

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, KeyRound, Terminal, BarChart2, Building2, TrendingUp, LogOut } from "lucide-react";
+import { LayoutDashboard, KeyRound, Terminal, BarChart2, Building2, TrendingUp, Activity, Clock, Smartphone, LogOut } from "lucide-react";
 import { clearToken } from "@/lib/auth";
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -11,7 +11,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/api-keys", label: "API Keys", icon: KeyRound },
     { href: "/llm-test", label: "LLM Playground", icon: Terminal },
     { href: "/usage", label: "Usage Logs", icon: BarChart2 },
-    { href: "/orgs", label: "Organizations", icon: Building2 },
+    { href: "/orgs", label: "Users & Orgs", icon: Building2 },
+    { href: "/monitoring", label: "Monitoring", icon: Activity },
+    { href: "/scheduler", label: "Scheduler", icon: Clock },
+    { href: "/mobile-app", label: "Mobile App", icon: Smartphone },
     { href: "/markets", label: "Markets", icon: TrendingUp },
   ];
 

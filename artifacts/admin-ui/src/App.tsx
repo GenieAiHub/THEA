@@ -10,6 +10,9 @@ import ApiKeysPage from "@/pages/api-keys";
 import LlmTestPage from "@/pages/llm-test";
 import UsagePage from "@/pages/usage";
 import OrgsPage from "@/pages/orgs";
+import MonitoringPage from "@/pages/monitoring";
+import SchedulerPage from "@/pages/scheduler";
+import MobileAppPage from "@/pages/mobile-app";
 import MarketsPage from "@/pages/markets";
 import NotFound from "@/pages/not-found";
 
@@ -35,6 +38,9 @@ function Router() {
         <Route path="/llm-test" component={LlmTestPage} />
         <Route path="/usage" component={UsagePage} />
         <Route path="/orgs" component={OrgsPage} />
+        <Route path="/monitoring" component={MonitoringPage} />
+        <Route path="/scheduler" component={SchedulerPage} />
+        <Route path="/mobile-app" component={MobileAppPage} />
         <Route path="/markets" component={MarketsPage} />
         <Route component={NotFound} />
       </Switch>
