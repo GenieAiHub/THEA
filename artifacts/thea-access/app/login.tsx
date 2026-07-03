@@ -1,6 +1,6 @@
-import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -64,9 +64,11 @@ export default function LoginScreen() {
         contentContainerStyle={[styles.content, { paddingTop: topPad }]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.logo, { backgroundColor: colors.primary, borderRadius: colors.radius * 1.6 }]}>
-          <Feather name="shield" size={30} color={colors.primaryForeground} />
-        </View>
+        <Image
+          source={require("../assets/images/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={[styles.title, { color: colors.foreground }]}>THEA Access</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           {isRegister
@@ -135,10 +137,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 72,
-    height: 72,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 240,
+    height: 130,
     marginBottom: 20,
   },
   title: {

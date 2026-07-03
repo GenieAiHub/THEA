@@ -24,10 +24,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <div className="w-64 border-r border-border bg-sidebar flex flex-col justify-between hidden md:flex">
         <div>
-          <div className="h-14 flex items-center px-6 border-b border-border">
-            <span className="font-mono font-bold tracking-tight text-primary">
-              THEA<span className="text-muted-foreground">_OP</span>
-            </span>
+          <div className="h-14 flex items-center gap-2 px-6 border-b border-border">
+            <img
+              src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`}
+              alt="THEA"
+              className="h-8 w-auto object-contain"
+            />
+            <span className="font-mono text-xs text-muted-foreground tracking-widest">OP</span>
           </div>
           <nav className="p-4 space-y-1">
             {nav.map((item) => {

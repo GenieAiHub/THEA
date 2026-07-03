@@ -28,9 +28,11 @@ export default function Login() {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
-          <div className="font-mono font-bold text-3xl text-primary tracking-tight mb-1">
-            THEA<span className="text-muted-foreground">_OP</span>
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`}
+            alt="THEA"
+            className="h-20 w-auto object-contain mx-auto mb-3"
+          />
           <p className="text-xs font-mono text-muted-foreground tracking-widest uppercase">
             Super Admin Console
           </p>

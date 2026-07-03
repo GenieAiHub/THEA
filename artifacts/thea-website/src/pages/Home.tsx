@@ -10,7 +10,7 @@ import { Link } from "wouter";
 import { AreaChart, Area, ResponsiveContainer, LineChart as RechartsLineChart, Line } from "recharts";
 
 // @ts-ignore
-import logo from "@assets/icon_1783026786954.png";
+import logo from "@assets/thea-logo.png";
 import { MARKETS_URL } from "@/lib/urls";
 // @ts-ignore
 import heroEarth from "@assets/generated_images/hero_earth.png";

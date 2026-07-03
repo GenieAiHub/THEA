@@ -38,7 +38,7 @@ export default function SignInPage() {
 
       <div className="w-full max-w-md z-10">
         <div className="flex justify-center mb-8">
-          <img src={logoUrl} alt="THEA" className="w-12 h-12" />
+          <img src={logoUrl} alt="THEA" className="h-16 w-auto object-contain" />
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">

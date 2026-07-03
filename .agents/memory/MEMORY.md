@@ -23,4 +23,4 @@
 - [THEA Docker/VPS deploy](thea-docker-deploy.md) — api image ships whole workspace (esbuild externals); Chromium gated by USE_PLAYWRIGHT; TRUST_PROXY read in app.ts (=3 behind shared Caddy)
 - [Platform config resolver & catalog](platform-config-catalog.md) — DB-first (lowercase key ↔ UPPERCASE env); keep admin_configs DEFAULT_CONFIGS synced w/ all getPlatformConfig* sites; never env→DB
 - [MiroFish real-engine integration](mirofish-integration.md) — What-If drives real OASIS sidecar; poll runner_status NOT status; compose interpolates before profile filter so use ${VAR:-} on opt-in services
-- [THEA branding assets](thea-branding-assets.md) — brand icon source is 1024px; downscale for web favicons/logos; iOS app icon needs a no-alpha flattened variant before App Store build
+- [THEA branding assets](thea-branding-assets.md) — TWO assets: square eye-tile icon = favicon/app-icon ONLY, 3:2 thea-logo.png lockup = on-page logo everywhere (h-X w-auto object-contain, drop dup wordmark); iOS app icon needs no-alpha variant

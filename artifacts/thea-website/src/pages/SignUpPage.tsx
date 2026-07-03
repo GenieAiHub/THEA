@@ -71,7 +71,7 @@ export default function SignUpPage() {
       <div className="w-full max-w-md z-10">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <img src={logoUrl} alt="THEA" className="w-12 h-12 cursor-pointer" />
+            <img src={logoUrl} alt="THEA" className="h-16 w-auto object-contain cursor-pointer" />
           </Link>
         </div>
 

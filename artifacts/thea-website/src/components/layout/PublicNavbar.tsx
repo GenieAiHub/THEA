@@ -4,7 +4,13 @@ import { MARKETS_URL } from "@/lib/urls";
 export function PublicNavbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-6 backdrop-blur-md border-b border-white/5 bg-background/50">
-      <Link href="/" className="text-xl font-bold tracking-tighter text-white font-display">THEA</Link>
+      <Link href="/">
+        <img
+          src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`}
+          alt="THEA"
+          className="h-9 w-auto object-contain"
+        />
+      </Link>
       <div className="hidden md:flex gap-8 text-sm font-medium text-muted-foreground">
         <a href="/#capabilities" className="hover:text-white transition-colors">Capabilities</a>
         <a href="/#how-it-works" className="hover:text-white transition-colors">How it Works</a>

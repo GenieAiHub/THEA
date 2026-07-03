@@ -69,9 +69,11 @@ export default function SignUp() {
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
           
           <div className="relative z-10 flex flex-col items-center mb-8">
-            <div className="w-16 h-16 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 logo-pulse">
-              <Activity className="w-8 h-8 text-primary" />
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`}
+              alt="THEA"
+              className="h-16 w-auto object-contain mb-6 logo-pulse"
+            />
             <h1 className="text-3xl font-display font-bold text-white mb-2 tracking-tight">New Operator</h1>
             <p className="text-muted-foreground text-center">Establish your identity on the THEA network.</p>
           </div>
