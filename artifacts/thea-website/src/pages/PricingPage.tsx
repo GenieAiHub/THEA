@@ -5,9 +5,9 @@ import { Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { PublicNavbar } from "@/components/layout/PublicNavbar";
-import { Footer } from "@/components/layout/Footer";
-import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
+import { PublicLayout } from "@/components/layout/PublicLayout";
+import { Seo } from "@/components/Seo";
+import { breadcrumbJsonLd } from "@/lib/seo";
 import { useAuth } from "@/context/AuthContext";
 
 const PLANS = [
@@ -79,11 +79,18 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] text-foreground selection:bg-blue-500/30">
-      <AnimatedBackground />
-      <PublicNavbar />
-      
-      <main className="pt-32 pb-24 px-6 relative z-10">
+    <PublicLayout>
+      <Seo
+        title="Pricing — Intelligence at Scale"
+        description="THEA pricing plans for professionals, brands, and political campaigns. Compare Professional, Business, and Political Party tiers billed monthly or annually."
+        path="/pricing"
+        jsonLd={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Pricing", path: "/pricing" },
+        ])}
+      />
+
+      <section className="relative px-6 pb-24 pt-32">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h1 className="text-5xl md:text-6xl font-bold mb-6 font-display">
@@ -176,9 +183,7 @@ export default function PricingPage() {
             })}
           </div>
         </div>
-      </main>
-
-      <Footer />
-    </div>
+      </section>
+    </PublicLayout>
   );
 }

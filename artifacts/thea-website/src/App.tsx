@@ -28,6 +28,18 @@ import SignUpPage from "@/pages/SignUpPage";
 import PricingPage from "@/pages/PricingPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 
+import PlatformPage from "@/pages/PlatformPage";
+import HowItWorksPage from "@/pages/HowItWorksPage";
+import TechnologyPage from "@/pages/TechnologyPage";
+import AboutPage from "@/pages/AboutPage";
+import SolutionsPage from "@/pages/SolutionsPage";
+import FaqPage from "@/pages/FaqPage";
+import KnowledgeBasePage from "@/pages/KnowledgeBasePage";
+import KnowledgeBaseArticlePage from "@/pages/KnowledgeBaseArticlePage";
+import PrivacyPage from "@/pages/legal/PrivacyPage";
+import TermsPage from "@/pages/legal/TermsPage";
+import DisclaimerPage from "@/pages/legal/DisclaimerPage";
+
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } });
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -58,6 +70,17 @@ function AppRoutes() {
     <Switch>
       <Route path="/" component={HomeRedirect} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/platform" component={PlatformPage} />
+      <Route path="/how-it-works" component={HowItWorksPage} />
+      <Route path="/technology" component={TechnologyPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/solutions" component={SolutionsPage} />
+      <Route path="/faq" component={FaqPage} />
+      <Route path="/knowledge-base" component={KnowledgeBasePage} />
+      <Route path="/knowledge-base/:slug" component={KnowledgeBaseArticlePage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/disclaimer" component={DisclaimerPage} />
       <Route path="/sign-in" component={SignInPage} />
       <Route path="/sign-up" component={SignUpPage} />
       <Route path="/checkout">{() => <Protected><CheckoutPage /></Protected>}</Route>

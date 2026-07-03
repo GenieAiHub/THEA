@@ -25,9 +25,9 @@ import glowingWorld from "@assets/generated_images/glowing_world.png";
 
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { PublicNavbar } from "@/components/layout/PublicNavbar";
-import { Footer } from "@/components/layout/Footer";
-import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
+import { PublicLayout } from "@/components/layout/PublicLayout";
+import { Seo } from "@/components/Seo";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
 // --- Data Viz Mockups ---
 
@@ -628,23 +628,22 @@ const CTA = () => {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-blue-500/30">
-      <AnimatedBackground />
-      <PublicNavbar />
-      
-      <main>
-        <Hero />
-        <Metrics />
-        <Capabilities />
-        <HowItWorks />
-        <Audiences />
-        <PlatformFeatures />
-        <MarketsPromo />
-        <FAQ />
-        <CTA />
-      </main>
-
-      <Footer />
-    </div>
+    <PublicLayout>
+      <Seo
+        title="THEA — The All-Seeing Intelligence Eye"
+        description="THEA (Total Human Engagement Analytics) monitors 150,000+ global sources in real time to deliver trend detection, sentiment analysis, and preemptive crisis alerts — with AI-drafted responses."
+        path="/"
+        jsonLd={[organizationJsonLd(), websiteJsonLd()]}
+      />
+      <Hero />
+      <Metrics />
+      <Capabilities />
+      <HowItWorks />
+      <Audiences />
+      <PlatformFeatures />
+      <MarketsPromo />
+      <FAQ />
+      <CTA />
+    </PublicLayout>
   );
 }
