@@ -26,6 +26,8 @@ const DEFAULT_CONFIGS: Array<{
   { key: "openai_default_model",                 label: "OpenAI Default Model",        description: "e.g. gpt-4o, gpt-4o-mini, gpt-4-turbo",            category: "llm",           isSecret: false },
   { key: "gemini_api_key",                       label: "Gemini API Key",              description: "API key from Google AI Studio",                    category: "llm",           isSecret: true  },
   { key: "gemini_default_model",                 label: "Gemini Default Model",        description: "e.g. gemini-1.5-flash, gemini-1.5-pro",            category: "llm",           isSecret: false },
+  { key: "deepseek_api_key",                     label: "DeepSeek API Key",            description: "API key from platform.deepseek.com",               category: "llm",           isSecret: true  },
+  { key: "deepseek_default_model",               label: "DeepSeek Default Model",      description: "e.g. deepseek-chat, deepseek-reasoner",            category: "llm",           isSecret: false },
 
   // ── News / ingestion feeds ───────────────────────────────────────────────────
   { key: "news_api_key",                         label: "NewsAPI Key",                 description: "API key from newsapi.org",                         category: "news",          isSecret: true  },

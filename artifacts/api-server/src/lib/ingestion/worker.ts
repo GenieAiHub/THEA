@@ -22,6 +22,8 @@ import { collectInstagram } from "./collectors/instagram";
 import { collectFacebook } from "./collectors/facebook";
 import { collectDuckDuckGo } from "./collectors/duckduckgo";
 import { collectSocialSearch } from "./collectors/social-search";
+import { collectGeminiSearch } from "./collectors/gemini-search";
+import { collectDeepSeekCrawl } from "./collectors/deepseek-crawl";
 import { PRECONFIGURED_SOURCES, getSourcesByCategory } from "./sources-config";
 import type { IngestionJobData } from "./types";
 import { logger } from "../logger";
@@ -174,6 +176,27 @@ export function startContentIngestionWorker(): void {
           // Keyless social-media discovery via site:-scoped web search — finds
           // public posts across all platforms by keyword, no token/cookie needed.
           const items = await collectSocialSearch(keyword ?? category ?? "news", category ?? "general");
+          stats = await ingestItems(items, orgId);
+          break;
+        }
+
+        case "gemini-search": {
+          // Gemini + Google Search grounding — live web data via Google. Needs a
+          // Gemini API key; LLM-billable, so scheduled/triggered with attempts:1.
+          const geminiKey = await cfg("GEMINI_API_KEY");
+          if (!geminiKey) { logger.warn("GEMINI_API_KEY not set — skipping Gemini grounded search"); break; }
+          const items = await collectGeminiSearch(keyword ?? category ?? "news", category ?? "general");
+          stats = await ingestItems(items, orgId);
+          break;
+        }
+
+        case "deepseek-crawl": {
+          // DeepSeek reads + extracts structured content from the given URLs.
+          const deepseekKey = await cfg("DEEPSEEK_API_KEY");
+          if (!deepseekKey) { logger.warn("DEEPSEEK_API_KEY not set — skipping DeepSeek crawl"); break; }
+          const dsUrls = urls ?? [];
+          if (!dsUrls.length) { logger.warn("No URLs provided for deepseek-crawl job"); break; }
+          const items = await collectDeepSeekCrawl(dsUrls, category ?? "general");
           stats = await ingestItems(items, orgId);
           break;
         }

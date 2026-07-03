@@ -124,15 +124,15 @@ router.post("/trigger", requireAdminToken, async (req, res) => {
   const validSources = [
     "rss-all", "rss-batch", "gdelt", "newsapi", "mediastack", "bing-news",
     "twitter", "reddit", "youtube", "serp", "brave", "duckduckgo", "social-search", "telegram", "tiktok",
-    "instagram", "facebook", "web-crawler",
+    "instagram", "facebook", "web-crawler", "gemini-search", "deepseek-crawl",
   ];
   if (!sourceType || !validSources.includes(sourceType)) {
     res.status(400).json({ error: `sourceType must be one of: ${validSources.join(", ")}` });
     return;
   }
 
-  if (sourceType === "web-crawler" && (!Array.isArray(urls) || urls.length === 0)) {
-    res.status(400).json({ error: "web-crawler requires urls array" });
+  if ((sourceType === "web-crawler" || sourceType === "deepseek-crawl") && (!Array.isArray(urls) || urls.length === 0)) {
+    res.status(400).json({ error: `${sourceType} requires urls array` });
     return;
   }
 

@@ -1,11 +1,11 @@
 import OpenAI from "openai";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, type Tool } from "@google/generative-ai";
 import { db } from "@workspace/db";
 import { llmUsageLogsTable } from "@workspace/db/schema";
 import { getPlatformConfig as getConfig, clearConfigCache } from "./platform-config";
 import { logger } from "./logger";
 
-export type LlmProvider = "openai" | "gemini";
+export type LlmProvider = "openai" | "gemini" | "deepseek";
 
 export interface LlmMessage {
   role: "user" | "assistant" | "system";
@@ -33,6 +33,8 @@ const COST_PER_1K: Record<string, { input: number; output: number }> = {
   "gemini-1.5-pro":      { input: 0.00125, output: 0.005 },
   "gemini-1.5-flash":    { input: 0.000075,output: 0.0003 },
   "gemini-2.0-flash":    { input: 0.0001,  output: 0.0004 },
+  "deepseek-chat":       { input: 0.00027, output: 0.0011 },
+  "deepseek-reasoner":   { input: 0.00055, output: 0.00219 },
 };
 
 function estimateCost(model: string, prompt: number, completion: number): number {
@@ -157,6 +159,140 @@ export async function chatWithGemini(
   }
 }
 
+// ─── DeepSeek (OpenAI-compatible) ─────────────────────────────────────────────
+export async function chatWithDeepSeek(
+  messages: LlmMessage[],
+  opts: { model?: string; operation?: string } = {}
+): Promise<LlmResponse> {
+  const apiKey = await getConfig("deepseek_api_key");
+  if (!apiKey) throw new Error("DeepSeek API key is not configured. Add it in Super Admin → API Keys.");
+
+  const model = opts.model ?? (await getConfig("deepseek_default_model")) ?? "deepseek-chat";
+  const operation = opts.operation ?? "chat";
+
+  // DeepSeek exposes an OpenAI-compatible Chat Completions API.
+  const client = new OpenAI({ apiKey, baseURL: "https://api.deepseek.com" });
+  const start = Date.now();
+
+  try {
+    const resp = await client.chat.completions.create({
+      model,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    });
+
+    const durationMs = Date.now() - start;
+    const choice = resp.choices[0];
+    const content = choice?.message?.content ?? "";
+    const promptTokens = resp.usage?.prompt_tokens ?? 0;
+    const completionTokens = resp.usage?.completion_tokens ?? 0;
+
+    await logUsage({ model, operation, promptTokens, completionTokens, durationMs, status: "success" });
+
+    return { provider: "deepseek", model, content, promptTokens, completionTokens, durationMs };
+  } catch (err: unknown) {
+    const durationMs = Date.now() - start;
+    const msg = err instanceof Error ? err.message : String(err);
+    await logUsage({ model, operation, promptTokens: 0, completionTokens: 0, durationMs, status: "error", errorMessage: msg });
+    throw err;
+  }
+}
+
+// ─── Gemini + Google Search grounding ─────────────────────────────────────────
+export interface GroundingSource {
+  uri: string;
+  title: string;
+}
+
+export interface GroundedSupport {
+  text: string;
+  sourceIndices: number[];
+}
+
+export interface GroundedResponse {
+  model: string;
+  text: string;
+  sources: GroundingSource[];
+  supports: GroundedSupport[];
+  webSearchQueries: string[];
+}
+
+// The @google/generative-ai@0.24.1 grounding type defs are inaccurate:
+// GroundingSupport.segment is declared as `string` but is an object at runtime,
+// and the chunk-index field is misspelled `groundingChunckIndices`. We read the
+// real runtime shape here rather than trust the SDK types.
+interface RuntimeGroundingMetadata {
+  groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
+  groundingSupports?: Array<{
+    segment?: { text?: string };
+    groundingChunkIndices?: number[];
+  }>;
+  webSearchQueries?: string[];
+}
+
+/**
+ * Gemini grounded with Google Search. Gemini performs live Google searches
+ * server-side and returns a synthesized answer plus grounding metadata (the
+ * source URLs and the specific sentence each source supports). This is a
+ * genuine live-web data path — a plain LLM call has no internet access.
+ *
+ * Google Search grounding uses the `googleSearch` tool, which requires a Gemini
+ * 2.x model (the retired 1.x line used the old `googleSearchRetrieval` tool).
+ * The installed SDK's Tool type predates `googleSearch`, but the SDK forwards
+ * `tools` verbatim to the REST API, so we pass it through a cast rather than
+ * pulling in a second Gemini SDK.
+ */
+export async function geminiGroundedSearch(
+  prompt: string,
+  opts: { model?: string; operation?: string } = {}
+): Promise<GroundedResponse> {
+  const apiKey = await getConfig("gemini_api_key");
+  if (!apiKey) throw new Error("Gemini API key is not configured. Add it in Super Admin → API Keys.");
+
+  let model = opts.model ?? (await getConfig("gemini_default_model")) ?? "gemini-2.0-flash";
+  // The `googleSearch` grounding tool requires Gemini 2.x — bump legacy models.
+  if (model.includes("1.5") || model.includes("1.0")) model = "gemini-2.0-flash";
+  const operation = opts.operation ?? "grounded-search";
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const genModel = genAI.getGenerativeModel({
+    model,
+    tools: [{ googleSearch: {} }] as unknown as Tool[],
+  });
+  const start = Date.now();
+
+  try {
+    const result = await genModel.generateContent(prompt);
+    const durationMs = Date.now() - start;
+    const resp = result.response;
+    const cand = resp.candidates?.[0];
+    const gm = (cand?.groundingMetadata ?? undefined) as RuntimeGroundingMetadata | undefined;
+
+    const sources: GroundingSource[] = (gm?.groundingChunks ?? [])
+      .map((c) => ({ uri: c.web?.uri ?? "", title: c.web?.title ?? "" }))
+      .filter((s) => s.uri);
+
+    const supports: GroundedSupport[] = (gm?.groundingSupports ?? [])
+      .map((s) => ({ text: s.segment?.text ?? "", sourceIndices: s.groundingChunkIndices ?? [] }))
+      .filter((s) => s.text);
+
+    let text = "";
+    try { text = resp.text(); } catch { text = ""; }
+
+    const usageMeta = resp.usageMetadata;
+    const promptTokens = usageMeta?.promptTokenCount ?? 0;
+    const completionTokens = usageMeta?.candidatesTokenCount ?? 0;
+
+    await logUsage({ model, operation, promptTokens, completionTokens, durationMs, status: "success" });
+
+    return { model, text, sources, supports, webSearchQueries: gm?.webSearchQueries ?? [] };
+  } catch (err: unknown) {
+    const durationMs = Date.now() - start;
+    const msg = err instanceof Error ? err.message : String(err);
+    await logUsage({ model, operation, promptTokens: 0, completionTokens: 0, durationMs, status: "error", errorMessage: msg });
+    throw err;
+  }
+}
+
 // ─── Unified dispatcher ───────────────────────────────────────────────────────
 export async function chat(
   provider: LlmProvider,
@@ -165,5 +301,6 @@ export async function chat(
 ): Promise<LlmResponse> {
   if (provider === "openai") return chatWithGpt(messages, opts);
   if (provider === "gemini") return chatWithGemini(messages, opts);
+  if (provider === "deepseek") return chatWithDeepSeek(messages, opts);
   throw new Error(`Unknown LLM provider: ${provider}`);
 }

@@ -129,9 +129,26 @@ async function scheduleSearchKeywords(): Promise<void> {
           opts: { attempts: 2, backoff: { type: "exponential", delay: 30000 } },
         }
       );
+
+      // Gemini + Google Search grounding for the same keyword. LLM-billable →
+      // attempts:1; the worker skips it at run time if no Gemini key is set.
+      await contentIngestion.upsertJobScheduler(
+        `gemini-search-${slug}-${orgSlug}`,
+        { every: SEARCH_INTERVAL_MS },
+        {
+          name: "gemini-search",
+          data: {
+            sourceType: "gemini-search",
+            keyword,
+            category: category ?? "general",
+            orgId,
+          },
+          opts: { attempts: 1 },
+        }
+      );
     }
 
-    logger.info({ count: keywords.length }, "DuckDuckGo web + social search keyword schedulers registered from watchlist (all orgs)");
+    logger.info({ count: keywords.length }, "DuckDuckGo web + social + Gemini search keyword schedulers registered from watchlist (all orgs)");
   } catch (err) {
     logger.warn({ err }, "Could not schedule search keyword jobs from watchlist_keywords");
   }
