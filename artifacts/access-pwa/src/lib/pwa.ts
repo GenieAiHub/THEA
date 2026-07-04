@@ -15,7 +15,23 @@ let initialized = false;
 
 const listeners = new Set<Listener>();
 
+// useSyncExternalStore compares snapshots by reference, so getPWAState() must
+// return a STABLE object that only changes when the underlying state changes.
+// Recomputing (and thus returning a fresh object) on every call causes an
+// infinite render loop ("getSnapshot should be cached").
+let cachedState: PWAState = computeState();
+
+function computeState(): PWAState {
+  return {
+    canInstall: !!deferredPrompt,
+    needRefresh,
+    offlineReady,
+    standalone: isStandalone(),
+  };
+}
+
 function emit() {
+  cachedState = computeState();
   for (const l of listeners) l();
 }
 
@@ -52,12 +68,7 @@ export interface PWAState {
 }
 
 export function getPWAState(): PWAState {
-  return {
-    canInstall: !!deferredPrompt,
-    needRefresh,
-    offlineReady,
-    standalone: isStandalone(),
-  };
+  return cachedState;
 }
 
 export async function promptInstall(): Promise<boolean> {
@@ -118,6 +129,13 @@ export function initPWA(): void {
     deferredPrompt = null;
     emit();
   });
+
+  // Keep the cached `standalone` value fresh if the display mode flips (e.g.
+  // the app is launched installed) — the snapshot is otherwise only recomputed
+  // on emit().
+  window
+    .matchMedia("(display-mode: standalone)")
+    .addEventListener("change", emit);
 
   // Registers the generated service worker. In dev this is a no-op stub because
   // devOptions.enabled is false.

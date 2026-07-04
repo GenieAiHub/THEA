@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/AppShell";
 import Login from "@/pages/Login";
 import Lock from "@/pages/Lock";
+import GetApp from "@/pages/GetApp";
 import Home from "@/pages/Home";
 import Scan from "@/pages/Scan";
 import Members from "@/pages/Members";
@@ -71,7 +72,12 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Gate />
+            <Switch>
+              <Route path="/get" component={GetApp} />
+              <Route>
+                <Gate />
+              </Route>
+            </Switch>
           </WouterRouter>
           <Toaster position="top-center" richColors />
         </AuthProvider>
