@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, ScanFace } from "lucide-react";
+import { Download, Loader2, ScanFace } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@workspace/api-client-react";
 import { SegmentedControl } from "@/components/native/SegmentedControl";
+import { InstallAppDialog } from "@/components/InstallAppDialog";
 import { haptic } from "@/lib/haptics";
 
 type Mode = "login" | "register";
@@ -19,6 +20,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,8 +155,29 @@ export default function Login() {
             {mode === "login" ? "Sign in" : "Create organization"}
           </Button>
         </form>
+
+        <div className="mt-8 flex items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">Get the app</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic("tap");
+            setShowInstall(true);
+          }}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/15 active:scale-[0.98]"
+          data-testid="button-download-app"
+        >
+          <Download className="h-4 w-4" />
+          Download mobile app
+        </button>
       </div>
       <div className="safe-bottom" />
+
+      <InstallAppDialog open={showInstall} onOpenChange={setShowInstall} />
     </div>
   );
 }

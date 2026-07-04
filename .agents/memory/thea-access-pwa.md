@@ -78,3 +78,14 @@ Accounts = organizations.
   an offline relaunch recompute a different buster and discard the cache, breaking
   offline. **How to apply:** enforce per-user isolation by purging cache+snapshot on
   login/register/logout/confirmed-401 (purgePersistedQueryCache), not via the buster.
+- **"Download mobile app" install popup (InstallAppDialog, on Login).** App-store-
+  style dialog that SIMULATES an install with staged progress, then does the real
+  thing per platform: promptInstall() (Chromium beforeinstallprompt), iOS
+  Add-to-Home steps, or a QR "open on your phone" fallback. **Why the simulated
+  delay is bounded:** the fake progress must total well under Chromium's ~5s
+  transient-activation window or `prompt()` no longer counts as a user gesture and
+  silently fails. **Honesty rule:** only claim "Installed!" when promptInstall()
+  resolves accepted OR already standalone; iOS/QR paths must never claim installed.
+  runInstall guards each await with a runToken (bumped on close) so a dismissed
+  dialog can't advance or fire the native prompt late, and wraps prompt() in
+  try/catch → manual QR fallback so a thrown prompt can't strand the UI mid-progress.
