@@ -1,0 +1,97 @@
+[+] build 6/6
+ ✔ Image thea-markets    Built                                                            350.4s
+ ✔ Image thea-api        Built                                                            350.4s
+ ✔ Image thea-admin      Built                                                            350.4s
+ ✔ Image thea-access-pwa Built                                                            350.4s
+ ✔ Image thea-website    Built                                                            350.4s
+ ✔ Image thea-tools      Built                                                            350.4s
+✓ Images built.
+==> Applying database schema (one-shot migrate)…
+[+]  1/1t 1/11
+ ✔ Container thea-db-1 Running                                                              0.0s
+Container thea-db-1 Waiting
+Container thea-db-1 Healthy
+Container thea-migrate-run-26a4bd62bb7a Creating
+Container thea-migrate-run-26a4bd62bb7a Created
+
+> @workspace/db@0.0.0 push /app/lib/db
+> node ./scripts/pre-push.mjs && drizzle-kit push --config ./drizzle.config.ts
+
+[pre-push] pgvector extension ensured
+Reading config file '/app/lib/db/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+[✓] Changes applied
+✓ Schema applied.
+==> Starting the stack…
+[+] up 9/9
+ ✔ Container thea-db-1         Healthy                                                     45.6s
+ ✔ Container thea-redis-1      Healthy                                                     45.6s
+ ✔ Container thea-es-1         Running                                                      0.0s
+ ✔ Container thea-migrate-1    Exited                                                      50.8s
+ ✔ Container thea-api-1        Started                                                     31.2s
+ ✔ Container thea-access-pwa-1 Started                                                      9.0s
+ ✔ Container thea-admin-1      Started                                                      9.0s
+ ✔ Container thea-markets-1    Started                                                      8.9s
+ ✔ Container thea-website-1    Started                                                      9.1s
+✓ Stack is up.
+==> Pruning dangling images…
+
+NAME                IMAGE                                                  COMMAND                  SERVICE      CREATED          STATUS                           PORTS
+thea-access-pwa-1   thea-access-pwa                                        "/docker-entrypoint.…"   access-pwa   10 seconds ago   Up 1 second                      80/tcp
+thea-admin-1        thea-admin                                             "/docker-entrypoint.…"   admin        10 seconds ago   Up 1 second                      80/tcp
+thea-api-1          thea-api                                               "docker-entrypoint.s…"   api          33 seconds ago   Up 1 second (health: starting)   5000/tcp
+thea-db-1           pgvector/pgvector:pg16                                 "docker-entrypoint.s…"   db           24 hours ago     Up 24 hours (healthy)            5432/tcp
+thea-es-1           docker.elastic.co/elasticsearch/elasticsearch:8.15.3   "/bin/tini -- /usr/l…"   es           24 hours ago     Up 24 hours (healthy)            9200/tcp, 9300/tcp
+thea-markets-1      thea-markets                                           "/docker-entrypoint.…"   markets      10 seconds ago   Up 1 second                      80/tcp
+thea-redis-1        redis:7-alpine                                         "docker-entrypoint.s…"   redis        24 hours ago     Up 24 hours (healthy)            6379/tcp
+thea-website-1      thea-website                                           "/docker-entrypoint.…"   website      10 seconds ago   Up 1 second                      80/tcp
+
+✓ Deploy complete.
+==> SPAs are served via the shared Caddy proxy (thea.quest / admin.thea.quest / markets.thea.quest).
+==> Tail logs with:  docker compose -f docker-compose.yml -f docker-compose.proxy.yml logs -f api
+root@vmi3385433:~/thea# # From the VPS repo dir — container is up & healthy
+cd ~/thea
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml ps access-pwa
+
+# The origin serves the app shell, manifest, and service worker over HTTPS
+curl -sI  https://m.thea.quest/                     # 200, text/html
+curl -s   https://m.thea.quest/manifest.webmanifest | head
+curl -sI  https://m.thea.quest/sw.js                # 200, Cache-Control: no-cache
+
+# API reaches the backend through the PWA's nginx (same origin, cookie auth)
+curl -sI  https://m.thea.quest/api/healthz          # 200
+NAME                IMAGE             COMMAND                  SERVICE      CREATED          STATUS         PORTS
+thea-access-pwa-1   thea-access-pwa   "/docker-entrypoint.…"   access-pwa   18 seconds ago   Up 9 seconds   80/tcp
+HTTP/2 200
+date: Sat, 04 Jul 2026 00:03:39 GMT
+alt-svc: h3=":443"; ma=86400
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=kWsibElP4f3HUkY4zcFzWtDURW73nkIGWmBERWxpvy9aF46ZMxBp7FfFv8NKRlT2FSbpdeoukTNGl5dxQ5J6LHBd20CPT0lgP9%2F1xp2TmWIX3GTSfU%2B%2Fw8UO64z1igE%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: a159de391b27dbb7-FRA
+
+HTTP/2 200
+date: Sat, 04 Jul 2026 00:03:39 GMT
+content-length: 0
+alt-svc: h3=":443"; ma=86400
+server: cloudflare
+accept-ranges: bytes
+last-modified: Sat, 04 Jul 2026 00:03:39 GMT
+cache-control: max-age=14400
+cf-cache-status: MISS
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=f%2FfcbJDnO6cQz98frtMEB0Q9dsYRCfYkey59EZr1gyiZB3tmzUOA1p77JthAEk5wAN3HRl4hRVk3pplpb2bfEWBzzO8hSnDb4Af2XC5F0qG9MCHOq3tQEEZWYJEERRA%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: a159de3d7bf23829-FRA
+
+HTTP/2 200
+date: Sat, 04 Jul 2026 00:03:40 GMT
+alt-svc: h3=":443"; ma=86400
+server: cloudflare
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=5i5WP88AO6d%2Bv%2Bad9or6buLdatUjl%2B4LfNNvRLh%2Fas%2F%2B4brLeMm3A2brH5h2c7kx%2FYiwmP8lOg%2BPyGO0XJ2F%2BkKIJVwOTv75A5i4xHueFGU2q9BXUDl0g9yzhMJqnwI%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+cf-ray: a159de3fdc7c73a1-FRA
+
+root@vmi3385433:~/thea#
