@@ -1,18 +1,25 @@
 import { useState } from "react";
 import {
+  Bell,
+  BellRing,
   Building2,
   Download,
   Fingerprint,
   LogOut,
   MapPin,
+  Share2,
   ShieldCheck,
   Smartphone,
+  Vibrate,
+  Wifi,
   WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/context/AuthContext";
 import { usePWA } from "@/hooks/use-pwa";
+import { useNotifications } from "@/hooks/use-notifications";
+import { useNetworkStatus } from "@/hooks/use-network-status";
 import { promptInstall } from "@/lib/pwa";
 import { biometricLabel } from "@/lib/biometric";
 import {
@@ -20,6 +27,12 @@ import {
   GeoError,
   formatCoords,
 } from "@/lib/geolocation";
+import { haptic, isHapticsSupported } from "@/lib/haptics";
+import { notify } from "@/lib/notifications";
+import { share, isShareSupported } from "@/lib/share";
+import { isWakeLockSupported } from "@/lib/wake-lock";
+import { NativeHeader } from "@/components/native/NativeHeader";
+import { Pressable } from "@/components/native/Pressable";
 import { toast } from "sonner";
 
 export default function Settings() {
@@ -34,6 +47,8 @@ export default function Settings() {
     disableBiometric,
   } = useAuth();
   const { canInstall, standalone, offlineReady } = usePWA();
+  const notifications = useNotifications();
+  const online = useNetworkStatus();
   const [bioBusy, setBioBusy] = useState(false);
 
   const onToggleBiometric = async (next: boolean) => {
@@ -55,20 +70,57 @@ export default function Settings() {
     }
   };
 
+  const enableNotifications = async () => {
+    const next = await notifications.request();
+    if (next === "granted") {
+      await notify({
+        title: "Notifications on",
+        body: "You'll get alerts for access events.",
+        tag: "notif-test",
+      });
+      toast.success("Notifications enabled");
+    } else if (next === "denied") {
+      toast.error("Notifications blocked in your browser settings");
+    } else if (next === "unsupported") {
+      toast.error("Notifications aren't supported here");
+    }
+  };
+
+  const testHaptics = () => {
+    haptic("success");
+    toast.success(
+      isHapticsSupported()
+        ? "Buzz! Feel that?"
+        : "No vibration support on this device",
+    );
+  };
+
   const testLocation = async () => {
     try {
       const c = await getCurrentLocation();
+      haptic("success");
       toast.success(`Location OK — ${formatCoords(c)}`);
     } catch (err) {
+      haptic("error");
       toast.error(
         err instanceof GeoError ? err.message : "Couldn't get location.",
       );
     }
   };
 
+  const shareApp = async () => {
+    const res = await share({
+      title: "THEA Access",
+      text: "Manage secure access with THEA Access",
+      url: window.location.origin + import.meta.env.BASE_URL,
+    });
+    if (res === "copied") toast.success("Link copied to clipboard");
+    else if (res === "unavailable") toast.error("Sharing isn't available");
+  };
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+      <NativeHeader title="Settings" />
 
       {/* Account */}
       <section className="rounded-2xl border border-border bg-card p-4">
@@ -105,9 +157,9 @@ export default function Settings() {
       <section className="rounded-2xl border border-border bg-card">
         <SectionTitle>Security</SectionTitle>
         <div className="flex items-center gap-3 p-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+          <IconTile>
             <Fingerprint className="h-5 w-5 text-primary" />
-          </div>
+          </IconTile>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">Biometric unlock</p>
             <p className="text-xs text-muted-foreground">
@@ -125,14 +177,123 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Device & permissions */}
+      <section className="rounded-2xl border border-border bg-card">
+        <SectionTitle>Device &amp; permissions</SectionTitle>
+        <div className="divide-y divide-border">
+          <div className="flex items-center gap-3 p-4">
+            <IconTile>
+              {notifications.permission === "granted" ? (
+                <BellRing className="h-5 w-5 text-success" />
+              ) : (
+                <Bell className="h-5 w-5 text-accent-foreground" />
+              )}
+            </IconTile>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Notifications</p>
+              <p className="text-xs text-muted-foreground">
+                {!notifications.supported
+                  ? "Not supported on this device"
+                  : notifications.permission === "granted"
+                    ? "On — you'll get access alerts"
+                    : notifications.permission === "denied"
+                      ? "Blocked in browser settings"
+                      : "Get alerted on denied entries"}
+              </p>
+            </div>
+            {notifications.supported &&
+              notifications.permission !== "granted" &&
+              notifications.permission !== "denied" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={enableNotifications}
+                  data-testid="button-enable-notifications"
+                >
+                  Enable
+                </Button>
+              )}
+            {notifications.permission === "granted" && (
+              <ShieldCheck className="h-5 w-5 text-success" />
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 p-4">
+            <IconTile>
+              <Vibrate className="h-5 w-5 text-accent-foreground" />
+            </IconTile>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Haptics</p>
+              <p className="text-xs text-muted-foreground">
+                {isHapticsSupported()
+                  ? "Tactile feedback on actions"
+                  : "No vibration on this device"}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={testHaptics}
+              data-testid="button-test-haptics"
+            >
+              Test
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3 p-4">
+            <IconTile>
+              <MapPin className="h-5 w-5 text-accent-foreground" />
+            </IconTile>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Location</p>
+              <p className="text-xs text-muted-foreground">
+                Test location permission
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={testLocation}
+              data-testid="button-test-location"
+            >
+              Test
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3 p-4">
+            <IconTile>
+              {online ? (
+                <Wifi className="h-5 w-5 text-success" />
+              ) : (
+                <WifiOff className="h-5 w-5 text-warning" />
+              )}
+            </IconTile>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Connection</p>
+              <p className="text-xs text-muted-foreground">
+                {online ? "Online" : "Offline — changes may not save"}
+                {isWakeLockSupported() ? " · screen stays awake on scan" : ""}
+              </p>
+            </div>
+            <span
+              className={
+                online
+                  ? "h-2.5 w-2.5 rounded-full bg-success"
+                  : "h-2.5 w-2.5 rounded-full bg-warning"
+              }
+            />
+          </div>
+        </div>
+      </section>
+
       {/* App */}
       <section className="rounded-2xl border border-border bg-card">
         <SectionTitle>App</SectionTitle>
         <div className="divide-y divide-border">
           <div className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+            <IconTile>
               <Smartphone className="h-5 w-5 text-accent-foreground" />
-            </div>
+            </IconTile>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Install app</p>
               <p className="text-xs text-muted-foreground">
@@ -151,15 +312,13 @@ export default function Settings() {
                 <Download className="mr-2 h-4 w-4" /> Install
               </Button>
             )}
-            {standalone && (
-              <ShieldCheck className="h-5 w-5 text-success" />
-            )}
+            {standalone && <ShieldCheck className="h-5 w-5 text-success" />}
           </div>
 
           <div className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+            <IconTile>
               <WifiOff className="h-5 w-5 text-muted-foreground" />
-            </div>
+            </IconTile>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Offline ready</p>
               <p className="text-xs text-muted-foreground">
@@ -171,35 +330,37 @@ export default function Settings() {
           </div>
 
           <div className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-              <MapPin className="h-5 w-5 text-accent-foreground" />
-            </div>
+            <IconTile>
+              <Share2 className="h-5 w-5 text-accent-foreground" />
+            </IconTile>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">Location</p>
+              <p className="text-sm font-medium">Share app</p>
               <p className="text-xs text-muted-foreground">
-                Test location permission
+                {isShareSupported()
+                  ? "Send THEA Access to a teammate"
+                  : "Copy the app link"}
               </p>
             </div>
             <Button
               size="sm"
               variant="outline"
-              onClick={testLocation}
-              data-testid="button-test-location"
+              onClick={shareApp}
+              data-testid="button-share-app"
             >
-              Test
+              Share
             </Button>
           </div>
         </div>
       </section>
 
-      <Button
-        variant="outline"
-        className="w-full text-destructive"
+      <Pressable
+        hapticPattern="warning"
+        className="flex h-11 w-full items-center justify-center rounded-lg border border-border bg-card text-sm font-medium text-destructive hover-elevate active-elevate-2"
         onClick={() => void logout()}
         data-testid="button-signout"
       >
         <LogOut className="mr-2 h-4 w-4" /> Sign out
-      </Button>
+      </Pressable>
 
       <p className="pb-4 text-center text-xs text-muted-foreground">
         THEA Access · Secure entry control
@@ -213,6 +374,14 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <p className="px-4 pt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {children}
     </p>
+  );
+}
+
+function IconTile({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+      {children}
+    </div>
   );
 }
 

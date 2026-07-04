@@ -5,17 +5,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedRoutes } from "@/components/AnimatedRoutes";
 import Login from "@/pages/Login";
 import Lock from "@/pages/Lock";
 import GetApp from "@/pages/GetApp";
-import Home from "@/pages/Home";
-import Scan from "@/pages/Scan";
-import Members from "@/pages/Members";
-import MemberDetail from "@/pages/MemberDetail";
-import AccessPoints from "@/pages/AccessPoints";
-import Events from "@/pages/Events";
-import Settings from "@/pages/Settings";
-import NotFound from "@/pages/not-found";
 import { queryClient, persister, APP_CACHE_VERSION } from "@/lib/queryClient";
 
 const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
@@ -23,16 +16,7 @@ const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
 function AuthedApp() {
   return (
     <AppShell>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/scan" component={Scan} />
-        <Route path="/members" component={Members} />
-        <Route path="/members/:id" component={MemberDetail} />
-        <Route path="/access-points" component={AccessPoints} />
-        <Route path="/events" component={Events} />
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
+      <AnimatedRoutes />
     </AppShell>
   );
 }

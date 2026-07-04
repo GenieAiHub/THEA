@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { biometricLabel } from "@/lib/biometric";
+import { haptic } from "@/lib/haptics";
 import { ApiError } from "@workspace/api-client-react";
 
 export default function Lock() {
@@ -19,7 +20,10 @@ export default function Lock() {
     setBusy(true);
     try {
       const ok = await unlockWithBiometric();
-      if (!ok) {
+      if (ok) {
+        haptic("success");
+      } else {
+        haptic("error");
         setError("Couldn't verify. Try again or use your password.");
       }
     } finally {
@@ -39,7 +43,9 @@ export default function Lock() {
     setBusy(true);
     try {
       await unlockWithPassword(password);
+      haptic("success");
     } catch (err) {
+      haptic("error");
       setError(
         err instanceof ApiError
           ? err.message

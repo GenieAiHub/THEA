@@ -1,16 +1,22 @@
 import { type ReactNode } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarClock,
   DoorOpen,
   Home,
   ScanFace,
+  Settings as SettingsIcon,
   Users,
+  WifiOff,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { PressableLink } from "@/components/native/Pressable";
+import { useNetworkStatus } from "@/hooks/use-network-status";
+import { spring } from "@/components/native/motion";
 
 interface NavItem {
   path: string;
@@ -35,15 +41,18 @@ function isActive(current: string, path: string): boolean {
 export function AppShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { org } = useAuth();
+  const online = useNetworkStatus();
+  const settingsActive = isActive(location, "/settings");
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-lg">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="safe-top" />
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Link
+          <PressableLink
             href="/"
-            className="flex min-w-0 items-center gap-2"
+            hapticPattern="tap"
+            className="flex min-w-0 items-center gap-2.5"
             data-testid="link-home-brand"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25">
@@ -57,100 +66,108 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Access control
               </p>
             </div>
-          </Link>
-          <Link
+          </PressableLink>
+          <PressableLink
             href="/settings"
+            hapticPattern="tap"
             className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl border border-border hover-elevate active-elevate-2",
-              isActive(location, "/settings") && "bg-secondary",
+              "flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground hover-elevate active-elevate-2",
+              settingsActive && "bg-secondary text-foreground",
             )}
             data-testid="link-settings"
           >
-            <SettingsGlyph />
-          </Link>
+            <SettingsIcon className="h-[18px] w-[18px]" />
+          </PressableLink>
         </div>
+        <AnimatePresence initial={false}>
+          {!online && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden bg-warning/15"
+            >
+              <div className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium text-warning">
+                <WifiOff className="h-3.5 w-3.5" />
+                Offline — showing your last synced data
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      <main className="flex-1 px-4 pb-safe-nav pt-4">{children}</main>
+      <main className="relative flex-1 px-4 pb-safe-nav pt-4">{children}</main>
 
       <InstallPrompt />
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg border-t border-border/60 bg-background/90 backdrop-blur-lg">
+      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg border-t border-border/60 bg-background/90 backdrop-blur-xl">
         <div className="grid grid-cols-5">
           {NAV.map((item) => {
             const active = isActive(location, item.path);
             const Icon = item.icon;
+
             if (item.primary) {
               return (
-                <Link
+                <PressableLink
                   key={item.path}
                   href={item.path}
+                  hapticPattern="select"
                   className="relative flex flex-col items-center justify-end pb-1 pt-2"
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
-                  <span
+                  <motion.span
+                    animate={{ scale: active ? 1.06 : 1 }}
+                    transition={spring}
                     className={cn(
-                      "-mt-6 flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg transition-transform",
-                      active
-                        ? "bg-primary text-primary-foreground scale-105"
-                        : "bg-primary text-primary-foreground",
+                      "-mt-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30",
+                      active && "ring-4 ring-primary/25",
                     )}
                   >
                     <Icon className="h-7 w-7" />
-                  </span>
+                  </motion.span>
                   <span className="mt-0.5 text-[10px] font-medium text-muted-foreground">
                     {item.label}
                   </span>
-                </Link>
+                </PressableLink>
               );
             }
+
             return (
-              <Link
+              <PressableLink
                 key={item.path}
                 href={item.path}
-                className="flex flex-col items-center gap-1 py-2.5"
+                hapticPattern="select"
+                className="relative flex flex-col items-center gap-1 py-2.5"
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-pill"
+                    transition={spring}
+                    className="absolute inset-x-3 top-1 h-8 rounded-full bg-primary/12"
+                  />
+                )}
                 <Icon
                   className={cn(
-                    "h-5 w-5",
+                    "relative h-5 w-5 transition-colors",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 />
                 <span
                   className={cn(
-                    "text-[10px] font-medium",
+                    "relative text-[10px] font-medium transition-colors",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
                   {item.label}
                 </span>
-              </Link>
+              </PressableLink>
             );
           })}
         </div>
         <div className="safe-bottom" />
       </nav>
     </div>
-  );
-}
-
-function SettingsGlyph() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-muted-foreground"
-    >
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
   );
 }

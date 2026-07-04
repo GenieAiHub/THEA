@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link, useLocation, useRoute } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
   Camera,
   DoorOpen,
   Loader2,
@@ -10,8 +9,10 @@ import {
   Phone,
   Plus,
   ScanFace,
+  Share2,
   Trash2,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,6 +45,11 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NativeHeader } from "@/components/native/NativeHeader";
+import { Pressable } from "@/components/native/Pressable";
+import { staggerContainer, staggerItem } from "@/components/native/motion";
+import { share } from "@/lib/share";
+import { haptic } from "@/lib/haptics";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -80,9 +86,11 @@ export default function MemberDetail() {
       void qc.invalidateQueries({ queryKey: ["member", id] });
       void qc.invalidateQueries({ queryKey: ["members"] });
       setCameraOpen(false);
+      haptic("success");
       toast.success("Face enrolled");
     },
     onError: (err) => {
+      haptic("error");
       toast.error(
         err instanceof Error ? err.message : "Couldn't enroll face.",
       );
@@ -103,6 +111,7 @@ export default function MemberDetail() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["grants", { memberId: id }] });
       setGrantPoint("");
+      haptic("success");
       toast.success("Access granted");
     },
     onError: (err) =>
@@ -126,20 +135,44 @@ export default function MemberDetail() {
     },
   });
 
-  const grantedPointIds = new Set((grants.data ?? []).map((g) => g.accessPointId));
+  const grantedPointIds = new Set(
+    (grants.data ?? []).map((g) => g.accessPointId),
+  );
   const availablePoints = (points.data ?? []).filter(
     (p) => !grantedPointIds.has(p.id),
   );
 
+  const onShare = async () => {
+    const m = member.data;
+    if (!m) return;
+    const lines = [m.fullName, m.email, m.phone].filter(Boolean);
+    const res = await share({
+      title: m.fullName,
+      text: lines.join("\n"),
+    });
+    if (res === "copied") toast.success("Copied to clipboard");
+    else if (res === "unavailable") toast.error("Sharing isn't available");
+  };
+
   return (
     <div className="space-y-6">
-      <Link
-        href="/members"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        data-testid="link-back-members"
-      >
-        <ArrowLeft className="mr-1 h-4 w-4" /> Members
-      </Link>
+      <NativeHeader
+        title={member.data?.fullName ?? "Member"}
+        subtitle={member.data ? "Member profile" : undefined}
+        backHref="/members"
+        action={
+          member.data ? (
+            <Pressable
+              aria-label="Share"
+              onClick={onShare}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover-elevate active-elevate-2"
+              data-testid="button-share-member"
+            >
+              <Share2 className="h-[18px] w-[18px]" />
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       {member.isLoading ? (
         <Skeleton className="h-24 w-full rounded-2xl" />
@@ -150,12 +183,11 @@ export default function MemberDetail() {
               {initials(member.data.fullName)}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-bold">
-                {member.data.fullName}
-              </h1>
               <Badge
-                variant={member.data.status === "active" ? "outline" : "secondary"}
-                className="mt-1 capitalize"
+                variant={
+                  member.data.status === "active" ? "outline" : "secondary"
+                }
+                className="capitalize"
               >
                 {member.data.status}
               </Badge>
@@ -197,15 +229,21 @@ export default function MemberDetail() {
               )}
             </div>
             {member.data.faces.length > 0 ? (
-              <div className="space-y-2">
+              <motion.div
+                className="space-y-2"
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+              >
                 {member.data.faces.map((f) => (
-                  <div
+                  <motion.div
                     key={f.id}
+                    variants={staggerItem}
                     className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
                     data-testid={`face-${f.id}`}
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
-                      <ScanFace className="h-4.5 w-4.5 text-primary" />
+                      <ScanFace className="h-[18px] w-[18px] text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">
@@ -218,20 +256,19 @@ export default function MemberDetail() {
                       )}
                     </div>
                     {canManage && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive"
+                      <Pressable
+                        hapticPattern="warning"
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-destructive disabled:opacity-50"
                         onClick={() => removeFace.mutate(f.id)}
                         disabled={removeFace.isPending}
                         data-testid={`button-remove-face-${f.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </Pressable>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
                 No faces enrolled. Add one so this member can be recognized.
@@ -269,34 +306,39 @@ export default function MemberDetail() {
               </div>
             )}
             {grants.data && grants.data.length > 0 ? (
-              <div className="space-y-2">
+              <motion.div
+                className="space-y-2"
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+              >
                 {grants.data.map((g) => (
-                  <div
+                  <motion.div
                     key={g.id}
+                    variants={staggerItem}
                     className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
                     data-testid={`grant-${g.id}`}
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary">
-                      <DoorOpen className="h-4.5 w-4.5 text-accent-foreground" />
+                      <DoorOpen className="h-[18px] w-[18px] text-accent-foreground" />
                     </div>
                     <p className="min-w-0 flex-1 truncate text-sm font-medium">
                       {g.accessPointName ?? "Access point"}
                     </p>
                     {canManage && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive"
+                      <Pressable
+                        hapticPattern="warning"
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-destructive disabled:opacity-50"
                         onClick={() => removeGrant.mutate(g.id)}
                         disabled={removeGrant.isPending}
                         data-testid={`button-remove-grant-${g.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </Pressable>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
                 No access granted yet.
@@ -308,7 +350,10 @@ export default function MemberDetail() {
             <Button
               variant="outline"
               className="w-full text-destructive"
-              onClick={() => setConfirmDelete(true)}
+              onClick={() => {
+                haptic("warning");
+                setConfirmDelete(true);
+              }}
               data-testid="button-delete-member"
             >
               <Trash2 className="mr-2 h-4 w-4" /> Delete member

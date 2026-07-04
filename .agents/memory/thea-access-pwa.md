@@ -45,6 +45,28 @@ Accounts = organizations.
   return bare (no envelope); `authMe→{data}`. `ApiError`/`ResponseParseError` are
   re-exported from the pkg index — after adding exports, rebuild the composite dist
   (`cd lib/api-client-react && tsc --build`) or consumers won't see them.
+- **Native-feel layer (violet-dark, kept):** the PWA was made to feel native
+  WITHOUT changing the palette — user picked "evolve, don't restyle". Do not
+  swap colors when polishing; add motion/gesture/hardware, not new hues.
+  Primitives live in src/components/native/ (Pressable, NativeHeader,
+  SegmentedControl, BottomSheet=vaul, PullToRefresh, motion.ts) + AnimatedRoutes.
+- **Page transitions:** AnimatedRoutes wraps a wouter `<Switch location={...}>`
+  with an EXPLICIT location so the exiting page stays frozen on its own route
+  during the AnimatePresence exit. Directional slide vs tab cross-fade is chosen
+  by TAB_ORDER rank. **framer-motion gotcha:** AnimatePresence forwards `custom`
+  to *exiting* children, so variants MUST be functions of `custom` (and both
+  <AnimatePresence> and the motion.div need `custom={direction}`) or the exit
+  plays a stale direction. Honors useReducedMotion.
+- **PullToRefresh** only arms at `window.scrollY === 0`; relies on
+  `overscroll-behavior-y: none` on body to kill Chrome-Android native PTR. iOS
+  Safari rubber-band still coexists (progressive enhancement, not a bug). Reset
+  on onTouchCancel too, or content sticks mid-pull after an OS interrupt.
+- **Hardware wiring is all capability-gated + local-only.** Notifications use the
+  SW registration.showNotification (LOCAL only — no server push wired by design);
+  haptics=navigator.vibrate; wake-lock re-acquires on visibilitychange; share=Web
+  Share w/ clipboard fallback. Every lib no-ops gracefully when unsupported, so
+  desktop/unsupported browsers never throw. CameraCapture portals to document.body
+  (z-[60]) above BottomSheet (z-50) above nav (z-30) and holds a wake lock while open.
 - **Offline = 3 layers:** SW precache (app shell) + React Query localStorage
   persistence (`@tanstack/query-sync-storage-persister` + `react-query-persist-client`,
   pinned to the exact react-query version to avoid a dual query-core; gcTime=maxAge=1wk;

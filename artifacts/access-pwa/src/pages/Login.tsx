@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Loader2, ScanFace } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@workspace/api-client-react";
+import { SegmentedControl } from "@/components/native/SegmentedControl";
+import { haptic } from "@/lib/haptics";
 
 type Mode = "login" | "register";
 
@@ -27,7 +30,9 @@ export default function Login() {
       } else {
         await register(email.trim(), password, name.trim() || null);
       }
+      haptic("success");
     } catch (err) {
+      haptic("error");
       setError(
         err instanceof ApiError
           ? err.message
@@ -43,9 +48,14 @@ export default function Login() {
       <div className="safe-top" />
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-10">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/25">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/25"
+          >
             <ScanFace className="h-8 w-8 text-primary" />
-          </div>
+          </motion.div>
           <h1 className="text-2xl font-bold tracking-tight">THEA Access</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "login"
@@ -54,20 +64,45 @@ export default function Login() {
           </p>
         </div>
 
+        <SegmentedControl<Mode>
+          className="mb-6"
+          value={mode}
+          onChange={(m) => {
+            setMode(m);
+            setError(null);
+          }}
+          layoutId="auth-mode"
+          segments={[
+            { value: "login", label: "Sign in" },
+            { value: "register", label: "Register" },
+          ]}
+        />
+
         <form onSubmit={submit} className="space-y-4">
-          {mode === "register" && (
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Your name</Label>
-              <Input
-                id="name"
-                autoComplete="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Alex Rivera"
-                data-testid="input-name"
-              />
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {mode === "register" && (
+              <motion.div
+                key="name-field"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22 }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Your name</Label>
+                  <Input
+                    id="name"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Alex Rivera"
+                    data-testid="input-name"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -118,40 +153,6 @@ export default function Login() {
             {mode === "login" ? "Sign in" : "Create organization"}
           </Button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-muted-foreground">
-          {mode === "login" ? (
-            <>
-              New to THEA?{" "}
-              <button
-                type="button"
-                className="font-medium text-primary hover:underline"
-                onClick={() => {
-                  setMode("register");
-                  setError(null);
-                }}
-                data-testid="button-switch-register"
-              >
-                Create an organization
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                type="button"
-                className="font-medium text-primary hover:underline"
-                onClick={() => {
-                  setMode("login");
-                  setError(null);
-                }}
-                data-testid="button-switch-login"
-              >
-                Sign in
-              </button>
-            </>
-          )}
-        </div>
       </div>
       <div className="safe-bottom" />
     </div>
