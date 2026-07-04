@@ -1,0 +1,60 @@
+root@vmi3385433:~/thea# CADDY=$(docker ps --format '{{.Names}}' | grep -i caddy | head -1); \
+echo "Caddy container: $CADDY"; \
+docker exec "$CADDY" caddy validate --config /etc/caddy/Caddyfile && \
+docker exec "$CADDY" caddy reload --config /etc/caddy/Caddyfile
+Caddy container: reverse-proxy-caddy-1
+{"level":"info","ts":1783134132.744608,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+{"level":"info","ts":1783134132.7657182,"msg":"adapted config to JSON","adapter":"caddyfile"}
+{"level":"warn","ts":1783134132.765775,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":51}
+{"level":"info","ts":1783134132.7707918,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x14413951cf00"}
+{"level":"warn","ts":1783134132.8045247,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.nexushub.network nexushub.network]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8046987,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.genieai.finance genieai.finance]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8047826,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.socialvista.co.in socialvista.co.in]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.804892,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.firstflyai.com firstflyai.com]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8049796,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.genisys.ind.in genisys.ind.in]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8051023,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.agentopia.network agentopia.network]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.805233,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.mlmnode.tech mlmnode.tech]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8053255,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.dseaw.org dseaw.org]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8054135,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.gnx.co.in gnx.co.in]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.805509,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.trustsure.id trustsure.id]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.805591,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.cgplay.games cgplay.games]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.805711,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.thea.quest thea.quest]: no URL to issuing certificate"}
+{"level":"warn","ts":1783134132.8057995,"logger":"tls","msg":"stapling OCSP","error":"no OCSP stapling for [cloudflare origin certificate *.cliniq.li cliniq.li]: no URL to issuing certificate"}
+{"level":"info","ts":1783134132.806209,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"m.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.806223,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"dashboard.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.806227,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"mlmnode.tech","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062303,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062344,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.dseaw.org","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062398,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.firstflyai.com","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062434,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"app.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.806246,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"agentopia.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062496,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"gnx.co.in","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062541,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.socialvista.co.in","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062572,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.genisys.ind.in","server_name":"srv0"}
+{"level":"info","ts":1783134132.80626,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"livekit.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062627,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"widget.nexushub.network","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062844,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"nodes.mlmnode.tech","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062885,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"markets.thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062913,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"dseaw.org","server_name":"srv0"}
+{"level":"info","ts":1783134132.8062952,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"socialvista.co.in","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"genisys.ind.in","server_name":"srv0"}
+{"level":"info","ts":1783134132.806303,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063076,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"genieai.finance","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063111,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.mlmnode.tech","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063142,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"trustsure.id","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063176,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"m.thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063207,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"admin.thea.quest","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063242,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.gnx.co.in","server_name":"srv0"}
+{"level":"info","ts":1783134132.806327,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"cgplay.games","server_name":"srv0"}
+{"level":"info","ts":1783134132.80633,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"cliniq.li","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063335,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"www.genieai.finance","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063364,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"tenants.genieai.finance","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063393,"logger":"http.auto_https","msg":"skipping automatic certificate management because one or more matching certificates are already loaded","domain":"firstflyai.com","server_name":"srv0"}
+{"level":"info","ts":1783134132.8063414,"logger":"http.auto_https","msg":"enabling automatic HTTP->HTTPS redirects","server_name":"srv0"}
+{"level":"info","ts":1783134132.8136187,"logger":"tls.cache.maintenance","msg":"stopped background certificate maintenance","cache":"0x14413951cf00"}
+{"level":"info","ts":1783134132.8138313,"logger":"http","msg":"servers shutting down with eternal grace period"}
+Valid configuration
+{"level":"info","ts":1783134133.1134953,"msg":"using config from file","file":"/etc/caddy/Caddyfile"}
+{"level":"info","ts":1783134133.1313767,"msg":"adapted config to JSON","adapter":"caddyfile"}
+{"level":"warn","ts":1783134133.131542,"msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":51}
+root@vmi3385433:~/thea#
