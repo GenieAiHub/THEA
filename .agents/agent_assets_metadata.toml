@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "nWAnEdIepZa4bFCX32Dsp"
@@ -36,3 +35,9 @@ id = "LoikikpYHBn9t9wRdIFeY"
 uri = "file://attached_assets/generated_images/glowing_world.png"
 type = "image"
 title = "glowing world data"
+
+[[outputs]]
+id = "FdH92GN8xyRCP2p33US_j"
+uri = "file://exports/THEA-Product-Brochure.pdf"
+type = "pdf"
+title = "THEA Product Brochure (2026 Edition)"

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>THEA — Product Brochure</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #05080F;
+  --bg2: #070C18;
+  --card: #0A101F;
+  --card2: #0D1526;
+  --border: #1E293B;
+  --border2: #27354A;
+  --fg: #F8FAFC;
+  --muted: #94A3B8;
+  --muted2: #64748B;
+  --primary: #3B82F6;
+  --primary-light: #60A5FA;
+  --primary-pale: #BFDBFE;
+  --violet: #8B5CF6;
+  --violet-light: #A78BFA;
+  --green: #34D399;
+  --amber: #FBBF24;
+  --red: #F87171;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: var(--bg); font-family: 'Inter', sans-serif; color: var(--fg); font-size: 10.5px; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
+@page { size: A4; margin: 0; }
+.page {
+  width: 210mm; height: 296.5mm; position: relative; overflow: hidden;
+  page-break-after: always; background: var(--bg);
+  padding: 13mm 14mm 16mm;
+  display: flex; flex-direction: column;
+}
+.page:last-child { page-break-after: avoid; }
+
+/* backdrop grid */
+.page::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(59,130,246,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.glow-tr { position: absolute; top: -120px; right: -120px; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(59,130,246,0.16) 0%, transparent 68%); pointer-events: none; }
+.glow-bl { position: absolute; bottom: -140px; left: -140px; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 68%); pointer-events: none; }
+.glow-violet { background: radial-gradient(circle, rgba(139,92,246,0.16) 0%, transparent 68%); }
+
+.rel { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* header / footer */
+.phead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7mm; }
+.phead img { height: 34px; }
+.phead .sec { font-family: 'Space Grotesk'; font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); }
+.pfoot { position: absolute; bottom: 7mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: var(--muted2); border-top: 1px solid var(--border); padding-top: 3mm; z-index: 2; }
+.pfoot b { color: var(--primary-light); font-weight: 600; }
+
+.eyebrow { display: inline-flex; align-items: center; gap: 6px; font-family: 'Space Grotesk'; font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--primary-light); border: 1px solid rgba(59,130,246,0.35); background: rgba(59,130,246,0.08); border-radius: 999px; padding: 4px 12px; margin-bottom: 4mm; width: fit-content; }
+.eyebrow::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+.eyebrow.v { color: var(--violet-light); border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.09); }
+.eyebrow.v::before { background: var(--violet); }
+
+h1.title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.15; margin-bottom: 3mm; }
+h1.title .b { color: var(--primary-light); }
+h1.title .v { color: var(--violet-light); }
+p.lead { font-size: 11px; color: var(--muted); max-width: 150mm; margin-bottom: 5mm; }
+
+/* screenshot frame */
+.frame { border: 1px solid var(--border2); border-radius: 10px; overflow: hidden; background: var(--card); box-shadow: 0 0 32px rgba(59,130,246,0.14); }
+.frame .bar { display: flex; align-items: center; gap: 5px; padding: 6px 10px; background: var(--card2); border-bottom: 1px solid var(--border); }
+.frame .bar i { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.frame .bar i:nth-child(1) { background: #F87171; } .frame .bar i:nth-child(2) { background: #FBBF24; } .frame .bar i:nth-child(3) { background: #34D399; }
+.frame .bar span { font-size: 7.5px; color: var(--muted2); margin-left: 6px; font-family: 'Space Grotesk'; letter-spacing: 0.5px; }
+.frame img { width: 100%; display: block; }
+.shot-caption { font-size: 8px; color: var(--muted2); margin-top: 2mm; text-align: center; letter-spacing: 0.3px; }
+
+/* phone frame */
+.phone { border: 2px solid var(--border2); border-radius: 22px; overflow: hidden; background: #000; box-shadow: 0 0 30px rgba(139,92,246,0.22); }
+.phone img { width: 100%; display: block; }
+
+/* cards */
+.grid { display: grid; gap: 3mm; }
+.g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: 1fr 1fr 1fr; } .g4 { grid-template-columns: repeat(4, 1fr); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 3.2mm 3.5mm; }
+.card h4 { font-size: 10px; color: var(--fg); margin-bottom: 1mm; display: flex; align-items: center; gap: 5px; }
+.card h4 .dot { width: 6px; height: 6px; border-radius: 2px; background: var(--primary); flex: 0 0 auto; }
+.card.v h4 .dot { background: var(--violet); }
+.card p { font-size: 8.6px; color: var(--muted); }
+
+.usecase { border: 1px solid rgba(59,130,246,0.35); background: linear-gradient(135deg, rgba(59,130,246,0.10), rgba(59,130,246,0.03)); border-radius: 8px; padding: 3.2mm 4mm; }
+.usecase .uc { font-family: 'Space Grotesk'; font-size: 8px; letter-spacing: 2px; color: var(--primary-light); text-transform: uppercase; margin-bottom: 1.2mm; }
+.usecase p { font-size: 9px; color: #CBD5E1; }
+.usecase.v { border-color: rgba(139,92,246,0.4); background: linear-gradient(135deg, rgba(139,92,246,0.10), rgba(139,92,246,0.03)); }
+.usecase.v .uc { color: var(--violet-light); }
+
+/* stats strip */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 3mm; text-align: center; }
+.stat .n { font-family: 'Space Grotesk'; font-size: 17px; font-weight: 700; color: var(--primary-light); }
+.stat .l { font-size: 7.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted2); margin-top: 0.5mm; }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; }
+th { font-family: 'Space Grotesk'; font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--primary-light); text-align: left; padding: 2.2mm 2.5mm; border-bottom: 1.5px solid rgba(59,130,246,0.45); background: rgba(59,130,246,0.07); }
+td { font-size: 8.6px; color: #CBD5E1; padding: 2mm 2.5mm; border-bottom: 1px solid var(--border); vertical-align: top; }
+td.k { color: var(--fg); font-weight: 600; white-space: nowrap; }
+td .tag { display: inline-block; font-size: 7px; font-family: 'Space Grotesk'; letter-spacing: 1px; text-transform: uppercase; border-radius: 4px; padding: 1px 6px; margin-right: 3px; }
+.tag.social { background: rgba(59,130,246,0.14); color: var(--primary-light); border: 1px solid rgba(59,130,246,0.35); }
+.tag.news { background: rgba(52,211,153,0.10); color: var(--green); border: 1px solid rgba(52,211,153,0.3); }
+.tag.search { background: rgba(251,191,36,0.10); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+.tag.web { background: rgba(139,92,246,0.12); color: var(--violet-light); border: 1px solid rgba(139,92,246,0.35); }
+.ok { color: var(--green); font-weight: 700; text-align: center; }
+.no { color: var(--muted2); text-align: center; }
+.part { color: var(--amber); text-align: center; font-size: 8px; }
+td.thea-col, th.thea-col { background: rgba(59,130,246,0.10); }
+
+.section-num { font-family: 'Space Grotesk'; font-size: 11px; color: var(--primary); font-weight: 700; letter-spacing: 1px; }
+.spacer { flex: 1; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; align-items: start; }
+
+/* pricing */
+.plan { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4mm; display: flex; flex-direction: column; }
+.plan.reco { border-color: rgba(59,130,246,0.65); box-shadow: 0 0 26px rgba(59,130,246,0.16); position: relative; }
+.plan .seg { font-size: 7.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted2); }
+.plan h3 { font-size: 14px; margin: 1mm 0; }
+.plan .price { font-family: 'Space Grotesk'; font-size: 22px; font-weight: 700; color: var(--primary-light); }
+.plan .price small { font-size: 9px; color: var(--muted); font-weight: 400; }
+.plan .desc { font-size: 8.3px; color: var(--muted); margin: 1.5mm 0 2.5mm; }
+.plan ul { list-style: none; }
+.plan li { font-size: 8.4px; color: #CBD5E1; padding: 1.1mm 0; border-top: 1px solid var(--border); display: flex; gap: 5px; }
+.plan li::before { content: "✓"; color: var(--primary-light); font-weight: 700; }
+.badge-reco { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #05080F; font-family: 'Space Grotesk'; font-size: 7px; font-weight: 700; letter-spacing: 1.5px; padding: 2px 10px; border-radius: 999px; text-transform: uppercase; }
+
+/* A-Z */
+.az { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.2mm; }
+.az .item { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 2.2mm 2.5mm; }
+.az .item b { font-family: 'Space Grotesk'; color: var(--primary-light); font-size: 11px; margin-right: 4px; }
+.az .item span { font-size: 8.2px; color: var(--fg); font-weight: 600; display: block; }
+.az .item p { font-size: 7.3px; color: var(--muted); margin-top: 0.5mm; }
+
+/* pipeline */
+.pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; }
+.pipe .step { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 3mm 2.8mm; position: relative; }
+.pipe .step .n { font-family: 'Space Grotesk'; font-size: 9px; color: var(--primary); font-weight: 700; }
+.pipe .step h4 { font-size: 10.5px; margin: 1mm 0; }
+.pipe .step p { font-size: 7.8px; color: var(--muted); }
+
+/* cover */
+.cover { justify-content: center; align-items: center; text-align: center; }
+.cover .logo-big { width: 120mm; margin-bottom: 8mm; filter: drop-shadow(0 0 40px rgba(59,130,246,0.45)); }
+.cover h1 { font-size: 21px; font-weight: 500; color: var(--fg); letter-spacing: 0.5px; }
+.cover h1 b { color: var(--primary-light); font-weight: 700; }
+.cover .sub { font-size: 11px; color: var(--muted); max-width: 125mm; margin: 4mm auto 10mm; }
+.cover .domains { display: flex; gap: 3mm; justify-content: center; flex-wrap: wrap; }
+.cover .domains span { font-family: 'Space Grotesk'; font-size: 9px; color: var(--primary-pale); border: 1px solid rgba(59,130,246,0.35); background: rgba(59,130,246,0.07); padding: 5px 14px; border-radius: 999px; letter-spacing: 1px; }
+.cover .year { position: absolute; bottom: 16mm; left: 0; right: 0; font-family: 'Space Grotesk'; font-size: 9px; letter-spacing: 3px; color: var(--muted2); text-transform: uppercase; }
+
+/* TOC */
+.toc-item { display: flex; align-items: baseline; gap: 4mm; padding: 2.6mm 0; border-bottom: 1px solid var(--border); }
+.toc-item .no_ { font-family: 'Space Grotesk'; font-size: 12px; font-weight: 700; color: var(--primary); width: 9mm; }
+.toc-item .t { font-family: 'Space Grotesk'; font-size: 11.5px; font-weight: 600; }
+.toc-item .d { font-size: 8.5px; color: var(--muted); margin-left: auto; text-align: right; max-width: 78mm; }
+.foot-note { font-size: 7.4px; color: var(--muted2); margin-top: 2mm; }
+</style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 — COVER ================= -->
+<div class="page cover">
+  <div class="glow-tr"></div><div class="glow-bl"></div>
+  <div class="rel" style="justify-content:center; align-items:center;">
+    <img class="logo-big" src="assets/logo.png" alt="THEA" />
+    <h1>The <b>All-Seeing</b> Intelligence Platform</h1>
+    <p class="sub">Total Human Engagement Analytics — one unified suite for narrative intelligence, AI-powered response, prediction markets, and biometric physical access. From global signal to tactical action.</p>
+    <div class="domains">
+      <span>thea.quest</span><span>markets.thea.quest</span><span>m.thea.quest</span><span>admin.thea.quest</span>
+    </div>
+  </div>
+  <div class="year">Product Brochure · 2026 Edition</div>
+</div>
+
+<!-- ================= PAGE 2 — CONTENTS / SUITE ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">Contents</span></div>
+    <span class="eyebrow">Inside this brochure</span>
+    <h1 class="title">One platform. <span class="b">Five products.</span><br/>End-to-end engagement intelligence.</h1>
+    <div style="margin-top:3mm;">
+      <div class="toc-item"><span class="no_">01</span><span class="t">The THEA Platform</span><span class="d">What THEA is, who it serves, and the numbers behind it</span></div>
+      <div class="toc-item"><span class="no_">02</span><span class="t">How It Works</span><span class="d">The five-stage intelligence pipeline, from collection to response</span></div>
+      <div class="toc-item"><span class="no_">03</span><span class="t">Intelligence Command Center</span><span class="d">Dashboard, trends, watchlists and crisis alerts</span></div>
+      <div class="toc-item"><span class="no_">04</span><span class="t">Data Connectors</span><span class="d">Every source THEA ingests — and how each one is used</span></div>
+      <div class="toc-item"><span class="no_">05</span><span class="t">AI Response Intelligence</span><span class="d">Talking points, holding statements, counter-narratives, what-if chat</span></div>
+      <div class="toc-item"><span class="no_">06</span><span class="t">Predictive Simulation &amp; Competitor Intel</span><span class="d">Global data analysis and share-of-voice tracking</span></div>
+      <div class="toc-item"><span class="no_">07</span><span class="t">THEA Markets</span><span class="d">Prediction markets with LMSR pricing, wallets and crypto deposits</span></div>
+      <div class="toc-item"><span class="no_">08</span><span class="t">THEA Access</span><span class="d">Biometric, offline-first mobile access control — no app store needed</span></div>
+      <div class="toc-item"><span class="no_">09</span><span class="t">Enterprise Operations &amp; Security</span><span class="d">Multi-tenancy, super admin, payments, self-hosted deployment</span></div>
+      <div class="toc-item"><span class="no_">10</span><span class="t">Plans &amp; Pricing</span><span class="d">Professional, Business and Political Party tiers</span></div>
+      <div class="toc-item"><span class="no_">11</span><span class="t">THEA vs. the Industry</span><span class="d">Capability comparison with legacy media-intelligence suites</span></div>
+      <div class="toc-item"><span class="no_">12</span><span class="t">THEA from A to Z</span><span class="d">The complete capability index</span></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Who is THEA for?</div>
+      <p>PR consultants and reputation managers · Corporate communications and brand teams · Political parties, campaigns and public agencies · Newsrooms and media houses · Security-conscious organizations that need to bridge digital insight with physical access control.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Total Human Engagement Analytics</span><span>02</span></div>
+</div>
+
+<!-- ================= PAGE 3 — PLATFORM OVERVIEW ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">01 · The Platform</span></div>
+    <span class="eyebrow">Global Intelligence Platform</span>
+    <h1 class="title">We watch the world's conversations —<br/>and turn them into <span class="b">action before they break.</span></h1>
+    <p class="lead">THEA continuously monitors news, social networks, search behaviour and the open web. Its cognitive engine scores trends, detects crises, drafts responses, and even lets your organization trade on what happens next — all from one dark-ops command center.</p>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest</span></div><img src="shots/website-home.jpg" /></div>
+    <div class="shot-caption">Live screenshot — THEA public platform, thea.quest</div>
+    <div class="spacer"></div>
+    <div class="stats">
+      <div class="stat"><div class="n">150,000+</div><div class="l">Monitored Sources</div></div>
+      <div class="stat"><div class="n">75+</div><div class="l">Languages Analyzed</div></div>
+      <div class="stat"><div class="n">16+</div><div class="l">Data Connectors</div></div>
+      <div class="stat"><div class="n">24/7</div><div class="l">Always-On Pipeline</div></div>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · The Platform</span><span>03</span></div>
+</div>
+
+<!-- ================= PAGE 4 — HOW IT WORKS ================= -->
+<div class="page">
+  <div class="glow-bl"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">02 · How It Works</span></div>
+    <span class="eyebrow">The Intelligence Pipeline</span>
+    <h1 class="title">From global noise to <span class="b">tactical clarity</span> — in five stages.</h1>
+    <p class="lead">Every stage feeds the next. Billions of daily signals are collected, deduplicated, scored and distilled into the specific insight and ready-to-send response your team needs.</p>
+    <div class="pipe">
+      <div class="step"><div class="n">01</div><h4>Collect</h4><p>RSS, news APIs, social listeners, search engines and polite web crawlers ingest continuously into one normalized schema.</p></div>
+      <div class="step"><div class="n">02</div><h4>Analyze</h4><p>Deduplication, language detection, sentiment and entity extraction clean and score the firehose in real time.</p></div>
+      <div class="step"><div class="n">03</div><h4>Detect</h4><p>Trend spikes, crisis severity, journalist influence and newsjacking windows surface automatically.</p></div>
+      <div class="step"><div class="n">04</div><h4>Alert</h4><p>Severity-graded alerts via email, Slack, Teams, Telegram and webhooks — before the story breaks.</p></div>
+      <div class="step"><div class="n">05</div><h4>Act</h4><p>AI drafts talking points, holding statements and counter-narratives in your organization's voice.</p></div>
+    </div>
+    <div style="height:4mm;"></div>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest/how-it-works</span></div><img src="shots/website-how.jpg" /></div>
+    <div class="shot-caption">Live screenshot — the five-stage pipeline explained on thea.quest</div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Use case — Crisis prevention</div>
+      <p>A negative supplier story starts gaining velocity on Reddit at 02:14. THEA's trend scorer flags anomalous volume, crisis scoring grades it "high", a Slack alert wakes the comms lead, and an AI-drafted holding statement is waiting in the portal before the first journalist calls at 08:00.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · How It Works</span><span>04</span></div>
+</div>
+
+<!-- ================= PAGE 5 — COMMAND CENTER ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">03 · Command Center</span></div>
+    <span class="eyebrow">Intelligence Command Center</span>
+    <h1 class="title">Your organization's <span class="b">global overview</span> — live, scored, prioritized.</h1>
+    <p class="lead">The portal at thea.quest is where analysts live: active trends, open alerts, watched entities and category activity — refreshed continuously, with a "Breaking Now" lane for signals that cannot wait.</p>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest/dashboard</span></div><img src="shots/portal-dashboard.jpg" /></div>
+    <div class="shot-caption">Live screenshot — the analytics overview dashboard (fresh demo organization)</div>
+    <div style="height:3.5mm;"></div>
+    <div class="grid g3">
+      <div class="card"><h4><span class="dot"></span>Trend Intelligence</h4><p>Volume &amp; velocity spike detection across every monitored category, with per-topic deep dives and momentum ranking.</p></div>
+      <div class="card"><h4><span class="dot"></span>Watchlists</h4><p>Track entities, brands, people and keywords. Tier-based limits from 5 to unlimited tracked entities.</p></div>
+      <div class="card"><h4><span class="dot"></span>Crisis Alerts</h4><p>Severity-graded incidents with full narrative context, delivered in-app and to email, Slack, Teams or webhooks.</p></div>
+      <div class="card"><h4><span class="dot"></span>Journalist Tracker</h4><p>Monitors media personnel and their narrative influence, so you know who is shaping the story.</p></div>
+      <div class="card"><h4><span class="dot"></span>Newsjacking Detector</h4><p>Finds trending conversations your brand can credibly join — while the window is still open.</p></div>
+      <div class="card"><h4><span class="dot"></span>Data Explorer</h4><p>Search the raw content corpus with sentiment, source, country and engagement filters. One-click CSV export.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Use case — Daily operations</div>
+      <p>Each morning the comms team opens one screen: overnight trend activity by category, new alerts ranked by severity, and the latest AI narrative summaries — replacing hours of manual media scanning with a two-minute briefing.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Command Center</span><span>05</span></div>
+</div>
+
+<!-- ================= PAGE 6 — CONNECTORS ================= -->
+<div class="page">
+  <div class="glow-bl"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">04 · Data Connectors</span></div>
+    <span class="eyebrow">The Ingestion Fabric</span>
+    <h1 class="title">Every signal source, <span class="b">one pipeline.</span></h1>
+    <p class="lead">THEA ships with a full stack of collectors. Operators enable, key and tune every connector from the Super Admin console — no redeploys required.</p>
+    <table>
+      <tr><th style="width:30mm;">Connector</th><th style="width:20mm;">Class</th><th>How THEA uses it</th></tr>
+      <tr><td class="k">RSS Feeds</td><td><span class="tag news">News</span></td><td>200+ preconfigured global outlets (Reuters, AP, BBC and more) plus unlimited custom feeds — the always-on journalism baseline.</td></tr>
+      <tr><td class="k">NewsAPI &amp; Mediastack</td><td><span class="tag news">News</span></td><td>Keyword-targeted global news retrieval to backfill and widen coverage beyond RSS.</td></tr>
+      <tr><td class="k">GDELT</td><td><span class="tag news">Geo-Intel</span></td><td>Global Data on Events, Location and Tone — geopolitical signal detection and country-level tone vectors.</td></tr>
+      <tr><td class="k">Twitter / X</td><td><span class="tag social">Social</span></td><td>Real-time conversation and virality tracking on watchlist keywords and entities.</td></tr>
+      <tr><td class="k">Reddit</td><td><span class="tag social">Social</span></td><td>Subreddit and thread monitoring — where narratives form before they hit mainstream media.</td></tr>
+      <tr><td class="k">Telegram</td><td><span class="tag social">Social</span></td><td>Channel monitoring for fast-moving and hard-to-reach communities; also a delivery channel for alerts via the THEA bot.</td></tr>
+      <tr><td class="k">TikTok</td><td><span class="tag social">Social</span></td><td>Short-video trend detection for youth-driven narrative shifts.</td></tr>
+      <tr><td class="k">Instagram &amp; Facebook</td><td><span class="tag social">Social</span></td><td>Public page and post scraping for brand and campaign monitoring.</td></tr>
+      <tr><td class="k">YouTube</td><td><span class="tag social">Social</span></td><td>Video title, description and engagement monitoring on tracked topics.</td></tr>
+      <tr><td class="k">Brave Search</td><td><span class="tag search">Search</span></td><td>Independent-index web search on every watchlist keyword — privacy-first and rate-friendly.</td></tr>
+      <tr><td class="k">DuckDuckGo</td><td><span class="tag search">Search</span></td><td>Zero-key search fallback so keyword sweeps never stop.</td></tr>
+      <tr><td class="k">Bing News / SERP</td><td><span class="tag search">Search</span></td><td>Search-results intelligence: what the public actually finds when they look you up.</td></tr>
+      <tr><td class="k">Web Crawler</td><td><span class="tag web">Raw Web</span></td><td>Politeness-aware crawler (per-domain rate limiting) for niche forums, blogs and any custom URL source.</td></tr>
+      <tr><td class="k">Apify</td><td><span class="tag web">Raw Web</span></td><td>Managed scraping actors for complex targets that need headless-browser extraction.</td></tr>
+    </table>
+    <div class="spacer"></div>
+    <div class="grid g2">
+      <div class="usecase"><div class="uc">Operator control</div><p>Every API key and connector setting is managed live in the Super Admin console — encrypted at rest (AES-256-GCM), hot-reloaded without restarts.</p></div>
+      <div class="usecase"><div class="uc">Delivery channels</div><p>Insights flow out as fast as they flow in: Email digests (immediate → weekly), Slack, Microsoft Teams, Telegram bot and signed webhooks.</p></div>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Data Connectors</span><span>06</span></div>
+</div>
+
+<!-- ================= PAGE 7 — AI RESPONSE ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">05 · AI Response</span></div>
+    <span class="eyebrow">AI Response Intelligence</span>
+    <h1 class="title">Don't just detect the narrative.<br/><span class="b">Answer it — in minutes.</span></h1>
+    <p class="lead">THEA's LLM suite turns intelligence into communication. Four tools, one workflow: from emerging narrative to publishable response, matched to your organization's voice.</p>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest/ai-tools</span></div><img src="shots/portal-ai-tools.jpg" /></div>
+    <div class="shot-caption">Live screenshot — AI Response Intelligence with selectable AI provider</div>
+    <div style="height:3.5mm;"></div>
+    <div class="grid g4">
+      <div class="card"><h4><span class="dot"></span>Talking Points</h4><p>Bullet-point responses for emerging narratives, optimized for comms teams under time pressure.</p></div>
+      <div class="card"><h4><span class="dot"></span>Statements</h4><p>Full holding statements and press releases drafted against the live narrative context.</p></div>
+      <div class="card"><h4><span class="dot"></span>Counter-Narratives</h4><p>Rebuttal strategy generated automatically when a crisis alert fires — before you even ask.</p></div>
+      <div class="card"><h4><span class="dot"></span>What-If Chat</h4><p>Conversational forecasting: test a proposed statement and gauge the likely public reaction.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Use case — Rapid response under fire</div>
+      <p>A competitor briefs journalists against your product at 16:40. By 16:55 your team has THEA-drafted talking points, a full holding statement, and a what-if simulation of three response postures — ready for legal review before end of day.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · AI Response Intelligence</span><span>07</span></div>
+</div>
+
+<!-- ================= PAGE 8 — SIMULATION + COMPETITORS ================= -->
+<div class="page">
+  <div class="glow-bl"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">06 · Simulation &amp; Competitor Intel</span></div>
+    <span class="eyebrow">Predictive Simulation</span>
+    <h1 class="title">Watch THEA <span class="b">think.</span></h1>
+    <p class="lead">The Global Data Analysis engine runs a live, staged pipeline — searching, collecting, analyzing and summarizing worldwide data across 195 countries — with insight categories scored in real time.</p>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest/simulation</span></div><img src="shots/portal-simulation.jpg" /></div>
+    <div class="shot-caption">Live screenshot — AI-powered Global Data Analysis in progress</div>
+    <div style="height:4mm;"></div>
+    <div class="two-col">
+      <div>
+        <span class="eyebrow">Competitor Intelligence</span>
+        <p style="font-size:9px; color:var(--muted); margin-bottom:2.5mm;">Track narrative signals, share of voice, trends and sentiment around any competitor. Add a company, THEA builds the keyword graph and starts scoring immediately — with per-competitor briefs on demand.</p>
+        <div class="usecase"><div class="uc">Use case — Share of voice</div><p>Marketing tracks three rivals. THEA reports who owns which narrative, whose sentiment is slipping, and where a newsjacking window is opening against them.</p></div>
+      </div>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest/competitors</span></div><img src="shots/portal-competitors.jpg" /></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="grid g3">
+      <div class="card"><h4><span class="dot"></span>White-Label Reports</h4><p>Branded PDF &amp; PPTX exports generated server-side — client-ready decks without design work.</p></div>
+      <div class="card"><h4><span class="dot"></span>Email Digests</h4><p>Immediate, hourly, daily or weekly narrative digests to any recipient list.</p></div>
+      <div class="card"><h4><span class="dot"></span>Full API Access</h4><p>Versioned REST API for command-center integrations on the Political tier.</p></div>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Simulation &amp; Competitor Intel</span><span>08</span></div>
+</div>
+
+<!-- ================= PAGE 9 — MARKETS ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">07 · THEA Markets</span></div>
+    <span class="eyebrow">Prediction Markets</span>
+    <h1 class="title">Predict what happens <span class="b">next.</span></h1>
+    <p class="lead">THEA Markets turns the platform's trend scanning into live prediction markets on politics, crypto, technology, sports and the news cycle. Back your read, watch the odds move in real time.</p>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>markets.thea.quest</span></div><img src="shots/markets-home.jpg" /></div>
+    <div class="shot-caption">Live screenshot — THEA Markets with live markets, votes and category filters</div>
+    <div style="height:3.5mm;"></div>
+    <div class="grid g3">
+      <div class="card"><h4><span class="dot"></span>LMSR Pricing Engine</h4><p>Logarithmic Market Scoring Rule guarantees continuous liquidity — every market always has a price, even with thin volume.</p></div>
+      <div class="card"><h4><span class="dot"></span>Multi-Coin Wallets</h4><p>Deposit BTC, ETH, USDT and more into a double-entry ledger wallet; withdrawals via BSC-USDT.</p></div>
+      <div class="card"><h4><span class="dot"></span>Web3 Sign-In</h4><p>Connect MetaMask or Coinbase Wallet, or browse anonymously — markets are public by design.</p></div>
+      <div class="card"><h4><span class="dot"></span>AI-Surfaced Markets</h4><p>New markets are proposed from THEA's own trend detection — trade the narratives the engine sees forming.</p></div>
+      <div class="card"><h4><span class="dot"></span>Leaderboard &amp; Activity</h4><p>Public leaderboard, live activity feed and per-market vote history keep the game transparent.</p></div>
+      <div class="card"><h4><span class="dot"></span>Admin Controls</h4><p>Operator price control, market resolution and payout tooling in the Super Admin console.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Use case — Sentiment as a signal</div>
+      <p>Beyond engagement, markets are an instrument: when the crowd's money disagrees with the media narrative, that spread itself is intelligence — THEA lets you see it and act on it.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Markets</span><span>09</span></div>
+</div>
+
+<!-- ================= PAGE 10 — ACCESS ================= -->
+<div class="page">
+  <div class="glow-tr glow-violet"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">08 · THEA Access</span></div>
+    <span class="eyebrow v">Biometric Access Control</span>
+    <h1 class="title">Digital intelligence meets <span class="v">physical security.</span></h1>
+    <p class="lead">THEA Access is an installable, offline-first mobile app for face-scan check-ins and organization access control. No app store required — one tap installs it from m.thea.quest, complete with an app-store-grade install experience.</p>
+    <div class="two-col" style="grid-template-columns: 1fr 1fr 1fr; display:grid; gap:4mm;">
+      <div class="phone"><img src="shots/access-login.jpg" /></div>
+      <div class="phone"><img src="shots/access-install-dialog.jpg" /></div>
+      <div style="display:flex; flex-direction:column; gap:2.5mm;">
+        <div class="card v"><h4><span class="dot"></span>Face-Scan Check-In</h4><p>Server-side neural face recognition — embeddings matched in the backend, never trusted to the client.</p></div>
+        <div class="card v"><h4><span class="dot"></span>Works Offline</h4><p>Full app shell, cached data and session snapshot survive dead zones; revalidates the moment you're back online.</p></div>
+        <div class="card v"><h4><span class="dot"></span>Biometric Login</h4><p>Platform passkeys (Face ID / fingerprint) with password fallback, plus an app lock for device-in-hand protection.</p></div>
+        <div class="card v"><h4><span class="dot"></span>Org-Scoped Security</h4><p>Every member, access point and event is isolated per organization with cookie-based sessions.</p></div>
+        <div class="card v"><h4><span class="dot"></span>Native Companion</h4><p>A native iOS/Android build (Expo) is available for hardware-heavy deployments and kiosk use.</p></div>
+      </div>
+    </div>
+    <div class="shot-caption" style="text-align:left;">Live screenshots — m.thea.quest login and the one-tap "Download mobile app" install experience</div>
+    <div class="spacer"></div>
+    <div class="usecase v"><div class="uc">Use case — Event &amp; facility access</div>
+      <p>A campaign registers 400 staff faces in an afternoon. At the venue, marshals check people in with a phone camera in under two seconds each — no badges printed, no app store downloads, full audit trail per access point.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Access</span><span>10</span></div>
+</div>
+
+<!-- ================= PAGE 11 — ENTERPRISE ================= -->
+<div class="page">
+  <div class="glow-bl"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">09 · Enterprise Operations</span></div>
+    <span class="eyebrow">Operations &amp; Security</span>
+    <h1 class="title">Run it like an operator. <span class="b">Own it like an enterprise.</span></h1>
+    <p class="lead">A dedicated Super Admin console governs the whole platform: organizations, plans, connector keys, ingestion health and market operations — while the architecture keeps every tenant isolated and every secret encrypted.</p>
+    <div class="two-col">
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>admin.thea.quest</span></div><img src="shots/admin-login.jpg" /></div>
+      <div style="display:flex; flex-direction:column; gap:2.5mm;">
+        <div class="card"><h4><span class="dot"></span>Multi-Tenant by Design</h4><p>Organizations, roles (owner/admin/member) and tier entitlements enforced at the API layer.</p></div>
+        <div class="card"><h4><span class="dot"></span>Plan Catalogue &amp; Comp Grants</h4><p>Operator-managed plan catalogue; grant any plan to any org — with guardrails against live-subscription conflicts.</p></div>
+        <div class="card"><h4><span class="dot"></span>Payments, Three Ways</h4><p>Stripe cards, PayPal and direct crypto — all activating subscriptions through one idempotent, audited path.</p></div>
+        <div class="card"><h4><span class="dot"></span>Live Platform Config</h4><p>Every API key and runtime setting editable in-console, AES-256-GCM encrypted at rest, hot-reloaded.</p></div>
+      </div>
+    </div>
+    <div style="height:3.5mm;"></div>
+    <div class="grid g3">
+      <div class="card"><h4><span class="dot"></span>Self-Hosted Sovereignty</h4><p>Docker-composed deployment on your own VPS behind Caddy + Cloudflare. Your data never leaves your infrastructure.</p></div>
+      <div class="card"><h4><span class="dot"></span>Hardened Sessions</h4><p>HttpOnly cookie sessions, rate-limited auth, org suspension enforcement and full audit metadata.</p></div>
+      <div class="card"><h4><span class="dot"></span>Observability Built-In</h4><p>Queue-based workers (BullMQ + Redis), health checks and ingestion telemetry keep operators ahead of problems.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Deployment footprint</div>
+      <p>PostgreSQL + Redis + Node API + four SPAs, shipped as Docker images with a shared reverse proxy — production topology: thea.quest · markets.thea.quest · m.thea.quest · admin.thea.quest.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Enterprise Operations</span><span>11</span></div>
+</div>
+
+<!-- ================= PAGE 12 — PRICING ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">10 · Plans &amp; Pricing</span></div>
+    <span class="eyebrow">Plans &amp; Pricing</span>
+    <h1 class="title">Intelligence for every scale of <span class="b">operation.</span></h1>
+    <p class="lead">Monthly or annual billing. Pay by card (Stripe), PayPal or crypto. Upgrade, downgrade or cancel at any time — entitlements apply instantly.</p>
+    <div class="grid g3" style="align-items:stretch;">
+      <div class="plan">
+        <span class="seg">For Professionals &amp; Consultants</span>
+        <h3>Professional</h3>
+        <div class="price">$99<small> /mo · $79 annual</small></div>
+        <p class="desc">Essential intelligence for independent PR consultants and reputation managers.</p>
+        <ul>
+          <li>Real-time media &amp; narrative monitoring</li>
+          <li>Basic trend intelligence</li>
+          <li>Up to 5 active tracked entities</li>
+          <li>Daily sentiment alerts via email</li>
+          <li>30-day historical data access</li>
+        </ul>
+      </div>
+      <div class="plan reco">
+        <span class="badge-reco">Recommended</span>
+        <span class="seg">For Brands &amp; Enterprises</span>
+        <h3>Business</h3>
+        <div class="price">$499<small> /mo · $399 annual</small></div>
+        <p class="desc">Comprehensive reputation defense and competitor tracking for corporate teams.</p>
+        <ul>
+          <li>Everything in Professional</li>
+          <li>Preemptive crisis alerts (Slack/Teams)</li>
+          <li>Competitor narrative tracking</li>
+          <li>Up to 25 active tracked entities</li>
+          <li>AI-drafted holding statements</li>
+          <li>1-year historical data access</li>
+          <li>Custom white-label reporting</li>
+        </ul>
+      </div>
+      <div class="plan">
+        <span class="seg">For Parties &amp; Campaigns</span>
+        <h3>Political Party</h3>
+        <div class="price">$1,999<small> /mo · $1,599 annual</small></div>
+        <p class="desc">Unrestricted operational intelligence for high-stakes political campaigns.</p>
+        <ul>
+          <li>Everything in Business</li>
+          <li>Geo-targeted sentiment vectors</li>
+          <li>Opponent disinformation tracking</li>
+          <li>Unlimited active tracked entities</li>
+          <li>Simulated response forecasting</li>
+          <li>Full API access for command centers</li>
+          <li>Dedicated intelligence analyst</li>
+        </ul>
+      </div>
+    </div>
+    <div style="height:4mm;"></div>
+    <div class="frame"><div class="bar"><i></i><i></i><i></i><span>thea.quest/pricing</span></div><img src="shots/website-pricing.jpg" style="max-height:108mm; width:100%; object-fit:cover; object-position:top;" /></div>
+    <div class="shot-caption">Live screenshot — pricing on thea.quest with monthly/annual toggle</div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Plans &amp; Pricing</span><span>12</span></div>
+</div>
+
+<!-- ================= PAGE 13 — COMPARISON ================= -->
+<div class="page">
+  <div class="glow-tr"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">11 · Industry Comparison</span></div>
+    <span class="eyebrow">THEA vs. the Industry</span>
+    <h1 class="title">Legacy suites monitor.<br/><span class="b">THEA monitors, responds, predicts — and opens the door.</span></h1>
+    <p class="lead">How THEA compares with the established media-intelligence platforms on the capabilities modern organizations actually need.</p>
+    <table>
+      <tr>
+        <th>Capability</th>
+        <th class="thea-col" style="text-align:center;">THEA</th>
+        <th style="text-align:center;">Meltwater</th>
+        <th style="text-align:center;">Brandwatch</th>
+        <th style="text-align:center;">Cision</th>
+        <th style="text-align:center;">Talkwalker</th>
+      </tr>
+      <tr><td class="k">Real-time media &amp; social monitoring</td><td class="ok thea-col">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+      <tr><td class="k">AI-drafted statements &amp; counter-narratives</td><td class="ok thea-col">✓</td><td class="part">Partial</td><td class="part">Partial</td><td class="part">Partial</td><td class="part">Partial</td></tr>
+      <tr><td class="k">What-if response simulation</td><td class="ok thea-col">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td class="k">Built-in prediction markets</td><td class="ok thea-col">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td class="k">Biometric physical access control</td><td class="ok thea-col">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td class="k">Self-hosted / data sovereignty option</td><td class="ok thea-col">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td class="k">Crypto &amp; PayPal payment options</td><td class="ok thea-col">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td class="k">White-label PDF/PPTX reporting</td><td class="ok thea-col">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+      <tr><td class="k">Operator-editable connector keys (no vendor ticket)</td><td class="ok thea-col">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      <tr><td class="k">Transparent public pricing</td><td class="ok thea-col">✓ from $99/mo</td><td class="no">Quote-based</td><td class="no">Quote-based</td><td class="no">Quote-based</td><td class="no">Quote-based</td></tr>
+    </table>
+    <p class="foot-note">Comparison based on publicly available vendor information, July 2026. "Partial" indicates AI writing assistance without crisis-triggered counter-narrative automation. Trademarks belong to their respective owners.</p>
+    <div class="spacer"></div>
+    <div class="grid g3">
+      <div class="card"><h4><span class="dot"></span>One suite, not five vendors</h4><p>Monitoring, AI response, markets and physical access replace a stack of separate subscriptions.</p></div>
+      <div class="card"><h4><span class="dot"></span>Your infrastructure</h4><p>The only platform in its class you can run entirely on servers you control.</p></div>
+      <div class="card"><h4><span class="dot"></span>Priced for action</h4><p>Public pricing from $99/month — no discovery calls, no annual lock-in required.</p></div>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · Industry Comparison</span><span>13</span></div>
+</div>
+
+<!-- ================= PAGE 14 — A TO Z ================= -->
+<div class="page">
+  <div class="glow-bl"></div>
+  <div class="rel">
+    <div class="phead"><img src="assets/logo.png" /><span class="sec">12 · Capability Index</span></div>
+    <span class="eyebrow">The Complete Index</span>
+    <h1 class="title">THEA from <span class="b">A to Z.</span></h1>
+    <div class="az" style="margin-top:2mm;">
+      <div class="item"><b>A</b><span>Alerts</span><p>Severity-graded, omnichannel crisis alerts.</p></div>
+      <div class="item"><b>B</b><span>Biometric Login</span><p>Passkeys — Face ID &amp; fingerprint sign-in.</p></div>
+      <div class="item"><b>C</b><span>Counter-Narratives</span><p>Auto-drafted rebuttals when a crisis fires.</p></div>
+      <div class="item"><b>D</b><span>Data Explorer</span><p>Searchable raw corpus with CSV export.</p></div>
+      <div class="item"><b>E</b><span>Email Digests</span><p>Immediate to weekly narrative summaries.</p></div>
+      <div class="item"><b>F</b><span>Face Recognition</span><p>Server-side neural matching for access control.</p></div>
+      <div class="item"><b>G</b><span>GDELT Integration</span><p>Geopolitical events, location and tone.</p></div>
+      <div class="item"><b>H</b><span>Holding Statements</span><p>Press-ready drafts in your voice.</p></div>
+      <div class="item"><b>I</b><span>Ingestion Pipeline</span><p>16+ connectors, deduplicated in real time.</p></div>
+      <div class="item"><b>J</b><span>Journalist Tracker</span><p>Who shapes the story — and how.</p></div>
+      <div class="item"><b>K</b><span>Keyword Watchlists</span><p>Entities and terms tracked per plan tier.</p></div>
+      <div class="item"><b>L</b><span>LMSR Markets</span><p>Always-liquid prediction market pricing.</p></div>
+      <div class="item"><b>M</b><span>Multi-Tenancy</span><p>Org-isolated data, roles and entitlements.</p></div>
+      <div class="item"><b>N</b><span>Newsjacking Detector</span><p>Trend windows your brand can join.</p></div>
+      <div class="item"><b>O</b><span>Offline-First PWA</span><p>THEA Access works with zero signal.</p></div>
+      <div class="item"><b>P</b><span>Predictive Simulation</span><p>What-if forecasting of public reaction.</p></div>
+      <div class="item"><b>Q</b><span>QR Onboarding</span><p>Scan-to-install and scan-to-open flows.</p></div>
+      <div class="item"><b>R</b><span>RSS at Scale</span><p>200+ preconfigured feeds, unlimited custom.</p></div>
+      <div class="item"><b>S</b><span>Sentiment Vectors</span><p>Geo-targeted sentiment on the Political tier.</p></div>
+      <div class="item"><b>T</b><span>Trend Scorer</span><p>Volume &amp; velocity spike detection.</p></div>
+      <div class="item"><b>U</b><span>Upgrade Paths</span><p>Stripe, PayPal or crypto — instant activation.</p></div>
+      <div class="item"><b>V</b><span>Voice Matching</span><p>AI output tuned to your organization's tone.</p></div>
+      <div class="item"><b>W</b><span>White-Label Reports</span><p>Branded PDF &amp; PPTX exports.</p></div>
+      <div class="item"><b>X</b><span>eXportable Everything</span><p>CSV, PDF, PPTX and full REST API.</p></div>
+      <div class="item"><b>Y</b><span>Your Servers</span><p>Fully self-hosted Docker deployment.</p></div>
+      <div class="item"><b>Z</b><span>Zero App-Store Friction</span><p>One-tap install straight from the browser.</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="usecase"><div class="uc">Everything, everywhere, one login</div>
+      <p>Every capability above ships in the same platform, under the same organization account, behind the same single sign-in — no add-on modules, no per-feature contracts.</p>
+    </div>
+  </div>
+  <div class="pfoot"><span><b>THEA</b> · A to Z</span><span>14</span></div>
+</div>
+
+<!-- ================= PAGE 15 — BACK COVER ================= -->
+<div class="page cover">
+  <div class="glow-tr"></div><div class="glow-bl glow-violet"></div>
+  <div class="rel" style="justify-content:center; align-items:center;">
+    <img class="logo-big" src="assets/logo.png" style="width:90mm;" />
+    <h1>See the narrative. <b>Shape the outcome.</b></h1>
+    <p class="sub">Book a demo, explore the live platform, or install THEA Access on your phone in seconds.</p>
+    <div class="domains">
+      <span>Platform · thea.quest</span>
+      <span>Markets · markets.thea.quest</span>
+      <span>Mobile Access · m.thea.quest</span>
+    </div>
+  </div>
+  <div class="year">© 2026 THEA · Total Human Engagement Analytics · All trademarks belong to their respective owners</div>
+</div>
+
+</body>
+</html>
