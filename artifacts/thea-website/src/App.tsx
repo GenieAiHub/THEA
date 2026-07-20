@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -37,6 +37,7 @@ import FaqPage from "@/pages/FaqPage";
 import KnowledgeBasePage from "@/pages/KnowledgeBasePage";
 import KnowledgeBaseArticlePage from "@/pages/KnowledgeBaseArticlePage";
 import PrivacyPage from "@/pages/legal/PrivacyPage";
+const MmpReportPage = lazy(() => import("@/pages/MmpReportPage"));
 import TermsPage from "@/pages/legal/TermsPage";
 import DisclaimerPage from "@/pages/legal/DisclaimerPage";
 
@@ -81,6 +82,14 @@ function AppRoutes() {
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/disclaimer" component={DisclaimerPage} />
+      {/* Hidden internal reference report — intentionally absent from nav, PUBLIC_ROUTES, and the sitemap. */}
+      <Route path="/mmp-report">
+        {() => (
+          <Suspense fallback={<AuthLoading />}>
+            <MmpReportPage />
+          </Suspense>
+        )}
+      </Route>
       <Route path="/sign-in" component={SignInPage} />
       <Route path="/sign-up" component={SignUpPage} />
       <Route path="/checkout">{() => <Protected><CheckoutPage /></Protected>}</Route>
