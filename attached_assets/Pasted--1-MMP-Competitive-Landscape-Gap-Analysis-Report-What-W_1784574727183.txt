@@ -1,0 +1,71 @@
+#1 - MMP Competitive Landscape & Gap Analysis Report
+What & Why
+Build a polished, interactive web app that serves as a complete industry reference for the Mobile Measurement Partner (MMP) / marketing attribution space. It covers AppsFlyer's full product suite, all major competitors, a 24-service catalogue with demand ratings, 14 identified market gaps ranked by priority, and a built-in cost model. The goal is a living strategic document the user can share, reference, and build a product roadmap from.
+
+Done looks like
+A multi-section, single-page React web app at the root path (/) with smooth scroll navigation
+Section 1 — Market Overview: Headline numbers ($3.37B market, 12.65% CAGR, $78B UA spend, $500B ad spend tracked), trend callouts (privacy-first, AI, incrementality, data clean rooms, death of last-click)
+Section 2 — AppsFlyer Product Suite: All 12 products with what each does, the benefit it delivers, and its uniqueness score
+Section 3 — Competitor Matrix: All 8 competitors (Adjust, Branch, Singular, Kochava, Tenjin, Airbridge, Firebase, Attriax) with service focus, strengths, and weaknesses in a scannable card/table layout
+Section 4 — Full Service Catalogue: 24 service categories, each with demand tier (🔴 High / 🟠 Emerging-High / 🟡 Medium), a one-line description, key market driver, and which competitors offer it
+Section 5 — Market Gaps (Priority-Ranked): All 14 gaps ordered by opportunity, each with: what's missing, why it's a gap, what to build, who the clients are, build difficulty, and revenue potential
+Section 6 — Third-Party AI Cost Model: All 10 cost categories with per-unit pricing, and a 3-tier monthly estimate table (1K / 10K / 100K customers)
+Section 7 — Recommended Starting Point: The top 3 gaps to build first with justification
+Filterable/searchable service catalogue and gap list
+No backend needed — all data embedded in the app
+Out of scope
+Real-time pricing APIs or live competitor data feeds
+User authentication or saved state
+Mobile-responsive design beyond basic usability
+Priority-Ordered Gap List (executor must implement in this order)
+🔥 Priority 1 — Attribution Health Monitor
+What's missing: Apps have broken attribution setups (misconfigured SKAN postbacks, duplicate SDK events, revenue misattribution) and discover the problem months later — silently losing millions. What to build: Continuous attribution health score with specific failure diagnosis, event duplication detector, revenue reconciliation checker, SDK version monitoring, daily data quality report to Slack/email. Clients: Every MMP customer — universal need. Build difficulty: ★★ (lowest in the list) Revenue model: $99–$500/month standalone; natural upsell into full platform. Why first: Lowest build cost, zero competition, every single MMP customer needs it, strong free-tier acquisition funnel.
+
+🔥 Priority 2 — Influencer & Creator Attribution
+What's missing: $21B influencer market with zero proper measurement. When a YouTuber or TikToker mentions your app, MMPs can't attribute the installs at all. Promo codes are the only current "solution." What to build: Unique deferred deep links per creator, creator performance dashboard (installs / Day-7 retention / LTV per creator), organic vs. paid lift measurement, integrations with YouTube API, TikTok Creator Marketplace, AspireIQ. Clients: Consumer app brands, gaming studios, DTC brands with apps. Build difficulty: ★★★ Revenue model: $500–$5,000/month per brand. Why second: $21B market, no serious competitor in this exact niche, viral word-of-mouth among creator economy brands.
+
+🔥 Priority 3 — Predictive LTV + Paywall Optimization
+What's missing: MMPs show historical LTV; nobody predicts what a fresh cohort will be worth in 90 days. Separately, no tool connects attribution source data to paywall A/B testing — so brands can't show TikTok users a 7-day trial and Google users a 50% annual discount based on what actually converts each cohort. What to build: ML model predicting 30/60/90/180-day LTV at install time, real-time LTV score fed to Meta/Google bidding APIs, churn probability score for retargeting, attribution-aware paywall rules engine, A/B testing framework tracked by attribution cohort, optimal trial length predictor by source. Clients: Subscription apps (fitness, language learning, meditation, productivity), mobile games with IAP. Build difficulty: ★★★★ Revenue model: $2,000–$10,000/month (high ROI, easy to prove value). AI cost: AWS SageMaker / Vertex AI ~$2,000–$8,000/month at scale. Why third: Subscription economy is exploding; immediate measurable ROI story that sells itself.
+
+🔥 Priority 4 — B2B Mobile App Attribution
+What's missing: All MMPs are built for B2C. B2B SaaS companies (Salesforce, Slack, Notion, Figma) need mobile attribution connected to their CRM sales pipeline — "did the mobile app touch influence the enterprise deal?" What to build: CRM integration layer (Salesforce, HubSpot, Pipedrive) linking mobile attribution events to contact/deal records, account-level attribution (multiple users from same company = one account), "Mobile Engagement Score" per account in CRM, LinkedIn Ads attribution (critical for B2B, unsupported by any MMP), mobile-to-web identity stitching for PLG flows. Clients: B2B SaaS companies with mobile apps, enterprise software, PLG startups. Build difficulty: ★★★ Revenue model: $2,000–$20,000/month (B2B buyers pay more). Why here: Barely any competition; B2B is paying more and growing faster than B2C apps.
+
+🔥 Priority 5 — Competitive Intelligence & Benchmarking
+What's missing: You don't know if your $3.50 CPI is good or bad for your category. MMPs see aggregated data from thousands of apps but never expose it as benchmarks. Tools like SimilarWeb do download estimates but not campaign-level benchmarks. What to build: Anonymized industry benchmarks by vertical (gaming, fintech, e-commerce, health) — "Your CPI is 23% above median for casual games in the US", creative benchmarking — "Ads with people outperform product-only ads in your category by 40%", spend trend alerts — "3 competitors increased TikTok spend 200% this week", share of voice tracking by channel and geo. Clients: Growth teams at Series A–C companies, UA agencies, brand managers. Build difficulty: ★★★ Revenue model: $200–$1,000/month; the more customers you have the better your benchmarks — powerful network effect moat.
+
+🟠 Priority 6 — Consent-Aware Attribution Modeling
+What's missing: 40–60% of iOS users decline ATT and disappear from attribution entirely. GDPR makes this worse in Europe. Nobody has built proper statistical modeling to fill this "dark matter" gap using privacy-safe aggregate inference. What to build: Consent gap modeling using statistical inference for non-consented users, privacy-safe aggregate reporting with no individual IDs, "modeled conversions" layer, CMP integrations (OneTrust, Usercentrics, Didomi). Clients: Any app with iOS or European users — that's everyone. Build difficulty: ★★★★ Revenue model: Premium add-on at $500–$3,000/month.
+
+🟠 Priority 7 — Multi-App Portfolio Attribution
+What's missing: Gaming studios with 10–50 games can't see cross-app user journeys. When a user installs Game B after playing Game A, attribution tools treat these as completely unrelated events. What to build: Cross-app user identity graph (same user across portfolio), cross-promotion attribution (which games drive installs of other games), portfolio-level cohort LTV by acquisition source, cannibalization detection (is Game B hurting Game A's retention?). Clients: Mobile gaming studios (Voodoo, Miniclip, Playtika), media companies with app portfolios, fintech with multiple products. Build difficulty: ★★★ Revenue model: $1,000–$5,000/month per studio.
+
+🟠 Priority 8 — Developer-Facing Attribution Tooling
+What's missing: AppsFlyer is built for marketers, not engineers. SDK integration is painful — developers spend days debugging why installs aren't being attributed correctly with no good tooling. What to build: Real-time SDK event inspector (like a network debugger for attribution events), attribution sandbox/testing environment to simulate installs without polluting real data, SKAN postback simulator, integration health checks inside the SDK itself, CLI tool for attribution testing. Clients: Mobile developers at any app company. Build difficulty: ★★★ Revenue model: Freemium — free tier to win developer love → upsell to paid analytics. Top-of-funnel acquisition strategy.
+
+🟠 Priority 9 — Retail Media Attribution
+What's missing: Amazon Sponsored Products, Walmart Connect, Instacart Ads, and Target Roundel collectively represent $130B+ in ad spend. Attribution for these channels inside mobile apps is basically zero. Amazon's own tool is walled-garden. What to build: Amazon Attribution API integration, retail media ROAS dashboard alongside paid social and search, purchase path analysis (retail ad expose → app install → repeat purchaser). Clients: CPG brands, DTC brands selling on Amazon, grocery delivery apps. Build difficulty: ★★★★ Revenue model: $1,000–$5,000/month.
+
+🟡 Priority 10 — CTV / Streaming Attribution
+What's missing: CTV (Hulu, Peacock, YouTube TV) ad spend is $30B+ growing 30% YoY. Connecting a Hulu ad exposure to a mobile app install hours later requires household IP-matching and ACR data partnerships — no standard MMP does this. What to build: Household IP-based CTV-to-mobile attribution, Comscore/iSpot.tv data integration for ACR-based attribution, "halo effect" measurement (CTV ad exposure uplift on paid social performance). Clients: Large consumer app brands running TV campaigns, streaming services, banking/insurance apps. Build difficulty: ★★★★★ Revenue model: $5,000–$20,000/month (enterprise only). AI cost: Probabilistic matching + IP data licenses ~$5,000–$20,000/month. High barrier = less competition.
+
+🟡 Priority 11 — Out-of-Home (OOH) Attribution
+What's missing: Digital billboards (DOOH) represent a $15B market. A user seeing a Times Square billboard and installing your app an hour later is completely untracked. What to build: Location data partnership (Foursquare, Placer.ai) to detect device exposure near billboard locations, geofencing-based OOH impression logging, probabilistic OOH-to-install matching. Clients: Large consumer app brands with offline budgets. Build difficulty: ★★★★ Revenue model: Enterprise pricing $5,000+/month.
+
+🟡 Priority 12 — Offline & In-Store Attribution
+What's missing: The offline-to-online journey (see ad → walk into store → buy → install app) is completely untracked. What to build: QR code attribution at point of sale, receipt-scanning attribution, loyalty card + app install linkage, location visit attribution using opt-in location data. Clients: Retail brands, restaurant chains, CPG companies, banks. Build difficulty: ★★★★★ Revenue model: Enterprise pricing + revenue share models.
+
+🟡 Priority 13 — AR/VR & Spatial Computing Attribution
+What's missing: Apple Vision Pro, Meta Quest, and mixed reality platforms are brand-new ecosystems with zero attribution tooling. First-mover advantage available right now. What to build: visionOS and Meta Horizon OS SDK for app install attribution, spatial ad format attribution, eye-tracking engagement metrics (unique to spatial computing). Clients: AR/VR app developers, immersive experience companies, enterprise training apps. Build difficulty: ★★★★ Revenue model: Early-mover pricing; become the default before competition forms.
+
+🟡 Priority 14 — Creative Production Closed Loop
+What's missing: Creative analytics tells you what works. But nobody closes the loop back to creative production — automatically generating new creative variants based on what the data says performs best. What to build: Integration with AI creative generation (DALL-E, Runway, Midjourney) triggered by creative analytics insights, "generate 10 variants of your top-performing hook" workflow, Adobe Creative Cloud / Figma plugin to tag assets at creation time. Clients: UA managers at gaming and e-commerce companies, creative agencies. Build difficulty: ★★★ Revenue model: $500–$3,000/month add-on.
+
+Steps
+Scaffold React + Vite artifact at root path — create the web app, set up routing, navigation, and section anchors
+Build Market Overview section — headline market numbers, trend cards (privacy, AI, incrementality, data clean rooms, last-click death), CAGR visualization
+Build AppsFlyer Product Suite section — 12 product cards with name, what it does, key benefit, and uniqueness rating
+Build Competitor Matrix section — 8 competitor cards/table with core strength, where they win, where they're weak
+Build Service Catalogue section — 24 service rows with demand tier badge, description, key driver, and competitor coverage dots; make it filterable by demand tier
+Build Market Gaps section — 14 gap cards ordered by priority (🔥/🟠/🟡), each showing: what's missing, what to build, target clients, build difficulty stars, revenue model; make it filterable by priority
+Build Third-Party AI Cost Model section — 10 cost category rows with per-unit pricing and the 3-tier monthly estimate table (1K/10K/100K customers)
+Build Recommended Starting Point section — focused callout on the top 3 gaps (Health Monitor, Influencer Attribution, Predictive LTV) with a "why start here" rationale
