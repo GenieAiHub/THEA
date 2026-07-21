@@ -76,7 +76,9 @@
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
+    "@types/pdfmake": "^0.3.3",
     "@types/react-simple-maps": "^3.0.6",
+    "pdfmake": "^0.2.23",
     "react-simple-maps": "^3.0.0"
   }
 }
