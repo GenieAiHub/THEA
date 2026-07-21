@@ -75,6 +75,12 @@ RUN test -n "$APP" || (echo "ERROR: APP build-arg is required" && exit 1) \
 ############################
 FROM base AS api
 ENV NODE_ENV=production
+# ffmpeg/ffprobe: required for Security Watch camera live streaming — frame
+# capture from RTSP/HTTP streams (lib/watch/ffmpeg.ts) and DVR video scanning.
+# Without it the API boots fine but live sampling is disabled at runtime.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
 # Copy the fully-installed & built workspace. This preserves node_modules/.pnpm
 # so esbuild-externalized packages (playwright, crawlee, tfjs-backend-wasm,
 # pdfkit, pptxgenjs, telegram, franc, @google/generative-ai) resolve at runtime.

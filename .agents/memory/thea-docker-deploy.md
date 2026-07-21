@@ -16,6 +16,13 @@ built workspace) so those bare imports resolve against the pnpm store at runtime
 **Why:** externals aren't in the bundle; they must exist in node_modules. Face-api
 model files are committed under the api package and resolve via dist/../models.
 
+## ffmpeg required in the api image
+The api runtime stage (node:24-slim) apt-installs ffmpeg — Security Watch camera
+live streaming (RTSP/HTTP frame capture) and DVR video scanning spawn ffmpeg/ffprobe
+from PATH. Without it the API boots fine but probeFfmpeg() silently disables live
+sampling. Dev side is pinned as a Nix system dependency (not just the ambient
+Replit runtime path).
+
 ## Chromium is not baked in
 pnpm `onlyBuiltDependencies` blocks Playwright's browser postinstall, and the
 crawler only launches a browser when USE_PLAYWRIGHT=true. Default image has no
