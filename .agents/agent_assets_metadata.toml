@@ -36,6 +36,30 @@ uri = "file://attached_assets/generated_images/glowing_world.png"
 type = "image"
 title = "glowing world data"
 
+[[generated]]
+id = "bIFEfTXD6EgcnEAvxZ-Mh"
+uri = "file://attached_assets/generated_images/watch_ops_center.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oxW20RWkES4qUE_YqJx9Z"
+uri = "file://attached_assets/generated_images/watch_vehicle_plate.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "6aSRg2F3B4xnheFRt2yM7"
+uri = "file://attached_assets/generated_images/watch_person_match.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tfjs-mOintLCy1-3CIoBw"
+uri = "file://attached_assets/generated_images/watch_mobile_alert.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "FdH92GN8xyRCP2p33US_j"
 uri = "file://exports/THEA-Product-Brochure.pdf"

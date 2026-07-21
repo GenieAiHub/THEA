@@ -97,6 +97,7 @@ export const PUBLIC_ROUTES: string[] = [
   "/",
   "/platform",
   "/attribution",
+  "/security",
   "/how-it-works",
   "/technology",
   "/about",

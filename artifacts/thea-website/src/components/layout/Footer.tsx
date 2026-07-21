@@ -9,6 +9,7 @@ const columns: { title: string; links: { label: string; href: string; external?:
     links: [
       { label: "Platform", href: "/platform" },
       { label: "Attribution", href: "/attribution" },
+      { label: "Security Watch", href: "/security" },
       { label: "How It Works", href: "/how-it-works" },
       { label: "Technology", href: "/technology" },
       { label: "Pricing", href: "/pricing" },
