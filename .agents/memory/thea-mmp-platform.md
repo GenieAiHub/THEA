@@ -13,3 +13,8 @@ description: Design decisions for the THEA MMP mobile attribution product (track
 - Revenue is bigint micro-USD; responses cast `::float8 / 1e6` — never serialize the raw bigint to JSON.
 - No tier gating: available to all signed-in orgs (TIER_FEATURES has no MMP flag by design).
 - Portal page uses plain fetch + react-query (precedent: use-checkout.ts), root-relative `/api/v1/mmp/...`.
+- **Retention = event activity** (any event that day counts as active) and D1/D7/D30 use maturity gating — cohorts too young return `null`, UI shows "—", never a misleading 0%. Same rule in creator stats, weekly cohorts and health checks.
+- `/health` requires a specific `appId` (400 otherwise); the portal Health tab gates on the header app filter and shows a pick-an-app prompt for "All apps".
+- Costs upsert per (linkId, day) — re-posting a day overwrites, which the UI relies on. `costMicro` (bigint) must be destructured OUT of the row before `res.json` or Express throws BigInt-serialization 500.
+- `csvEscape` prefixes `'` to values starting with `=+-@\t\r` (spreadsheet formula-injection guard) — keep this if the export code is touched.
+- Portal e2e login for tests: /sign-in (NOT /login — that 404s); cookie session then /mmp works.
