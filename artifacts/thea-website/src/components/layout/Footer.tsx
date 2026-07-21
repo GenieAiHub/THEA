@@ -8,6 +8,7 @@ const columns: { title: string; links: { label: string; href: string; external?:
     title: "Product",
     links: [
       { label: "Platform", href: "/platform" },
+      { label: "Attribution", href: "/attribution" },
       { label: "How It Works", href: "/how-it-works" },
       { label: "Technology", href: "/technology" },
       { label: "Pricing", href: "/pricing" },

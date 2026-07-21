@@ -105,16 +105,23 @@ function featuresForTier(tier: Tier): string[] {
   ];
   // Display-only bullets for newer platform services, layered by tier.
   const extras: Record<Tier, string[]> = {
-    starter: ["Scheduled intelligence digest emails"],
+    starter: [
+      "Scheduled intelligence digest emails",
+      "THEA Attribution: tracking links, install & event attribution, SKAN 4.0",
+    ],
     pro: [
       "Scheduled intelligence digest emails",
       "Expanded social coverage: TikTok, Telegram, YouTube & more",
+      "THEA Attribution: tracking links, install & event attribution, SKAN 4.0",
+      "Attribution intelligence: industry benchmarks, predictive LTV & media-mix modeling",
     ],
     enterprise: [
       "Scheduled intelligence digest emails",
       "Expanded social coverage: TikTok, Telegram, YouTube & more",
       "What-if response simulations",
       "THEA Access — biometric access control for events & HQs",
+      "THEA Attribution: tracking links, install & event attribution, SKAN 4.0",
+      "Attribution intelligence: industry benchmarks, predictive LTV & media-mix modeling",
     ],
   };
   return [...base, ...extras[tier]];

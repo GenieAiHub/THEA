@@ -92,6 +92,11 @@ const suite = [
     title: "THEA Access",
     desc: "Biometric face-recognition access control for events, campaign HQs, and secure facilities — verified in seconds from a phone or browser.",
   },
+  {
+    icon: <Target className="h-6 w-6 text-blue-400" />,
+    title: "THEA Attribution",
+    desc: "Full mobile measurement built in: tracking links, install & event attribution, SKAdNetwork 4.0, industry benchmarks, predictive LTV, and media-mix modeling.",
+  },
 ];
 
 export default function PlatformPage() {

@@ -29,6 +29,7 @@ import PricingPage from "@/pages/PricingPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 
 import PlatformPage from "@/pages/PlatformPage";
+import AttributionPage from "@/pages/AttributionPage";
 import HowItWorksPage from "@/pages/HowItWorksPage";
 import TechnologyPage from "@/pages/TechnologyPage";
 import AboutPage from "@/pages/AboutPage";
@@ -73,6 +74,7 @@ function AppRoutes() {
       <Route path="/" component={HomeRedirect} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/platform" component={PlatformPage} />
+      <Route path="/attribution" component={AttributionPage} />
       <Route path="/how-it-works" component={HowItWorksPage} />
       <Route path="/technology" component={TechnologyPage} />
       <Route path="/about" component={AboutPage} />

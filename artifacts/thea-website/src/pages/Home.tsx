@@ -500,7 +500,8 @@ const PlatformFeatures = () => {
     { title: "Custom Webhooks", desc: "Trigger automated workflows in Zapier, Slack, Teams, or proprietary systems the moment specific sentiment thresholds are breached." },
     { title: "Scheduled Intelligence Digests", desc: "Daily or weekly email digests summarize everything THEA observed across your watchlists — emerging trends, sentiment shifts, and volume spikes — delivered on your schedule." },
     { title: "THEA Markets", desc: "Live public-opinion markets generated automatically from the trends THEA detects. Watch collective conviction move in real time and use it as a leading signal." },
-    { title: "THEA Access", desc: "Biometric face-recognition access control for events, campaign HQs, and secure facilities — with a mobile app and browser check-in for staff at the door." }
+    { title: "THEA Access", desc: "Biometric face-recognition access control for events, campaign HQs, and secure facilities — with a mobile app and browser check-in for staff at the door." },
+    { title: "THEA Attribution", desc: "Full mobile measurement built in: tracking links, install & event attribution, SKAdNetwork 4.0, industry benchmarks, predictive LTV, and media-mix modeling — no separate MMP contract." }
   ];
 
   return (
@@ -595,6 +596,35 @@ const AccessPromo = () => {
   );
 };
 
+const AttributionPromo = () => {
+  return (
+    <section id="attribution" className="scroll-mt-20 py-24 px-6 relative overflow-hidden border-b border-white/5 bg-background">
+      <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-12 bg-blue-950/20 border border-blue-500/20 rounded-3xl p-10 md:p-16 backdrop-blur-xl">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6 border border-blue-500/30">
+            <Target className="w-4 h-4" /> New Service
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 font-display text-white">THEA Attribution</h2>
+          <p className="text-lg text-blue-100/70 mb-8 leading-relaxed">
+            Know which campaign moved the needle. A full mobile measurement suite — tracking links, install
+            and event attribution, SKAdNetwork 4.0, fraud signals, industry benchmarks, predictive LTV, and
+            media-mix intelligence — included in every plan with no per-conversion fees.
+          </p>
+          <Button size="lg" className="bg-white text-black hover:bg-white/90 px-8" asChild>
+            <Link href="/attribution" data-testid="link-attribution-promo">
+              Explore THEA Attribution <ChevronRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
+        </div>
+        <div className="w-full md:w-1/3 aspect-square relative flex items-center justify-center">
+          <div className="absolute inset-0 bg-blue-500/10 blur-[80px] rounded-full animate-pulse" />
+          <Target className="w-32 h-32 text-blue-400 relative z-10 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]" />
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const FAQ = () => {
   return (
     <section className="py-32 px-6 bg-background">
@@ -673,6 +703,7 @@ export default function Home() {
       <PlatformFeatures />
       <MarketsPromo />
       <AccessPromo />
+      <AttributionPromo />
       <FAQ />
       <CTA />
     </PublicLayout>

@@ -96,6 +96,7 @@ export function articleJsonLd(a: {
 export const PUBLIC_ROUTES: string[] = [
   "/",
   "/platform",
+  "/attribution",
   "/how-it-works",
   "/technology",
   "/about",

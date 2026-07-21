@@ -14,6 +14,7 @@ const logoSrc = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.png`;
 
 const productLinks = [
   { href: "/platform", label: "Platform", desc: "The full intelligence suite" },
+  { href: "/attribution", label: "Attribution", desc: "Mobile measurement & growth analytics" },
   { href: "/how-it-works", label: "How It Works", desc: "The five-stage pipeline" },
   { href: "/technology", label: "Technology", desc: "Inside the engine" },
   { href: "/solutions", label: "Solutions", desc: "By team & use case" },

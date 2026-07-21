@@ -71,6 +71,41 @@ const FAQ_GROUPS: { category: string; items: Qa[] }[] = [
     ],
   },
   {
+    category: "Attribution & Growth Analytics",
+    items: [
+      {
+        question: "What is THEA Attribution?",
+        answer:
+          "THEA Attribution is a full mobile measurement suite built into the platform. It generates campaign tracking links, attributes installs and in-app events to the campaigns that drove them, receives Apple SKAdNetwork 4.0 postbacks, flags fraud signals, and layers growth intelligence — industry benchmarks, predictive LTV, and media-mix modeling — on top of your data. It replaces a standalone MMP contract for most teams.",
+      },
+      {
+        question: "How does install and event attribution work?",
+        answer:
+          "You create a tracking link per campaign, channel, or creator. Clicks are captured with their source, and installs and in-app events are matched back to the last click within a 7-day window. Events arrive via a lightweight SDK or direct server-to-server calls, and a live debugger shows raw payloads in real time while you integrate.",
+      },
+      {
+        question: "Does THEA support Apple SKAdNetwork?",
+        answer:
+          "Yes. THEA operates a dedicated SKAdNetwork 4.0 postback receiver. You add THEA's endpoint to your iOS app's Info.plist, and privacy-safe postbacks — conversion values, win/loss results, and postback sequence — appear alongside your device-level attribution data.",
+      },
+      {
+        question: "What are industry benchmarks?",
+        answer:
+          "THEA compares your CPI, conversion rate, D1/D7/D30 retention, and D30 ROAS against published industry benchmarks for your app's category, and gives an instant verdict on where you lead and where you lag. Benchmarks are clearly labeled as directional industry references.",
+      },
+      {
+        question: "How do predictive LTV and media-mix modeling work?",
+        answer:
+          "Predictive LTV fits a curve to your observed cohort revenue and projects lifetime value to day 30, 90, and 180, with a confidence grade based on how much data supports the forecast. Media-mix modeling weighs spend against attributed revenue across channels and suggests a smarter budget allocation. Both are estimates and are labeled as such.",
+      },
+      {
+        question: "Is attribution priced per conversion?",
+        answer:
+          "No. Unlike legacy mobile measurement vendors that meter every conversion (typically around $0.07 per conversion after a free tier), THEA Attribution is included in every plan with no per-conversion fees. Higher tiers add growth intelligence such as benchmarks, predictive LTV, and media-mix modeling.",
+      },
+    ],
+  },
+  {
     category: "Security",
     items: [
       {

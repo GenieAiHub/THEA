@@ -45,6 +45,7 @@ const absoluteSiteUrl = (route: string) =>
 const SITEMAP_STATIC_ROUTES = [
   "/",
   "/platform",
+  "/attribution",
   "/how-it-works",
   "/technology",
   "/about",
