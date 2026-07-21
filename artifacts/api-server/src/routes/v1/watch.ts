@@ -452,6 +452,31 @@ router.get("/sightings", async (req, res) => {
   });
 });
 
+router.get("/sightings/:id", async (req, res) => {
+  const [row] = await db
+    .select()
+    .from(watchSightingsTable)
+    .where(and(eq(watchSightingsTable.id, req.params.id as string), eq(watchSightingsTable.orgId, req.thea!.org.id)))
+    .limit(1);
+  if (!row) { res.status(404).json({ error: "Sighting not found" }); return; }
+
+  const [target] = row.targetId
+    ? await db.select({ name: watchTargetsTable.name, type: watchTargetsTable.type }).from(watchTargetsTable).where(eq(watchTargetsTable.id, row.targetId)).limit(1)
+    : [undefined];
+  const [camera] = row.cameraId
+    ? await db.select({ name: watchCamerasTable.name, location: watchCamerasTable.location }).from(watchCamerasTable).where(eq(watchCamerasTable.id, row.cameraId)).limit(1)
+    : [undefined];
+
+  res.json({
+    ...row,
+    targetName: target?.name ?? null,
+    targetType: target?.type ?? null,
+    cameraName: camera?.name ?? null,
+    cameraLocation: camera?.location ?? null,
+    hasSnapshot: row.snapshotPath != null,
+  });
+});
+
 router.get("/sightings/:id/snapshot", async (req, res) => {
   const [sighting] = await db
     .select({ snapshotPath: watchSightingsTable.snapshotPath })

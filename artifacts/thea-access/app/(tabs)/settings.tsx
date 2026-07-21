@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Platform,
@@ -14,6 +14,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { api } from "@/lib/api";
+import { notify } from "@/lib/dialog";
+import { registerForSightingPush } from "@/lib/push";
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -31,6 +34,45 @@ export default function SettingsScreen() {
     logout,
   } = useAuth();
   const [working, setWorking] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [pushWorking, setPushWorking] = useState(false);
+  const pushSupported = Platform.OS !== "web";
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getPushPreferences()
+      .then((prefs) => {
+        if (!cancelled) setPushEnabled(prefs.sightingAlerts);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onTogglePush = async (next: boolean) => {
+    if (pushWorking) return;
+    setPushWorking(true);
+    try {
+      if (next) {
+        const token = await registerForSightingPush();
+        if (!token) {
+          notify(
+            "Notifications unavailable",
+            "We couldn't enable push notifications. Check that notifications are allowed for THEA in your device settings.",
+          );
+          return;
+        }
+      }
+      await api.setPushPreferences(next);
+      setPushEnabled(next);
+    } catch {
+      notify("Something went wrong", "Couldn't update your notification setting. Please try again.");
+    } finally {
+      setPushWorking(false);
+    }
+  };
 
   const topPad = (Platform.OS === "web" ? 67 : insets.top) + 16;
   const labelCap = biometricLabel
@@ -134,6 +176,50 @@ export default function SettingsScreen() {
                 : undefined
             }
             testID="settings-biometric-toggle"
+          />
+        </View>
+      </View>
+
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        NOTIFICATIONS
+      </Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            borderRadius: colors.radius,
+          },
+        ]}
+      >
+        <View style={styles.switchRow}>
+          <View style={styles.switchTextWrap}>
+            <View style={styles.switchTitleRow}>
+              <Feather name="bell" size={16} color={colors.primary} />
+              <Text style={[styles.switchTitle, { color: colors.foreground }]}>
+                Sighting alerts
+              </Text>
+            </View>
+            <Text style={[styles.switchHint, { color: colors.mutedForeground }]}>
+              {pushSupported
+                ? "Get a push notification when Security Watch spots a target."
+                : "Available in the mobile app only."}
+            </Text>
+          </View>
+          <Switch
+            value={pushSupported && pushEnabled}
+            onValueChange={onTogglePush}
+            disabled={!pushSupported || pushWorking}
+            trackColor={{ true: colors.primary, false: colors.border }}
+            thumbColor={
+              Platform.OS === "android"
+                ? pushEnabled
+                  ? colors.primaryForeground
+                  : colors.card
+                : undefined
+            }
+            testID="settings-push-toggle"
           />
         </View>
       </View>

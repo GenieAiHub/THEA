@@ -173,6 +173,7 @@ async function resolveApiKeyContext(rawKey: string): Promise<TheaRequestContext 
     passwordHash: "",
     name: key.name,
     role: "member",
+    pushSightingAlerts: false,
     createdAt: key.createdAt,
     updatedAt: key.updatedAt,
   };

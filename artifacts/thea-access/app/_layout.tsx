@@ -18,6 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LockScreen } from "@/components/LockScreen";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { usePushNotificationRouting } from "@/hooks/usePushNotificationRouting";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,8 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
   const colors = useColors();
+
+  usePushNotificationRouting(status === "authed");
 
   useEffect(() => {
     if (status === "loading" || status === "locked") return;
@@ -65,6 +68,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="login" />
       <Stack.Screen name="member/[id]" />
+      <Stack.Screen name="sighting/[id]" />
     </Stack>
   );
 }

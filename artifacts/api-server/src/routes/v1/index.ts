@@ -30,6 +30,7 @@ import walletRouter from "./wallet";
 import depositsRouter from "./deposits";
 import mmpRouter from "./mmp";
 import watchRouter from "./watch";
+import pushRouter from "./push";
 
 const router = Router();
 
@@ -73,5 +74,6 @@ router.use("/wallet/deposit", depositsRouter);
 router.use("/wallet", walletRouter);
 router.use("/mmp", mmpRouter);
 router.use("/watch", watchRouter);
+router.use("/push", pushRouter);
 
 export default router;

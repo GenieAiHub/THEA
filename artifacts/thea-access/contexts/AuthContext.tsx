@@ -12,6 +12,7 @@ import {
   biometricLabel,
   getBiometricSupport,
 } from "@/lib/biometric";
+import { registerForSightingPush, unregisterSightingPush } from "@/lib/push";
 import { storage } from "@/lib/storage";
 import type { AuthOrg, AuthUser } from "@/lib/types";
 
@@ -56,6 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me.user);
     setOrg(me.org);
     setStatus("authed");
+    // Best-effort: keep this device's push token registered for the session.
+    void registerForSightingPush();
   }, []);
 
   const applySession = useCallback(
@@ -96,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(me.user);
         setOrg(me.org);
         setStatus("authed");
+        void registerForSightingPush();
       } catch {
         if (cancelled) return;
         await storage.deleteItem(TOKEN_KEY).catch(() => {});
@@ -140,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    await unregisterSightingPush();
     await api.logout().catch(() => {});
     await storage.deleteItem(TOKEN_KEY).catch(() => {});
     setAuthToken(null);

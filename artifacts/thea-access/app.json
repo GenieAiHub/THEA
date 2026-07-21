@@ -44,6 +44,12 @@
         }
       ],
       "expo-font",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "sighting-alerts"
+        }
+      ],
       "expo-web-browser",
       "expo-secure-store",
       [

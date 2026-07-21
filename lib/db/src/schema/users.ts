@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organizationsTable } from "./organizations";
@@ -10,6 +10,10 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   name: text("name"),
   role: text("role").notNull().default("analyst"),
+  // Per-user opt-in for Security Watch sighting push notifications. Lives on
+  // the user (not the device token) so opting out survives logout/login and
+  // applies across all of the user's devices.
+  pushSightingAlerts: boolean("push_sighting_alerts").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

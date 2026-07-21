@@ -13,6 +13,7 @@ import { addJob } from "../queues";
 import { dispatchWebhookEvent } from "../webhookDispatcher";
 import { logger } from "../logger";
 import { getPlatformConfig } from "../platform-config";
+import { sendSightingPush, orgHasPushSubscribers } from "./pushSightings";
 
 /**
  * Alert fan-out for a live-camera sighting, gated by a per-(target, camera)
@@ -26,7 +27,10 @@ export async function maybeAlertSighting(args: {
 }): Promise<boolean> {
   const { target, camera, sighting } = args;
   const channels = target.alertChannels ?? {};
-  const wantsAny = channels.email || channels.webhook || channels.slack || channels.teams;
+  // Push is user-level (opt-in per org member), not per-target, so it counts
+  // as a wanted channel whenever any org member has an opted-in device.
+  const wantsPush = await orgHasPushSubscribers(target.orgId);
+  const wantsAny = channels.email || channels.webhook || channels.slack || channels.teams || wantsPush;
   if (!wantsAny) return false;
 
   const cooldownMs = Math.max(10, target.cooldownSec) * 1000;
@@ -153,6 +157,24 @@ export async function maybeAlertSighting(args: {
       } catch (err) {
         logger.warn({ err, orgId: target.orgId }, "Sighting Teams delivery failed");
       }
+    }
+  }
+
+  // Mobile push (opted-in org members' devices)
+  if (wantsPush) {
+    try {
+      const sent = await sendSightingPush(target.orgId, {
+        title: `👁 ${target.name} spotted`,
+        body: `${source} · Match: ${sighting.matchType}${sighting.detail ? ` (${sighting.detail})` : ""} · Confidence: ${confidencePct}`,
+        data: {
+          type: "sighting",
+          sightingId: sighting.id,
+          url: `/sighting/${sighting.id}`,
+        },
+      });
+      if (sent > 0) logger.info({ targetId: target.id, sent }, "Sighting push notifications sent");
+    } catch (err) {
+      logger.warn({ err, targetId: target.id }, "Sighting push delivery failed");
     }
   }
 

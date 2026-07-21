@@ -246,4 +246,71 @@ export const api = {
     );
     return res.data;
   },
+
+  // ── Push notifications ──────────────────────────────────────────────────
+  async registerPushToken(
+    token: string,
+    platform: string,
+  ): Promise<{ sightingAlerts: boolean }> {
+    const res = await request<Wrapped<{ id: string; sightingAlerts: boolean }>>(
+      "/v1/push/register",
+      { method: "POST", body: { token, platform } },
+    );
+    return res.data;
+  },
+
+  async unregisterPushToken(token: string): Promise<void> {
+    await request<unknown>("/v1/push/register", {
+      method: "DELETE",
+      body: { token },
+    });
+  },
+
+  async getPushPreferences(): Promise<{
+    sightingAlerts: boolean;
+    deviceCount: number;
+  }> {
+    const res = await request<
+      Wrapped<{ sightingAlerts: boolean; deviceCount: number }>
+    >("/v1/push/preferences");
+    return res.data;
+  },
+
+  async setPushPreferences(sightingAlerts: boolean): Promise<void> {
+    await request<unknown>("/v1/push/preferences", {
+      method: "PATCH",
+      body: { sightingAlerts },
+    });
+  },
+
+  // ── Security Watch sightings ────────────────────────────────────────────
+  async getSighting(id: string): Promise<Sighting> {
+    return request<Sighting>(`/v1/watch/sightings/${id}`);
+  },
 };
+
+export interface Sighting {
+  id: string;
+  targetId: string | null;
+  cameraId: string | null;
+  matchType: string;
+  confidence: number | null;
+  detail: string | null;
+  createdAt: string;
+  targetName: string | null;
+  targetType: string | null;
+  cameraName: string | null;
+  cameraLocation: string | null;
+  hasSnapshot: boolean;
+}
+
+/** Image source (uri + auth headers) for a sighting's snapshot. */
+export function sightingSnapshotSource(id: string): {
+  uri: string;
+  headers?: Record<string, string>;
+} {
+  return {
+    uri: `${BASE_URL}/api/v1/watch/sightings/${id}/snapshot`,
+    headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+  };
+}
