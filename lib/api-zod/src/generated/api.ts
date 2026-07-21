@@ -2000,6 +2000,10 @@ export const ListWatchCamerasResponse = zod.object({
   "name": zod.string(),
   "location": zod.string().nullish(),
   "streamUrl": zod.string(),
+  "sourceType": zod.enum(['ip-camera', 'dvr']).optional(),
+  "dvrBrand": zod.string().nullish(),
+  "dvrHost": zod.string().nullish(),
+  "dvrChannel": zod.number().nullish(),
   "isActive": zod.boolean(),
   "status": zod.enum(['online', 'offline', 'error']),
   "lastSeenAt": zod.coerce.date().nullish(),
@@ -2035,6 +2039,10 @@ export const CreateWatchCameraResponse = zod.object({
   "name": zod.string(),
   "location": zod.string().nullish(),
   "streamUrl": zod.string(),
+  "sourceType": zod.enum(['ip-camera', 'dvr']).optional(),
+  "dvrBrand": zod.string().nullish(),
+  "dvrHost": zod.string().nullish(),
+  "dvrChannel": zod.number().nullish(),
   "isActive": zod.boolean(),
   "status": zod.enum(['online', 'offline', 'error']),
   "lastSeenAt": zod.coerce.date().nullish(),
@@ -2071,6 +2079,10 @@ export const UpdateWatchCameraResponse = zod.object({
   "name": zod.string(),
   "location": zod.string().nullish(),
   "streamUrl": zod.string(),
+  "sourceType": zod.enum(['ip-camera', 'dvr']).optional(),
+  "dvrBrand": zod.string().nullish(),
+  "dvrHost": zod.string().nullish(),
+  "dvrChannel": zod.number().nullish(),
   "isActive": zod.boolean(),
   "status": zod.enum(['online', 'offline', 'error']),
   "lastSeenAt": zod.coerce.date().nullish(),
@@ -2091,6 +2103,130 @@ export const DeleteWatchCameraParams = zod.object({
 export const DeleteWatchCameraResponse = zod.object({
   "ok": zod.boolean()
 })
+
+
+/**
+ * @summary Probe one DVR/NVR channel by grabbing a frame (owner/admin)
+ */
+export const testWatchDvrBodyPortDefault = 554;
+export const testWatchDvrBodyPortMax = 65535;
+
+export const testWatchDvrBodyChannelDefault = 1;
+export const testWatchDvrBodyChannelMax = 64;
+
+export const testWatchDvrBodyQualityDefault = `sub`;
+
+export const TestWatchDvrBody = zod.object({
+  "brand": zod.enum(['hikvision', 'dahua', 'amcrest', 'uniview', 'reolink', 'generic']),
+  "host": zod.string().optional().describe('DVR hostname or IP (not needed for generic)'),
+  "port": zod.number().min(1).max(testWatchDvrBodyPortMax).default(testWatchDvrBodyPortDefault),
+  "username": zod.string().optional(),
+  "password": zod.string().optional(),
+  "channel": zod.number().min(1).max(testWatchDvrBodyChannelMax).default(testWatchDvrBodyChannelDefault),
+  "quality": zod.enum(['main', 'sub']).default(testWatchDvrBodyQualityDefault),
+  "urlPattern": zod.string().optional().describe('Full rtsp:\/\/ URL template containing \"{channel}\" (generic brand only)')
+})
+
+export const TestWatchDvrResponse = zod.object({
+  "ok": zod.boolean(),
+  "error": zod.string().optional(),
+  "url": zod.string().optional().describe('Probed RTSP URL with credentials masked')
+})
+
+
+/**
+ * @summary Bulk-import DVR/NVR channels as cameras (owner/admin)
+ */
+export const importWatchDvrBodyPortDefault = 554;
+export const importWatchDvrBodyPortMax = 65535;
+
+export const importWatchDvrBodyQualityDefault = `sub`;
+export const importWatchDvrBodyChannelsItemMax = 64;
+
+export const importWatchDvrBodyChannelsMax = 32;
+
+export const importWatchDvrBodySampleIntervalSecDefault = 3;
+export const importWatchDvrBodySampleIntervalSecMin = 2;
+export const importWatchDvrBodySampleIntervalSecMax = 3600;
+
+
+
+export const ImportWatchDvrBody = zod.object({
+  "brand": zod.enum(['hikvision', 'dahua', 'amcrest', 'uniview', 'reolink', 'generic']),
+  "host": zod.string().optional(),
+  "port": zod.number().min(1).max(importWatchDvrBodyPortMax).default(importWatchDvrBodyPortDefault),
+  "username": zod.string().optional(),
+  "password": zod.string().optional(),
+  "quality": zod.enum(['main', 'sub']).default(importWatchDvrBodyQualityDefault).describe('Sub-stream recommended — DVRs cap concurrent RTSP sessions'),
+  "urlPattern": zod.string().optional().describe('Full rtsp:\/\/ URL template containing \"{channel}\" (generic brand only)'),
+  "channels": zod.array(zod.number().min(1).max(importWatchDvrBodyChannelsItemMax)).min(1).max(importWatchDvrBodyChannelsMax),
+  "namePrefix": zod.string().optional().describe('Camera names become \'<prefix> — Channel N\''),
+  "location": zod.string().optional(),
+  "sampleIntervalSec": zod.number().min(importWatchDvrBodySampleIntervalSecMin).max(importWatchDvrBodySampleIntervalSecMax).default(importWatchDvrBodySampleIntervalSecDefault)
+})
+
+export const ImportWatchDvrResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "location": zod.string().nullish(),
+  "streamUrl": zod.string(),
+  "sourceType": zod.enum(['ip-camera', 'dvr']).optional(),
+  "dvrBrand": zod.string().nullish(),
+  "dvrHost": zod.string().nullish(),
+  "dvrChannel": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "status": zod.enum(['online', 'offline', 'error']),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "sampleIntervalSec": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * Idempotent — poll until status is "live", then attach an HLS player to playlistUrl. Sessions stop automatically ~60s after the last playlist/segment fetch.
+ * @summary Start (or poll) the on-demand live HLS session for a camera
+ */
+export const StartWatchCameraStreamParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const StartWatchCameraStreamResponse = zod.object({
+  "status": zod.enum(['starting', 'live']),
+  "transcoding": zod.boolean().describe('true when the source is not H.264 and is being transcoded'),
+  "playlistUrl": zod.string().describe('Root-relative HLS playlist URL for hls.js')
+})
+
+
+/**
+ * @summary Stop the live HLS session (best effort — idle reaper is authoritative)
+ */
+export const StopWatchCameraStreamParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const StopWatchCameraStreamResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Fetch the HLS playlist (index.m3u8) or a media segment of an active live session
+ */
+export const getWatchCameraStreamFilePathFileRegExp = new RegExp('^[A-Za-z0-9_-]+\\.(m3u8|ts|m4s|mp4)$');
+
+
+export const GetWatchCameraStreamFileParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "file": zod.coerce.string().regex(getWatchCameraStreamFilePathFileRegExp)
+})
+
+export const GetWatchCameraStreamFileResponse = zod.unknown()
 
 
 /**

@@ -5,6 +5,7 @@
  * THEA - Total Human Engagement Analytics API
  * OpenAPI spec version: 0.1.0
  */
+import type { WatchCameraSourceType } from './watchCameraSourceType';
 import type { WatchCameraStatus } from './watchCameraStatus';
 
 export interface WatchCamera {
@@ -14,6 +15,13 @@ export interface WatchCamera {
   /** @nullable */
   location?: string | null;
   streamUrl: string;
+  sourceType?: WatchCameraSourceType;
+  /** @nullable */
+  dvrBrand?: string | null;
+  /** @nullable */
+  dvrHost?: string | null;
+  /** @nullable */
+  dvrChannel?: number | null;
   isActive: boolean;
   status: WatchCameraStatus;
   /** @nullable */

@@ -40,3 +40,4 @@
 - [Orval query options](orval-query-options.md) — passing { query: {...} } to generated hooks requires explicit queryKey via getXQueryKey(params) or TS2741
 - [Sighting push notifications](sighting-push-notifications.md) — opt-in lives on users.push_sighting_alerts (token rows die at logout); deep-link routing must wait for authed status
 - [THEA MMP attribution platform](thea-mmp-platform.md) — mmpi_ ingest tokens; ≤7d ipSalt fingerprint; N+1-day maturity gating; unauth SKAN receiver keyed by unique apple_app_id
+- [Security Watch live streaming](watch-live-streaming.md) — shared HLS sessions: reaper is ONLY teardown (stop just ages timer); sync in-flight guard on start; E2E RTSP test must run in ONE bash session

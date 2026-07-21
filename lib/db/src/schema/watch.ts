@@ -44,6 +44,11 @@ export const watchCamerasTable = pgTable("watch_cameras", {
   name: text("name").notNull(),
   location: text("location"),
   streamUrl: text("stream_url").notNull(),
+  /** How the camera was registered: a standalone IP camera or a DVR/NVR channel. */
+  sourceType: text("source_type").notNull().default("ip-camera"), // ip-camera | dvr
+  dvrBrand: text("dvr_brand"), // hikvision | dahua | uniview | reolink | generic (dvr only)
+  dvrHost: text("dvr_host"), // DVR host:port label for grouping channels (dvr only)
+  dvrChannel: integer("dvr_channel"), // 1-based channel number on the DVR (dvr only)
   isActive: boolean("is_active").notNull().default(true),
   status: text("status").notNull().default("offline"), // online | offline | error
   lastSeenAt: timestamp("last_seen_at"),

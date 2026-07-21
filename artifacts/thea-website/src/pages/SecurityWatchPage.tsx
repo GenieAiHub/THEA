@@ -32,10 +32,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Camera, Video, Target, ScanEye, Plus, Trash2, Loader2, Upload,
-  AlertTriangle, Pause, Play, ImageOff, FileVideo,
+  AlertTriangle, Pause, Play, ImageOff, FileVideo, HardDrive, Radio,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { DvrConnectDialog } from "@/components/watch/DvrConnectDialog";
+import { LiveStreamDialog } from "@/components/watch/LiveStreamDialog";
 
 type TargetType = "person" | "vehicle" | "object" | "plate";
 
@@ -103,6 +105,8 @@ function CamerasTab() {
   const [location, setLocation] = useState("");
   const [streamUrl, setStreamUrl] = useState("");
   const [interval, setIntervalSec] = useState("3");
+  const [dvrOpen, setDvrOpen] = useState(false);
+  const [liveCamera, setLiveCamera] = useState<{ id: string; name: string } | null>(null);
 
   const cameras = (data?.data || []) as any[];
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListWatchCamerasQueryKey() });
@@ -171,6 +175,12 @@ function CamerasTab() {
               Add Camera
             </Button>
           </form>
+          <div className="mt-3 border-t border-slate-800 pt-3">
+            <Button variant="outline" className="w-full border-slate-700 text-slate-300" onClick={() => setDvrOpen(true)} data-testid="button-connect-dvr">
+              <HardDrive className="w-4 h-4 mr-2" /> Connect DVR / NVR
+            </Button>
+            <p className="text-slate-500 text-xs mt-2 text-center">Import all recorder channels at once.</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -191,6 +201,11 @@ function CamerasTab() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-slate-200 text-sm font-medium">{cam.name}</span>
                       <Badge variant="outline" className={STATUS_BADGE[cam.status] || STATUS_BADGE.offline}>{cam.status}</Badge>
+                      {cam.sourceType === "dvr" && (
+                        <Badge variant="outline" className="bg-blue-500/15 text-blue-400 border-blue-500/30" data-testid={`badge-dvr-${cam.id}`}>
+                          DVR{cam.dvrChannel != null ? ` ch${cam.dvrChannel}` : ""}
+                        </Badge>
+                      )}
                       {!cam.isActive && <Badge variant="outline" className="bg-slate-500/15 text-slate-400 border-slate-500/30">paused</Badge>}
                     </div>
                     <p className="text-slate-500 text-xs truncate max-w-[420px]">{cam.location ? `${cam.location} · ` : ""}{cam.streamUrl}</p>
@@ -200,6 +215,9 @@ function CamerasTab() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:text-red-400 hover:border-red-500/40" onClick={() => setLiveCamera({ id: cam.id, name: cam.name })} title="Watch live" data-testid={`button-live-camera-${cam.id}`}>
+                      <Radio className="w-4 h-4 mr-1.5" /> Live
+                    </Button>
                     <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-200" onClick={() => toggleActive(cam)} title={cam.isActive ? "Pause sampling" : "Resume sampling"} data-testid={`button-toggle-camera-${cam.id}`}>
                       {cam.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     </Button>
@@ -213,6 +231,9 @@ function CamerasTab() {
           )}
         </CardContent>
       </Card>
+
+      <DvrConnectDialog open={dvrOpen} onClose={() => setDvrOpen(false)} onImported={invalidate} />
+      <LiveStreamDialog camera={liveCamera} onClose={() => setLiveCamera(null)} />
     </div>
   );
 }

@@ -6,7 +6,11 @@ export const defaultRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
-  skip: (req) => req.path === "/api/v1/health",
+  // Live HLS playback fetches a playlist + segment every ~2s (≈900 req/15min),
+  // so stream paths must bypass the default budget or one viewer exhausts it.
+  skip: (req) =>
+    req.path === "/api/v1/health" ||
+    (req.path.startsWith("/api/v1/watch/cameras/") && req.path.includes("/stream/")),
 });
 
 export const authRateLimiter = rateLimit({

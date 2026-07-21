@@ -58,6 +58,9 @@ import type {
   DisinformationCheckResult,
   DownloadDraftStatementParams,
   DraftStatementInput,
+  DvrImportInput,
+  DvrTestInput,
+  DvrTestResult,
   EnrollFaceInput,
   FaceEnrollmentResult,
   GeneratePdfReportBody,
@@ -135,6 +138,7 @@ import type {
   WatchCameraList,
   WatchSightingList,
   WatchStatus,
+  WatchStreamSession,
   WatchTarget,
   WatchTargetCreated,
   WatchTargetDetail,
@@ -8304,6 +8308,369 @@ export const useDeleteWatchCamera = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteWatchCameraMutationOptions(options));
     }
+
+export const getTestWatchDvrUrl = () => {
+
+
+
+
+  return `/api/v1/watch/dvr/test`
+}
+
+/**
+ * @summary Probe one DVR/NVR channel by grabbing a frame (owner/admin)
+ */
+export const testWatchDvr = async (dvrTestInput: DvrTestInput, options?: RequestInit): Promise<DvrTestResult> => {
+
+  return customFetch<DvrTestResult>(getTestWatchDvrUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dvrTestInput)
+  }
+);}
+
+
+
+
+export const getTestWatchDvrMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testWatchDvr>>, TError,{data: BodyType<DvrTestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testWatchDvr>>, TError,{data: BodyType<DvrTestInput>}, TContext> => {
+
+const mutationKey = ['testWatchDvr'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testWatchDvr>>, {data: BodyType<DvrTestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  testWatchDvr(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestWatchDvrMutationResult = NonNullable<Awaited<ReturnType<typeof testWatchDvr>>>
+    export type TestWatchDvrMutationBody = BodyType<DvrTestInput>
+    export type TestWatchDvrMutationError = ErrorType<void>
+
+    /**
+ * @summary Probe one DVR/NVR channel by grabbing a frame (owner/admin)
+ */
+export const useTestWatchDvr = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testWatchDvr>>, TError,{data: BodyType<DvrTestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testWatchDvr>>,
+        TError,
+        {data: BodyType<DvrTestInput>},
+        TContext
+      > => {
+      return useMutation(getTestWatchDvrMutationOptions(options));
+    }
+
+export const getImportWatchDvrUrl = () => {
+
+
+
+
+  return `/api/v1/watch/dvr/import`
+}
+
+/**
+ * @summary Bulk-import DVR/NVR channels as cameras (owner/admin)
+ */
+export const importWatchDvr = async (dvrImportInput: DvrImportInput, options?: RequestInit): Promise<WatchCameraList> => {
+
+  return customFetch<WatchCameraList>(getImportWatchDvrUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dvrImportInput)
+  }
+);}
+
+
+
+
+export const getImportWatchDvrMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importWatchDvr>>, TError,{data: BodyType<DvrImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importWatchDvr>>, TError,{data: BodyType<DvrImportInput>}, TContext> => {
+
+const mutationKey = ['importWatchDvr'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importWatchDvr>>, {data: BodyType<DvrImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importWatchDvr(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportWatchDvrMutationResult = NonNullable<Awaited<ReturnType<typeof importWatchDvr>>>
+    export type ImportWatchDvrMutationBody = BodyType<DvrImportInput>
+    export type ImportWatchDvrMutationError = ErrorType<void>
+
+    /**
+ * @summary Bulk-import DVR/NVR channels as cameras (owner/admin)
+ */
+export const useImportWatchDvr = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importWatchDvr>>, TError,{data: BodyType<DvrImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importWatchDvr>>,
+        TError,
+        {data: BodyType<DvrImportInput>},
+        TContext
+      > => {
+      return useMutation(getImportWatchDvrMutationOptions(options));
+    }
+
+export const getStartWatchCameraStreamUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/cameras/${id}/stream/start`
+}
+
+/**
+ * Idempotent — poll until status is "live", then attach an HLS player to playlistUrl. Sessions stop automatically ~60s after the last playlist/segment fetch.
+ * @summary Start (or poll) the on-demand live HLS session for a camera
+ */
+export const startWatchCameraStream = async (id: string, options?: RequestInit): Promise<WatchStreamSession> => {
+
+  return customFetch<WatchStreamSession>(getStartWatchCameraStreamUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStartWatchCameraStreamMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startWatchCameraStream>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startWatchCameraStream>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['startWatchCameraStream'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startWatchCameraStream>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  startWatchCameraStream(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartWatchCameraStreamMutationResult = NonNullable<Awaited<ReturnType<typeof startWatchCameraStream>>>
+
+    export type StartWatchCameraStreamMutationError = ErrorType<void>
+
+    /**
+ * @summary Start (or poll) the on-demand live HLS session for a camera
+ */
+export const useStartWatchCameraStream = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startWatchCameraStream>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startWatchCameraStream>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getStartWatchCameraStreamMutationOptions(options));
+    }
+
+export const getStopWatchCameraStreamUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/cameras/${id}/stream/stop`
+}
+
+/**
+ * @summary Stop the live HLS session (best effort — idle reaper is authoritative)
+ */
+export const stopWatchCameraStream = async (id: string, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getStopWatchCameraStreamUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getStopWatchCameraStreamMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopWatchCameraStream>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopWatchCameraStream>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['stopWatchCameraStream'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopWatchCameraStream>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  stopWatchCameraStream(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopWatchCameraStreamMutationResult = NonNullable<Awaited<ReturnType<typeof stopWatchCameraStream>>>
+
+    export type StopWatchCameraStreamMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Stop the live HLS session (best effort — idle reaper is authoritative)
+ */
+export const useStopWatchCameraStream = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopWatchCameraStream>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof stopWatchCameraStream>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getStopWatchCameraStreamMutationOptions(options));
+    }
+
+export const getGetWatchCameraStreamFileUrl = (id: string,
+    file: string,) => {
+
+
+
+
+  return `/api/v1/watch/cameras/${id}/stream/${file}`
+}
+
+/**
+ * @summary Fetch the HLS playlist (index.m3u8) or a media segment of an active live session
+ */
+export const getWatchCameraStreamFile = async (id: string,
+    file: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetWatchCameraStreamFileUrl(id,file),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWatchCameraStreamFileQueryKey = (id: string,
+    file: string,) => {
+    return [
+    `/api/v1/watch/cameras/${id}/stream/${file}`
+    ] as const;
+    }
+
+
+export const getGetWatchCameraStreamFileQueryOptions = <TData = Awaited<ReturnType<typeof getWatchCameraStreamFile>>, TError = ErrorType<void>>(id: string,
+    file: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchCameraStreamFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWatchCameraStreamFileQueryKey(id,file);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchCameraStreamFile>>> = ({ signal }) => getWatchCameraStreamFile(id,file, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && file !== null && file !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWatchCameraStreamFile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWatchCameraStreamFileQueryResult = NonNullable<Awaited<ReturnType<typeof getWatchCameraStreamFile>>>
+export type GetWatchCameraStreamFileQueryError = ErrorType<void>
+
+
+/**
+ * @summary Fetch the HLS playlist (index.m3u8) or a media segment of an active live session
+ */
+
+export function useGetWatchCameraStreamFile<TData = Awaited<ReturnType<typeof getWatchCameraStreamFile>>, TError = ErrorType<void>>(
+ id: string,
+    file: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchCameraStreamFile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWatchCameraStreamFileQueryOptions(id,file,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListWatchTargetsUrl = () => {
 

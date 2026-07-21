@@ -1233,6 +1233,14 @@ export interface WatchAlertChannels {
   teams?: boolean;
 }
 
+export type WatchCameraSourceType = typeof WatchCameraSourceType[keyof typeof WatchCameraSourceType];
+
+
+export const WatchCameraSourceType = {
+  'ip-camera': 'ip-camera',
+  dvr: 'dvr',
+} as const;
+
 export type WatchCameraStatus = typeof WatchCameraStatus[keyof typeof WatchCameraStatus];
 
 
@@ -1249,6 +1257,13 @@ export interface WatchCamera {
   /** @nullable */
   location?: string | null;
   streamUrl: string;
+  sourceType?: WatchCameraSourceType;
+  /** @nullable */
+  dvrBrand?: string | null;
+  /** @nullable */
+  dvrHost?: string | null;
+  /** @nullable */
+  dvrChannel?: number | null;
   isActive: boolean;
   status: WatchCameraStatus;
   /** @nullable */
@@ -1288,6 +1303,112 @@ export interface UpdateWatchCameraInput {
      */
   sampleIntervalSec?: number;
   isActive?: boolean;
+}
+
+export type DvrBrand = typeof DvrBrand[keyof typeof DvrBrand];
+
+
+export const DvrBrand = {
+  hikvision: 'hikvision',
+  dahua: 'dahua',
+  amcrest: 'amcrest',
+  uniview: 'uniview',
+  reolink: 'reolink',
+  generic: 'generic',
+} as const;
+
+export type DvrTestInputQuality = typeof DvrTestInputQuality[keyof typeof DvrTestInputQuality];
+
+
+export const DvrTestInputQuality = {
+  main: 'main',
+  sub: 'sub',
+} as const;
+
+export interface DvrTestInput {
+  brand: DvrBrand;
+  /** DVR hostname or IP (not needed for generic) */
+  host?: string;
+  /**
+     * @minimum 1
+     * @maximum 65535
+     */
+  port?: number;
+  username?: string;
+  password?: string;
+  /**
+     * @minimum 1
+     * @maximum 64
+     */
+  channel?: number;
+  quality?: DvrTestInputQuality;
+  /** Full rtsp:// URL template containing "{channel}" (generic brand only) */
+  urlPattern?: string;
+}
+
+export interface DvrTestResult {
+  ok: boolean;
+  error?: string;
+  /** Probed RTSP URL with credentials masked */
+  url?: string;
+}
+
+/**
+ * Sub-stream recommended — DVRs cap concurrent RTSP sessions
+ */
+export type DvrImportInputQuality = typeof DvrImportInputQuality[keyof typeof DvrImportInputQuality];
+
+
+export const DvrImportInputQuality = {
+  main: 'main',
+  sub: 'sub',
+} as const;
+
+export interface DvrImportInput {
+  brand: DvrBrand;
+  host?: string;
+  /**
+     * @minimum 1
+     * @maximum 65535
+     */
+  port?: number;
+  username?: string;
+  password?: string;
+  /** Sub-stream recommended — DVRs cap concurrent RTSP sessions */
+  quality?: DvrImportInputQuality;
+  /** Full rtsp:// URL template containing "{channel}" (generic brand only) */
+  urlPattern?: string;
+  /**
+     * @minItems 1
+     * @maxItems 32
+     * @items.minimum 1
+     * @items.maximum 64
+     */
+  channels: number[];
+  /** Camera names become '<prefix> — Channel N' */
+  namePrefix?: string;
+  location?: string;
+  /**
+     * @minimum 2
+     * @maximum 3600
+     */
+  sampleIntervalSec?: number;
+}
+
+export type WatchStreamSessionStatus = typeof WatchStreamSessionStatus[keyof typeof WatchStreamSessionStatus];
+
+
+export const WatchStreamSessionStatus = {
+  starting: 'starting',
+  live: 'live',
+} as const;
+
+export interface WatchStreamSession {
+  status: WatchStreamSessionStatus;
+  /** true when the source is not H.264 and is being transcoded */
+  transcoding: boolean;
+  /** Root-relative HLS playlist URL for hls.js */
+  playlistUrl: string;
 }
 
 export type WatchTargetType = typeof WatchTargetType[keyof typeof WatchTargetType];

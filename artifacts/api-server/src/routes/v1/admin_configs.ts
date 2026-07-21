@@ -69,6 +69,7 @@ const DEFAULT_CONFIGS: Array<{
   { key: "watch_retention_days",                 label: "Sighting Retention (days)",   description: "Delete sightings & snapshots older than this (default 30)", category: "security-watch", isSecret: false },
   { key: "watch_sightings_cap_per_org",          label: "Sightings Cap per Org",       description: "Keep only the newest N sightings per org (default 10000)",  category: "security-watch", isSecret: false },
   { key: "watch_queue_backpressure",             label: "Frame Queue Backpressure",    description: "Skip sampling when this many frames wait (default 12)",     category: "security-watch", isSecret: false },
+  { key: "watch_live_max_streams",               label: "Max Live Streams",            description: "Concurrent live camera views server-wide (default 4)",       category: "security-watch", isSecret: false },
 
   // ── Payments (Stripe) ────────────────────────────────────────────────────────
   { key: "stripe_secret_key",                    label: "Stripe Secret Key",           description: "sk_live_... or sk_test_... from Stripe",            category: "payments",      isSecret: true  },

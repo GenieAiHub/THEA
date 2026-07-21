@@ -20,8 +20,10 @@ import { computeDescriptor } from "../../lib/faceRecognition";
 import { detectObjects, computeObjectEmbedding, VEHICLE_CLASSES } from "../../lib/watch/objectRecognition";
 import { decodeJpegToRgb, cropRgb } from "../../lib/watch/imageOps";
 import { normalizePlate } from "../../lib/watch/plateOcr";
-import { validateStreamUrl, isFfmpegAvailable } from "../../lib/watch/ffmpeg";
+import { validateStreamUrl, isFfmpegAvailable, captureFrame } from "../../lib/watch/ffmpeg";
 import { isSamplerRunning } from "../../lib/watch/cameraSampler";
+import { buildDvrChannelUrl, isDvrBrand, type DvrStreamQuality } from "../../lib/watch/dvr";
+import { startLiveStream, touchLiveStream, stopLiveStream, LiveStreamCapacityError } from "../../lib/watch/liveStream";
 import { saveRefImage, resolveSnapshotPath } from "../../lib/watch/snapshots";
 import { VIDEO_TMP_DIR } from "../../lib/watch/watchWorkers";
 import { addJob } from "../../lib/queues";
@@ -153,6 +155,134 @@ router.delete("/cameras/:id", requireRole("owner", "admin"), async (req, res) =>
     .where(and(eq(watchCamerasTable.id, req.params.id as string), eq(watchCamerasTable.orgId, req.thea!.org.id)))
     .returning({ id: watchCamerasTable.id });
   if (!deleted) { res.status(404).json({ error: "Camera not found" }); return; }
+  res.json({ ok: true });
+});
+
+// ═══ DVR / NVR integration ════════════════════════════════════════════════════
+
+const DVR_IMPORT_MAX_CHANNELS = 32;
+
+interface DvrRequestBody {
+  brand?: string; host?: string; port?: number; username?: string; password?: string;
+  quality?: string; urlPattern?: string;
+}
+
+/** Probe a single DVR channel by grabbing one frame — validates host/creds/template. */
+router.post("/dvr/test", requireRole("owner", "admin"), async (req, res) => {
+  const { brand, host, port, username, password, quality, urlPattern, channel } = req.body as DvrRequestBody & { channel?: number };
+  if (!isDvrBrand(brand)) { res.status(400).json({ error: "brand must be one of hikvision, dahua, amcrest, uniview, reolink, generic" }); return; }
+  if (!isFfmpegAvailable()) { res.status(503).json({ error: "ffmpeg is not available on the server" }); return; }
+  const q: DvrStreamQuality = quality === "main" ? "main" : "sub";
+  let url: string;
+  try {
+    url = buildDvrChannelUrl({ brand, host: host ?? "", port, username, password, channel: channel ?? 1, quality: q, urlPattern });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : "Invalid DVR settings" });
+    return;
+  }
+  try {
+    await captureFrame(url, 15000);
+    res.json({ ok: true, url: maskStreamUrl(url) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.json({ ok: false, error: message.slice(0, 300), url: maskStreamUrl(url) });
+  }
+});
+
+/** Bulk-import DVR channels as individual cameras (sub-stream recommended). */
+router.post("/dvr/import", requireRole("owner", "admin"), async (req, res) => {
+  const { brand, host, port, username, password, quality, urlPattern, channels, namePrefix, location, sampleIntervalSec } =
+    req.body as DvrRequestBody & { channels?: number[]; namePrefix?: string; location?: string; sampleIntervalSec?: number };
+  if (!isDvrBrand(brand)) { res.status(400).json({ error: "brand must be one of hikvision, dahua, amcrest, uniview, reolink, generic" }); return; }
+  if (!Array.isArray(channels) || channels.length === 0) { res.status(400).json({ error: "channels is required (e.g. [1,2,3,4])" }); return; }
+  const chans = [...new Set(channels.map((c) => Number(c)))].filter((c) => Number.isInteger(c)).sort((a, b) => a - b);
+  if (chans.length === 0) { res.status(400).json({ error: "channels must contain integer channel numbers" }); return; }
+  if (chans.length > DVR_IMPORT_MAX_CHANNELS) { res.status(400).json({ error: `At most ${DVR_IMPORT_MAX_CHANNELS} channels per import` }); return; }
+  const q: DvrStreamQuality = quality === "main" ? "main" : "sub";
+  const interval = Math.max(2, Math.min(3600, Math.round(sampleIntervalSec ?? 3)));
+  const prefix = namePrefix?.trim() || host?.trim() || "DVR";
+
+  let rows: (typeof watchCamerasTable.$inferInsert)[];
+  try {
+    rows = chans.map((channel) => {
+      const url = buildDvrChannelUrl({ brand, host: host ?? "", port, username, password, channel, quality: q, urlPattern });
+      const dvrHost = brand === "generic" ? new URL(url).host : `${host?.trim()}:${port ?? 554}`;
+      return {
+        orgId: req.thea!.org.id,
+        name: `${prefix} — Channel ${channel}`,
+        location: location?.trim() || null,
+        streamUrl: url,
+        sourceType: "dvr" as const,
+        dvrBrand: brand,
+        dvrHost,
+        dvrChannel: channel,
+        sampleIntervalSec: interval,
+        isActive: true,
+      };
+    });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : "Invalid DVR settings" });
+    return;
+  }
+
+  const created = await db.insert(watchCamerasTable).values(rows).returning();
+  logger.info({ orgId: req.thea!.org.id, brand, count: created.length }, "DVR channels imported as cameras");
+  res.status(201).json({ data: created, total: created.length });
+});
+
+// ═══ Live streaming (on-demand HLS) ═══════════════════════════════════════════
+
+const SEGMENT_NAME_RE = /^[A-Za-z0-9_-]+\.(m3u8|ts|m4s|mp4)$/;
+
+/**
+ * Starts (or polls) the live HLS session for a camera. Idempotent — clients
+ * poll this until status is "live", then attach hls.js to playlistUrl.
+ */
+router.post("/cameras/:id/stream/start", async (req, res) => {
+  const [camera] = await db
+    .select()
+    .from(watchCamerasTable)
+    .where(and(eq(watchCamerasTable.id, req.params.id as string), eq(watchCamerasTable.orgId, req.thea!.org.id)))
+    .limit(1);
+  if (!camera) { res.status(404).json({ error: "Camera not found" }); return; }
+  if (!isFfmpegAvailable()) { res.status(503).json({ error: "ffmpeg is not available on the server" }); return; }
+  try {
+    const result = await startLiveStream({ id: camera.id, orgId: camera.orgId, streamUrl: camera.streamUrl });
+    if (result.status === "error") {
+      res.status(502).json({ error: result.error || "Could not connect to the camera stream" });
+      return;
+    }
+    res.json({
+      status: result.status,
+      transcoding: result.transcoding,
+      playlistUrl: `/api/v1/watch/cameras/${camera.id}/stream/index.m3u8`,
+    });
+  } catch (err) {
+    if (err instanceof LiveStreamCapacityError) { res.status(429).json({ error: err.message }); return; }
+    throw err;
+  }
+});
+
+/**
+ * Serves the HLS playlist and segments for an active session. Org check is
+ * against the in-memory session (no DB hit per segment); these paths are
+ * exempted from the default rate limiter (one viewer ≈ 1 req/s).
+ */
+router.get("/cameras/:id/stream/:file", (req, res) => {
+  const file = req.params.file as string;
+  if (!SEGMENT_NAME_RE.test(file)) { res.status(400).json({ error: "Invalid stream file name" }); return; }
+  const session = touchLiveStream(req.params.id as string, req.thea!.org.id);
+  if (!session) { res.status(404).json({ error: "No live stream for this camera — start one first" }); return; }
+  const filePath = join(session.dir, file);
+  if (!existsSync(filePath)) { res.status(404).json({ error: "Stream file not found" }); return; }
+  res.setHeader("Cache-Control", "no-store");
+  res.type(file.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp2t");
+  res.sendFile(filePath);
+});
+
+/** Best-effort stop — the idle reaper is the authoritative teardown. */
+router.post("/cameras/:id/stream/stop", (req, res) => {
+  stopLiveStream(req.params.id as string, req.thea!.org.id);
   res.json({ ok: true });
 });
 

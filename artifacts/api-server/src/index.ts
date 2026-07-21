@@ -41,6 +41,7 @@ import { scheduleDigests } from "./lib/digestScheduler";
 import { startTelegramBot } from "./lib/telegramBot";
 import { initFaceRecognition } from "./lib/faceRecognition";
 import { startCameraSampler } from "./lib/watch/cameraSampler";
+import { stopAllLiveStreams } from "./lib/watch/liveStream";
 import { startVisualRecognitionWorker, startVideoScanWorker } from "./lib/watch/watchWorkers";
 import { initObjectRecognition } from "./lib/watch/objectRecognition";
 import { pruneSnapshots, enforceSightingCap } from "./lib/watch/snapshots";
@@ -94,6 +95,15 @@ async function startSecurityWatchWithRetry(maxAttempts = 5): Promise<void> {
       await new Promise((r) => setTimeout(r, delayMs));
     }
   }
+}
+
+// Kill live-stream ffmpeg children on shutdown so restarts don't orphan
+// long-running processes writing HLS segments to /tmp forever.
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    stopAllLiveStreams();
+    process.exit(0);
+  });
 }
 
 app.listen(port, async (err) => {

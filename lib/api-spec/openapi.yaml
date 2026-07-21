@@ -1992,6 +1992,109 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkResult"
         "404": { description: Not found }
+  /v1/watch/dvr/test:
+    post:
+      operationId: testWatchDvr
+      tags: [watch]
+      summary: Probe one DVR/NVR channel by grabbing a frame (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DvrTestInput"
+      responses:
+        "200":
+          description: Probe result (ok=false carries the connection error)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DvrTestResult"
+        "400": { description: Invalid DVR settings }
+        "403": { description: Requires owner or admin role }
+        "503": { description: ffmpeg unavailable on the server }
+  /v1/watch/dvr/import:
+    post:
+      operationId: importWatchDvr
+      tags: [watch]
+      summary: Bulk-import DVR/NVR channels as cameras (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DvrImportInput"
+      responses:
+        "201":
+          description: Cameras created (one per channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchCameraList"
+        "400": { description: Invalid DVR settings }
+        "403": { description: Requires owner or admin role }
+  /v1/watch/cameras/{id}/stream/start:
+    post:
+      operationId: startWatchCameraStream
+      tags: [watch]
+      summary: Start (or poll) the on-demand live HLS session for a camera
+      description: Idempotent — poll until status is "live", then attach an HLS player to playlistUrl. Sessions stop automatically ~60s after the last playlist/segment fetch.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchStreamSession"
+        "404": { description: Camera not found }
+        "429": { description: All live stream slots are in use }
+        "502": { description: Could not connect to the camera stream }
+        "503": { description: ffmpeg unavailable on the server }
+  /v1/watch/cameras/{id}/stream/stop:
+    post:
+      operationId: stopWatchCameraStream
+      tags: [watch]
+      summary: Stop the live HLS session (best effort — idle reaper is authoritative)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Stopped (or no session existed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+  /v1/watch/cameras/{id}/stream/{file}:
+    get:
+      operationId: getWatchCameraStreamFile
+      tags: [watch]
+      summary: Fetch the HLS playlist (index.m3u8) or a media segment of an active live session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: file
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[A-Za-z0-9_-]+\.(m3u8|ts|m4s|mp4)$' }
+      responses:
+        "200":
+          description: HLS playlist or MPEG-TS segment
+          content:
+            application/vnd.apple.mpegurl:
+              schema: { type: string, format: binary }
+            video/mp2t:
+              schema: { type: string, format: binary }
+        "404": { description: No active live session or file not found }
   /v1/watch/targets:
     get:
       operationId: listWatchTargets
@@ -3291,6 +3394,10 @@ components:
         name:              { type: string }
         location:          { type: string, nullable: true }
         streamUrl:         { type: string }
+        sourceType:        { type: string, enum: [ip-camera, dvr] }
+        dvrBrand:          { type: string, nullable: true }
+        dvrHost:           { type: string, nullable: true }
+        dvrChannel:        { type: integer, nullable: true }
         isActive:          { type: boolean }
         status:            { type: string, enum: [online, offline, error] }
         lastSeenAt:        { type: string, format: date-time, nullable: true }
@@ -3324,6 +3431,54 @@ components:
         streamUrl:         { type: string }
         sampleIntervalSec: { type: integer, minimum: 2, maximum: 3600 }
         isActive:          { type: boolean }
+    DvrBrand:
+      type: string
+      enum: [hikvision, dahua, amcrest, uniview, reolink, generic]
+    DvrTestInput:
+      type: object
+      required: [brand]
+      properties:
+        brand:      { $ref: "#/components/schemas/DvrBrand" }
+        host:       { type: string, description: "DVR hostname or IP (not needed for generic)" }
+        port:       { type: integer, minimum: 1, maximum: 65535, default: 554 }
+        username:   { type: string }
+        password:   { type: string }
+        channel:    { type: integer, minimum: 1, maximum: 64, default: 1 }
+        quality:    { type: string, enum: [main, sub], default: sub }
+        urlPattern: { type: string, description: 'Full rtsp:// URL template containing "{channel}" (generic brand only)' }
+    DvrTestResult:
+      type: object
+      required: [ok]
+      properties:
+        ok:    { type: boolean }
+        error: { type: string }
+        url:   { type: string, description: "Probed RTSP URL with credentials masked" }
+    DvrImportInput:
+      type: object
+      required: [brand, channels]
+      properties:
+        brand:    { $ref: "#/components/schemas/DvrBrand" }
+        host:     { type: string }
+        port:     { type: integer, minimum: 1, maximum: 65535, default: 554 }
+        username: { type: string }
+        password: { type: string }
+        quality:  { type: string, enum: [main, sub], default: sub, description: "Sub-stream recommended — DVRs cap concurrent RTSP sessions" }
+        urlPattern: { type: string, description: 'Full rtsp:// URL template containing "{channel}" (generic brand only)' }
+        channels:
+          type: array
+          items: { type: integer, minimum: 1, maximum: 64 }
+          minItems: 1
+          maxItems: 32
+        namePrefix:        { type: string, description: "Camera names become '<prefix> — Channel N'" }
+        location:          { type: string }
+        sampleIntervalSec: { type: integer, minimum: 2, maximum: 3600, default: 3 }
+    WatchStreamSession:
+      type: object
+      required: [status, transcoding, playlistUrl]
+      properties:
+        status:      { type: string, enum: [starting, live] }
+        transcoding: { type: boolean, description: "true when the source is not H.264 and is being transcoded" }
+        playlistUrl: { type: string, description: "Root-relative HLS playlist URL for hls.js" }
     WatchTarget:
       type: object
       required: [id, orgId, name, type, isActive, cooldownSec, alertChannels, createdAt, updatedAt]

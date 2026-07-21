@@ -111,7 +111,7 @@ export default function AiToolsPage() {
 
   // Draft Statement
   const [dsTopic, setDsTopic] = useState("");
-  const [dsTone, setDsTone] = useState("professional");
+  const [dsTone, setDsTone] = useState<"formal" | "empathetic" | "assertive">("formal");
   const [dsAudience, setDsAudience] = useState("media");
   const [dsProvider, setDsProvider] = useState<"openai" | "gemini">("openai");
   const [dsResult, setDsResult] = useState("");
@@ -137,9 +137,15 @@ export default function AiToolsPage() {
     if (!tpTopic) return;
     try {
       const res = await generateTalkingPoints.mutateAsync({
-        data: { topic: tpTopic, context: tpContext || undefined, provider: tpProvider },
+        data: { keyword: tpTopic, context_override: tpContext || undefined },
       });
-      setTpResult(res.talkingPoints || JSON.stringify(res, null, 2));
+      const sections = [
+        res.recommendedPosition ? `Recommended position:\n${res.recommendedPosition}` : "",
+        res.keyFacts?.length ? `Key facts:\n${res.keyFacts.map((f) => `• ${f}`).join("\n")}` : "",
+        res.suggestedQuotes?.length ? `Suggested quotes:\n${res.suggestedQuotes.map((q) => `• ${q}`).join("\n")}` : "",
+        res.phrasesToAvoid?.length ? `Phrases to avoid:\n${res.phrasesToAvoid.map((p) => `• ${p}`).join("\n")}` : "",
+      ].filter(Boolean);
+      setTpResult(sections.join("\n\n") || JSON.stringify(res, null, 2));
     } catch {
       toast({ title: "Generation failed", variant: "destructive" });
     }
@@ -150,9 +156,9 @@ export default function AiToolsPage() {
     if (!dsTopic) return;
     try {
       const res = await draftStatement.mutateAsync({
-        data: { topic: dsTopic, tone: dsTone, audience: dsAudience, provider: dsProvider },
+        data: { keyword: dsTopic, tone: dsTone },
       });
-      setDsResult(res.statement || JSON.stringify(res, null, 2));
+      setDsResult(res.draft || JSON.stringify(res, null, 2));
     } catch {
       toast({ title: "Drafting failed", variant: "destructive" });
     }
@@ -344,15 +350,14 @@ Assess the impact on each of: media, investors, employees, regulators/government
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-slate-400 text-xs">Tone</Label>
-                      <Select value={dsTone} onValueChange={setDsTone}>
+                      <Select value={dsTone} onValueChange={(v) => setDsTone(v as "formal" | "empathetic" | "assertive")}>
                         <SelectTrigger className="bg-slate-950 border-slate-800 text-slate-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                          <SelectItem value="professional">Professional</SelectItem>
+                          <SelectItem value="formal">Formal</SelectItem>
                           <SelectItem value="empathetic">Empathetic</SelectItem>
                           <SelectItem value="assertive">Assertive</SelectItem>
-                          <SelectItem value="conciliatory">Conciliatory</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
