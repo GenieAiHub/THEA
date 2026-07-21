@@ -18,6 +18,7 @@ import SimulationDashboardPage from "@/pages/SimulationDashboardPage";
 import DataExplorerPage from "@/pages/DataExplorerPage";
 import CampaignsPage from "@/pages/CampaignsPage";
 import CompetitorIntelligencePage from "@/pages/CompetitorIntelligencePage";
+import AiNarrativePage from "@/pages/AiNarrativePage";
 import SecurityWatchPage from "@/pages/SecurityWatchPage";
 import AskTheaPage from "@/pages/AskTheaPage";
 import CategoryDeepDivePage from "@/pages/CategoryDeepDivePage";
@@ -122,6 +123,7 @@ function AppRoutes() {
       <Route path="/data-explorer">{() => <Protected><DataExplorerPage /></Protected>}</Route>
       <Route path="/campaigns">{() => <Protected><CampaignsPage /></Protected>}</Route>
       <Route path="/competitors">{() => <Protected><CompetitorIntelligencePage /></Protected>}</Route>
+      <Route path="/ai-narrative">{() => <Protected><AiNarrativePage /></Protected>}</Route>
       <Route path="/security-watch">{() => <Protected><SecurityWatchPage /></Protected>}</Route>
       <Route path="/ask-thea">{() => <Protected><AskTheaPage /></Protected>}</Route>
       <Route path="/category/:slug">{() => <Protected><CategoryDeepDivePage /></Protected>}</Route>

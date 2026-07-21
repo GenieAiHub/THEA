@@ -29,9 +29,14 @@ SAME name as both a zod const in `generated/api.ts` and a TS type in
 Star-exporting both barrels → `TS2308 already exported a member`. `export type *`
 does NOT fix it. Fix: `lib/api-zod/src/index.ts` re-exports ONLY the zod schemas
 (`export * from "./generated/api"`). api-zod is a runtime-validation package; TS
-types come from `@workspace/api-client-react`. `src/index.ts` is hand-maintained
-(orval only writes under `generated/`), so this edit survives codegen.
+types come from `@workspace/api-client-react`.
 **Why:** avoids maintaining 9 explicit re-exports that grow with every new inline-body op.
+
+**IMPORTANT update:** `src/index.ts` is NOT left alone by orval — in workspace
+mode orval RE-APPENDS `export * from './generated/types'` to the barrel on every
+codegen run, re-breaking TS2308. Permanent fix: set `indexFiles: false` in the
+zod project's `output` in `lib/api-spec/orval.config.ts`. With that flag orval
+never touches the hand-maintained barrel and codegen stays green.
 
 ## Rules to keep it green
 - Keep `clean: false` in `lib/api-spec/orval.config.ts` (a failed run won't wipe files).

@@ -45,6 +45,8 @@ tags:
     description: Security Watch — camera network visual search (cameras, watch targets, sightings, offline video scans)
   - name: ask-thea
     description: Ask THEA — conversational AI analyst grounded in the org's collected intelligence (Pro tier)
+  - name: ai-narrative
+    description: AI Narrative Monitor — tracks how AI assistants describe the org's entities over time (Pro tier)
 paths:
   /healthz:
     get:
@@ -2438,6 +2440,139 @@ paths:
         "402": { description: Requires Pro tier }
         "429": { description: Daily AI budget reached }
 
+  /v1/ai-narrative/prompts:
+    get:
+      operationId: listAiNarrativePrompts
+      tags: [ai-narrative]
+      summary: List tracked AI narrative prompts (auto-seeds from watchlist on first access)
+      responses:
+        "200":
+          description: Tracked prompts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativePromptList"
+        "402": { description: Requires Pro tier }
+    post:
+      operationId: createAiNarrativePrompt
+      tags: [ai-narrative]
+      summary: Create a tracked prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NarrativePromptCreateInput"
+      responses:
+        "201":
+          description: Created prompt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativePromptEnvelope"
+        "400": { description: Invalid input }
+        "402": { description: Requires Pro tier }
+  /v1/ai-narrative/prompts/{promptId}:
+    patch:
+      operationId: updateAiNarrativePrompt
+      tags: [ai-narrative]
+      summary: Update a tracked prompt
+      parameters:
+        - name: promptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NarrativePromptUpdateInput"
+      responses:
+        "200":
+          description: Updated prompt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativePromptEnvelope"
+        "404": { description: Prompt not found }
+    delete:
+      operationId: deleteAiNarrativePrompt
+      tags: [ai-narrative]
+      summary: Delete a tracked prompt
+      parameters:
+        - name: promptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Deleted
+        "404": { description: Prompt not found }
+  /v1/ai-narrative/run:
+    post:
+      operationId: runAiNarrative
+      tags: [ai-narrative]
+      summary: Queue a manual AI narrative monitoring run
+      responses:
+        "202":
+          description: Run queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativeRunQueued"
+        "402": { description: Requires Pro tier }
+        "409": { description: A run is already in progress }
+        "429": { description: Daily AI budget reached }
+  /v1/ai-narrative/overview:
+    get:
+      operationId: getAiNarrativeOverview
+      tags: [ai-narrative]
+      summary: Latest AI narrative snapshot per entity with per-provider sentiment and deltas
+      responses:
+        "200":
+          description: Narrative overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativeOverview"
+        "402": { description: Requires Pro tier }
+  /v1/ai-narrative/timeline:
+    get:
+      operationId: getAiNarrativeTimeline
+      tags: [ai-narrative]
+      summary: Sentiment timeline for one entity (per provider, per run)
+      parameters:
+        - name: entity
+          in: query
+          required: true
+          schema: { type: string }
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 365, default: 30 }
+      responses:
+        "200":
+          description: Timeline points
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativeTimeline"
+        "400": { description: entity is required }
+        "402": { description: Requires Pro tier }
+  /v1/ai-narrative/runs:
+    get:
+      operationId: listAiNarrativeRuns
+      tags: [ai-narrative]
+      summary: Recent AI narrative monitoring runs
+      responses:
+        "200":
+          description: Run history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativeRunList"
+        "402": { description: Requires Pro tier }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3859,3 +3994,151 @@ components:
         conversationId: { type: string, format: uuid, description: "Omit to start a new conversation" }
         message:        { type: string, maxLength: 4000 }
         provider:       { type: string, enum: [openai, gemini, deepseek], default: openai }
+    NarrativePrompt:
+      type: object
+      required: [id, orgId, entity, entityType, promptText, isActive, createdAt, updatedAt]
+      properties:
+        id:         { type: string, format: uuid }
+        orgId:      { type: string, format: uuid }
+        entity:     { type: string }
+        entityType: { type: string, enum: [brand, competitor, person, keyword] }
+        promptText: { type: string }
+        isActive:   { type: boolean }
+        seededFromKeywordId: { type: string, format: uuid, nullable: true }
+        createdAt:  { type: string, format: date-time }
+        updatedAt:  { type: string, format: date-time }
+    NarrativePromptList:
+      type: object
+      required: [data, total, seeded, promptCap]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativePrompt"
+        total:     { type: integer }
+        seeded:    { type: integer, description: "Number of prompts auto-seeded during this request" }
+        promptCap: { type: integer, description: "Max prompts queried per run for the org's tier" }
+    NarrativePromptEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/NarrativePrompt"
+    NarrativePromptCreateInput:
+      type: object
+      required: [entity, promptText]
+      properties:
+        entity:     { type: string, maxLength: 200 }
+        entityType: { type: string, enum: [brand, competitor, person, keyword], default: brand }
+        promptText: { type: string, maxLength: 1000 }
+    NarrativePromptUpdateInput:
+      type: object
+      properties:
+        entity:     { type: string, maxLength: 200 }
+        entityType: { type: string, enum: [brand, competitor, person, keyword] }
+        promptText: { type: string, maxLength: 1000 }
+        isActive:   { type: boolean }
+    NarrativeRunQueued:
+      type: object
+      required: [queued]
+      properties:
+        queued: { type: boolean }
+    NarrativeRunRecord:
+      type: object
+      required: [id, orgId, status, trigger, promptCount, responseCount, startedAt]
+      properties:
+        id:            { type: string, format: uuid }
+        orgId:         { type: string, format: uuid }
+        status:        { type: string, enum: [running, completed, partial, failed] }
+        trigger:       { type: string, enum: [scheduled, manual] }
+        promptCount:   { type: integer }
+        responseCount: { type: integer }
+        error:         { type: string, nullable: true }
+        startedAt:     { type: string, format: date-time }
+        completedAt:   { type: string, format: date-time, nullable: true }
+    NarrativeRunList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativeRunRecord"
+        total: { type: integer }
+    NarrativeGroundingSource:
+      type: object
+      required: [uri, title]
+      properties:
+        uri:   { type: string }
+        title: { type: string }
+    NarrativeProviderReading:
+      type: object
+      required: [provider, model, answeredAt, quoteSnippets, notableClaims, groundingSources]
+      properties:
+        provider:  { type: string, enum: [openai, gemini] }
+        model:     { type: string }
+        sentiment: { type: number, nullable: true, description: "−1 (very negative) … +1 (very positive)" }
+        delta:     { type: number, nullable: true, description: "Change vs the previous run for this provider" }
+        quoteSnippets:
+          type: array
+          items: { type: string }
+        notableClaims:
+          type: array
+          items: { type: string }
+        groundingSources:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativeGroundingSource"
+        answeredAt: { type: string, format: date-time }
+    NarrativeEntitySummary:
+      type: object
+      required: [entity, entityType, providers]
+      properties:
+        entity:     { type: string }
+        entityType: { type: string }
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativeProviderReading"
+        avgSentiment: { type: number, nullable: true }
+        avgDelta:     { type: number, nullable: true }
+    NarrativeLastRun:
+      type: object
+      required: [id, status, startedAt, trigger]
+      properties:
+        id:          { type: string, format: uuid }
+        status:      { type: string }
+        startedAt:   { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        trigger:     { type: string }
+    NarrativeOverview:
+      type: object
+      required: [entities, tier]
+      properties:
+        lastRun:
+          allOf:
+            - $ref: "#/components/schemas/NarrativeLastRun"
+          nullable: true
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativeEntitySummary"
+        tier: { type: string, enum: [starter, pro, enterprise] }
+    NarrativeTimelinePoint:
+      type: object
+      required: [runId, at, provider, sentiment]
+      properties:
+        runId:     { type: string, format: uuid }
+        at:        { type: string, format: date-time }
+        provider:  { type: string }
+        sentiment: { type: number }
+    NarrativeTimeline:
+      type: object
+      required: [data, entity, days]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativeTimelinePoint"
+        entity: { type: string }
+        days:   { type: integer }

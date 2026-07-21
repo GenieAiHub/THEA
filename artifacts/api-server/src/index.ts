@@ -36,6 +36,7 @@ import { startLlmProcessingWorker, startMiroFishWorker, scheduleAnalysis } from 
 import { startAlertDispatchWorker } from "./lib/alert-dispatch-worker";
 import { startIntelligenceWorker } from "./lib/intelligence/worker";
 import { scheduleIntelligenceJobs } from "./lib/intelligence/scheduler";
+import { startAiNarrativeWorker, scheduleAiNarrative } from "./lib/aiNarrativeWorker";
 import { startEmailDeliveryWorker } from "./lib/emailDeliveryWorker";
 import { scheduleDigests } from "./lib/digestScheduler";
 import { startTelegramBot } from "./lib/telegramBot";
@@ -164,6 +165,14 @@ app.listen(port, async (err) => {
       })
       .catch((err) =>
         logger.warn({ err }, "Intelligence worker bootstrap failed — will retry on next startup")
+      ),
+    Promise.resolve()
+      .then(() => {
+        startAiNarrativeWorker();
+        return scheduleAiNarrative();
+      })
+      .catch((err) =>
+        logger.warn({ err }, "AI narrative worker bootstrap failed — will retry on next startup")
       ),
     Promise.resolve()
       .then(() => {

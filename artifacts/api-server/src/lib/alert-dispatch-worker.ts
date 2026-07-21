@@ -16,6 +16,10 @@ interface AlertDispatchJobData {
   severity?: string;
   spikeRatio?: number;
   crisisProbability?: number;
+  /** "spike" (default) or "ai_narrative" — controls message wording only. */
+  alertType?: string;
+  /** For ai_narrative alerts: cross-provider average sentiment delta (e.g. −0.45). */
+  sentimentShift?: number;
 }
 
 interface SpikeAnalysisJobData {
@@ -43,11 +47,13 @@ export function startAlertDispatchWorker(): void {
       return;
     }
 
-    const { alertId, orgId, keyword, severity, spikeRatio, crisisProbability } = job.data as AlertDispatchJobData;
+    const { alertId, orgId, keyword, severity, spikeRatio, crisisProbability, alertType, sentimentShift } = job.data as AlertDispatchJobData;
     if (!alertId) {
       logger.warn({ jobId: job.id }, "alert-dispatch job missing alertId — skipping");
       return;
     }
+    const isNarrative = alertType === "ai_narrative";
+    const shiftLabel = sentimentShift != null ? sentimentShift.toFixed(2) : "N/A";
 
     await db
       .update(alertsTable)
@@ -82,16 +88,27 @@ export function startAlertDispatchWorker(): void {
           "alert-email",
           {
             to: orgMembers.map((r) => ({ email: r.email, name: r.name ?? r.email })),
-            subject: `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: Spike on "${keyword}"`,
-            template: "spike-alert",
-            data: {
-              orgName: org?.name ?? "Your Organisation",
-              keyword,
-              severity,
-              spikeRatio: spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A",
-              crisisProbability: crisisProbability ? `${crisisProbability}%` : "N/A",
-              dashboardUrl: alertUrl,
-            },
+            subject: isNarrative
+              ? `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: AI narrative shift on "${keyword}"`
+              : `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: Spike on "${keyword}"`,
+            template: isNarrative ? "narrative-alert" : "spike-alert",
+            data: isNarrative
+              ? {
+                  orgName: org?.name ?? "Your Organisation",
+                  entity: keyword,
+                  severity,
+                  sentimentShift: shiftLabel,
+                  currentSentiment: "See dashboard",
+                  dashboardUrl: alertUrl,
+                }
+              : {
+                  orgName: org?.name ?? "Your Organisation",
+                  keyword,
+                  severity,
+                  spikeRatio: spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A",
+                  crisisProbability: crisisProbability ? `${crisisProbability}%` : "N/A",
+                  dashboardUrl: alertUrl,
+                },
           },
           { priority: severity === "critical" ? 1 : 3 },
         );
@@ -113,15 +130,22 @@ export function startAlertDispatchWorker(): void {
         } else {
           try {
             const body = JSON.stringify({
-              text: `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
+              text: isNarrative
+                ? `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — AI narrative shift on *${keyword}*`
+                : `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
               attachments: [
                 {
                   color: severity === "critical" ? "#e53e3e" : severity === "high" ? "#dd6b20" : "#3182ce",
-                  fields: [
-                    { title: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A", short: true },
-                    { title: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A", short: true },
-                    { title: "Organisation", value: org?.name ?? orgId, short: true },
-                  ],
+                  fields: isNarrative
+                    ? [
+                        { title: "Sentiment shift", value: shiftLabel, short: true },
+                        { title: "Organisation", value: org?.name ?? orgId, short: true },
+                      ]
+                    : [
+                        { title: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A", short: true },
+                        { title: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A", short: true },
+                        { title: "Organisation", value: org?.name ?? orgId, short: true },
+                      ],
                   footer: "THEA Intelligence",
                 },
               ],
@@ -151,17 +175,25 @@ export function startAlertDispatchWorker(): void {
               "@type": "MessageCard",
               "@context": "http://schema.org/extensions",
               themeColor: severity === "critical" ? "e53e3e" : severity === "high" ? "dd6b20" : "3182ce",
-              summary: `THEA Alert: spike on "${keyword}"`,
+              summary: isNarrative
+                ? `THEA Alert: AI narrative shift on "${keyword}"`
+                : `THEA Alert: spike on "${keyword}"`,
               sections: [
                 {
                   activityTitle: `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]`,
                   activitySubtitle: org?.name ?? orgId,
-                  facts: [
-                    { name: "Keyword", value: keyword ?? "N/A" },
-                    { name: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
-                    { name: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A" },
-                    { name: "Severity", value: (severity ?? "medium").toUpperCase() },
-                  ],
+                  facts: isNarrative
+                    ? [
+                        { name: "Entity", value: keyword ?? "N/A" },
+                        { name: "Sentiment shift", value: shiftLabel },
+                        { name: "Severity", value: (severity ?? "medium").toUpperCase() },
+                      ]
+                    : [
+                        { name: "Keyword", value: keyword ?? "N/A" },
+                        { name: "Spike ratio", value: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
+                        { name: "Crisis probability", value: crisisProbability ? `${crisisProbability}%` : "N/A" },
+                        { name: "Severity", value: (severity ?? "medium").toUpperCase() },
+                      ],
                 },
               ],
               potentialAction: [{ "@type": "OpenUri", name: "View in Dashboard", targets: [{ os: "default", uri: alertUrl }] }],
@@ -177,12 +209,19 @@ export function startAlertDispatchWorker(): void {
       // ── Telegram delivery ───────────────────────────────────────────────────
       const telegramChatId = emailPref?.telegramChatId;
       if (telegramChatId) {
-        const message = [
-          `${severityEmoji} *THEA Alert* \\[${(severity ?? "medium").toUpperCase()}\\]`,
-          `Keyword: *${keyword ?? "N/A"}*`,
-          `Spike ratio: ${spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A"} | Crisis: ${crisisProbability ? crisisProbability + "%" : "N/A"}`,
-          `[View in Dashboard](${alertUrl})`,
-        ].join("\n");
+        const message = isNarrative
+          ? [
+              `${severityEmoji} *THEA AI Narrative Alert* \\[${(severity ?? "medium").toUpperCase()}\\]`,
+              `Entity: *${keyword ?? "N/A"}*`,
+              `AI assistants shifted negative — sentiment change: ${shiftLabel}`,
+              `[View in Dashboard](${alertUrl})`,
+            ].join("\n")
+          : [
+              `${severityEmoji} *THEA Alert* \\[${(severity ?? "medium").toUpperCase()}\\]`,
+              `Keyword: *${keyword ?? "N/A"}*`,
+              `Spike ratio: ${spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A"} | Crisis: ${crisisProbability ? crisisProbability + "%" : "N/A"}`,
+              `[View in Dashboard](${alertUrl})`,
+            ].join("\n");
         await sendTelegramMessage(telegramChatId, message);
         logger.info({ alertId, orgId, telegramChatId }, "Telegram alert delivered");
       }
@@ -208,7 +247,7 @@ export function startAlertDispatchWorker(): void {
                   parameters: [
                     { type: "text", text: keyword ?? "N/A" },
                     { type: "text", text: (severity ?? "medium").toUpperCase() },
-                    { type: "text", text: spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
+                    { type: "text", text: isNarrative ? `sentiment ${shiftLabel}` : spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
                   ],
                 },
               ],
@@ -240,13 +279,13 @@ export function startAlertDispatchWorker(): void {
       }
 
       // ── Registered webhooks (HMAC-signed) ──────────────────────────────────
-      dispatchWebhookEvent(orgId, "alert.spike", {
-        alertId,
-        keyword,
-        severity,
-        spikeRatio,
-        crisisProbability,
-      }).catch((err) => logger.warn({ err, alertId, orgId }, "Webhook dispatch failed (non-blocking)"));
+      dispatchWebhookEvent(
+        orgId,
+        isNarrative ? "alert.ai_narrative" : "alert.spike",
+        isNarrative
+          ? { alertId, entity: keyword, severity, sentimentShift }
+          : { alertId, keyword, severity, spikeRatio, crisisProbability },
+      ).catch((err) => logger.warn({ err, alertId, orgId }, "Webhook dispatch failed (non-blocking)"));
     } catch (err) {
       logger.warn({ err, alertId, orgId }, "Failed to queue alert notifications — alert still marked dispatched");
     }

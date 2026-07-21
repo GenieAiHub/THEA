@@ -1753,6 +1753,199 @@ export interface AskTheaInput {
   provider?: AskTheaInputProvider;
 }
 
+export type NarrativePromptEntityType = typeof NarrativePromptEntityType[keyof typeof NarrativePromptEntityType];
+
+
+export const NarrativePromptEntityType = {
+  brand: 'brand',
+  competitor: 'competitor',
+  person: 'person',
+  keyword: 'keyword',
+} as const;
+
+export interface NarrativePrompt {
+  id: string;
+  orgId: string;
+  entity: string;
+  entityType: NarrativePromptEntityType;
+  promptText: string;
+  isActive: boolean;
+  /** @nullable */
+  seededFromKeywordId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NarrativePromptList {
+  data: NarrativePrompt[];
+  total: number;
+  /** Number of prompts auto-seeded during this request */
+  seeded: number;
+  /** Max prompts queried per run for the org's tier */
+  promptCap: number;
+}
+
+export interface NarrativePromptEnvelope {
+  data: NarrativePrompt;
+}
+
+export type NarrativePromptCreateInputEntityType = typeof NarrativePromptCreateInputEntityType[keyof typeof NarrativePromptCreateInputEntityType];
+
+
+export const NarrativePromptCreateInputEntityType = {
+  brand: 'brand',
+  competitor: 'competitor',
+  person: 'person',
+  keyword: 'keyword',
+} as const;
+
+export interface NarrativePromptCreateInput {
+  /** @maxLength 200 */
+  entity: string;
+  entityType?: NarrativePromptCreateInputEntityType;
+  /** @maxLength 1000 */
+  promptText: string;
+}
+
+export type NarrativePromptUpdateInputEntityType = typeof NarrativePromptUpdateInputEntityType[keyof typeof NarrativePromptUpdateInputEntityType];
+
+
+export const NarrativePromptUpdateInputEntityType = {
+  brand: 'brand',
+  competitor: 'competitor',
+  person: 'person',
+  keyword: 'keyword',
+} as const;
+
+export interface NarrativePromptUpdateInput {
+  /** @maxLength 200 */
+  entity?: string;
+  entityType?: NarrativePromptUpdateInputEntityType;
+  /** @maxLength 1000 */
+  promptText?: string;
+  isActive?: boolean;
+}
+
+export interface NarrativeRunQueued {
+  queued: boolean;
+}
+
+export type NarrativeRunRecordStatus = typeof NarrativeRunRecordStatus[keyof typeof NarrativeRunRecordStatus];
+
+
+export const NarrativeRunRecordStatus = {
+  running: 'running',
+  completed: 'completed',
+  partial: 'partial',
+  failed: 'failed',
+} as const;
+
+export type NarrativeRunRecordTrigger = typeof NarrativeRunRecordTrigger[keyof typeof NarrativeRunRecordTrigger];
+
+
+export const NarrativeRunRecordTrigger = {
+  scheduled: 'scheduled',
+  manual: 'manual',
+} as const;
+
+export interface NarrativeRunRecord {
+  id: string;
+  orgId: string;
+  status: NarrativeRunRecordStatus;
+  trigger: NarrativeRunRecordTrigger;
+  promptCount: number;
+  responseCount: number;
+  /** @nullable */
+  error?: string | null;
+  startedAt: string;
+  /** @nullable */
+  completedAt?: string | null;
+}
+
+export interface NarrativeRunList {
+  data: NarrativeRunRecord[];
+  total: number;
+}
+
+export interface NarrativeGroundingSource {
+  uri: string;
+  title: string;
+}
+
+export type NarrativeProviderReadingProvider = typeof NarrativeProviderReadingProvider[keyof typeof NarrativeProviderReadingProvider];
+
+
+export const NarrativeProviderReadingProvider = {
+  openai: 'openai',
+  gemini: 'gemini',
+} as const;
+
+export interface NarrativeProviderReading {
+  provider: NarrativeProviderReadingProvider;
+  model: string;
+  /**
+     * −1 (very negative) … +1 (very positive)
+     * @nullable
+     */
+  sentiment?: number | null;
+  /**
+     * Change vs the previous run for this provider
+     * @nullable
+     */
+  delta?: number | null;
+  quoteSnippets: string[];
+  notableClaims: string[];
+  groundingSources: NarrativeGroundingSource[];
+  answeredAt: string;
+}
+
+export interface NarrativeEntitySummary {
+  entity: string;
+  entityType: string;
+  providers: NarrativeProviderReading[];
+  /** @nullable */
+  avgSentiment?: number | null;
+  /** @nullable */
+  avgDelta?: number | null;
+}
+
+export interface NarrativeLastRun {
+  id: string;
+  status: string;
+  startedAt: string;
+  /** @nullable */
+  completedAt?: string | null;
+  trigger: string;
+}
+
+export type NarrativeOverviewTier = typeof NarrativeOverviewTier[keyof typeof NarrativeOverviewTier];
+
+
+export const NarrativeOverviewTier = {
+  starter: 'starter',
+  pro: 'pro',
+  enterprise: 'enterprise',
+} as const;
+
+export interface NarrativeOverview {
+  lastRun?: NarrativeLastRun | null;
+  entities: NarrativeEntitySummary[];
+  tier: NarrativeOverviewTier;
+}
+
+export interface NarrativeTimelinePoint {
+  runId: string;
+  at: string;
+  provider: string;
+  sentiment: number;
+}
+
+export interface NarrativeTimeline {
+  data: NarrativeTimelinePoint[];
+  entity: string;
+  days: number;
+}
+
 export type ListContentParams = {
 platform?: string;
 category?: string;
@@ -2053,5 +2246,14 @@ offset?: number;
 
 export type UploadWatchVideoBody = {
   file?: Blob;
+};
+
+export type GetAiNarrativeTimelineParams = {
+entity: string;
+/**
+ * @minimum 1
+ * @maximum 365
+ */
+days?: number;
 };
 

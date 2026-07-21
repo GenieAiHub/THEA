@@ -72,7 +72,7 @@ async function logUsage(params: {
 // ─── OpenAI (GPT) ─────────────────────────────────────────────────────────────
 export async function chatWithGpt(
   messages: LlmMessage[],
-  opts: { model?: string; operation?: string } = {}
+  opts: { model?: string; operation?: string; temperature?: number; jsonMode?: boolean } = {}
 ): Promise<LlmResponse> {
   const apiKey = await getConfig("openai_api_key");
   if (!apiKey) throw new Error("OpenAI API key is not configured. Add it in Super Admin → API Keys.");
@@ -87,6 +87,8 @@ export async function chatWithGpt(
     const resp = await client.chat.completions.create({
       model,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+      ...(opts.jsonMode ? { response_format: { type: "json_object" as const } } : {}),
     });
 
     const durationMs = Date.now() - start;

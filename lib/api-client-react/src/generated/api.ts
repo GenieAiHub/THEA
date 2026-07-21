@@ -69,6 +69,7 @@ import type {
   GeneratePdfReportBody,
   GeneratePptxReportBody,
   GeoHeatmapResult,
+  GetAiNarrativeTimelineParams,
   GetAnalysisHistoryParams,
   GetCampaignMeasurementsParams,
   GetDepositIntentsParams,
@@ -112,6 +113,14 @@ import type {
   Member,
   MemberDetail,
   MemberList,
+  NarrativeOverview,
+  NarrativePromptCreateInput,
+  NarrativePromptEnvelope,
+  NarrativePromptList,
+  NarrativePromptUpdateInput,
+  NarrativeRunList,
+  NarrativeRunQueued,
+  NarrativeTimeline,
   OkResult,
   OrganicConfidenceResult,
   PlatformConfig,
@@ -10008,4 +10017,600 @@ export const useAskThea = <TError = ErrorType<void>,
       > => {
       return useMutation(getAskTheaMutationOptions(options));
     }
+
+export const getListAiNarrativePromptsUrl = () => {
+
+
+
+
+  return `/api/v1/ai-narrative/prompts`
+}
+
+/**
+ * @summary List tracked AI narrative prompts (auto-seeds from watchlist on first access)
+ */
+export const listAiNarrativePrompts = async ( options?: RequestInit): Promise<NarrativePromptList> => {
+
+  return customFetch<NarrativePromptList>(getListAiNarrativePromptsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAiNarrativePromptsQueryKey = () => {
+    return [
+    `/api/v1/ai-narrative/prompts`
+    ] as const;
+    }
+
+
+export const getListAiNarrativePromptsQueryOptions = <TData = Awaited<ReturnType<typeof listAiNarrativePrompts>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiNarrativePrompts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAiNarrativePromptsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiNarrativePrompts>>> = ({ signal }) => listAiNarrativePrompts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiNarrativePrompts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAiNarrativePromptsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiNarrativePrompts>>>
+export type ListAiNarrativePromptsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List tracked AI narrative prompts (auto-seeds from watchlist on first access)
+ */
+
+export function useListAiNarrativePrompts<TData = Awaited<ReturnType<typeof listAiNarrativePrompts>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiNarrativePrompts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAiNarrativePromptsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAiNarrativePromptUrl = () => {
+
+
+
+
+  return `/api/v1/ai-narrative/prompts`
+}
+
+/**
+ * @summary Create a tracked prompt
+ */
+export const createAiNarrativePrompt = async (narrativePromptCreateInput: NarrativePromptCreateInput, options?: RequestInit): Promise<NarrativePromptEnvelope> => {
+
+  return customFetch<NarrativePromptEnvelope>(getCreateAiNarrativePromptUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(narrativePromptCreateInput)
+  }
+);}
+
+
+
+
+export const getCreateAiNarrativePromptMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAiNarrativePrompt>>, TError,{data: BodyType<NarrativePromptCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAiNarrativePrompt>>, TError,{data: BodyType<NarrativePromptCreateInput>}, TContext> => {
+
+const mutationKey = ['createAiNarrativePrompt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAiNarrativePrompt>>, {data: BodyType<NarrativePromptCreateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAiNarrativePrompt(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAiNarrativePromptMutationResult = NonNullable<Awaited<ReturnType<typeof createAiNarrativePrompt>>>
+    export type CreateAiNarrativePromptMutationBody = BodyType<NarrativePromptCreateInput>
+    export type CreateAiNarrativePromptMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a tracked prompt
+ */
+export const useCreateAiNarrativePrompt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAiNarrativePrompt>>, TError,{data: BodyType<NarrativePromptCreateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAiNarrativePrompt>>,
+        TError,
+        {data: BodyType<NarrativePromptCreateInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAiNarrativePromptMutationOptions(options));
+    }
+
+export const getUpdateAiNarrativePromptUrl = (promptId: string,) => {
+
+
+
+
+  return `/api/v1/ai-narrative/prompts/${promptId}`
+}
+
+/**
+ * @summary Update a tracked prompt
+ */
+export const updateAiNarrativePrompt = async (promptId: string,
+    narrativePromptUpdateInput: NarrativePromptUpdateInput, options?: RequestInit): Promise<NarrativePromptEnvelope> => {
+
+  return customFetch<NarrativePromptEnvelope>(getUpdateAiNarrativePromptUrl(promptId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(narrativePromptUpdateInput)
+  }
+);}
+
+
+
+
+export const getUpdateAiNarrativePromptMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAiNarrativePrompt>>, TError,{promptId: string;data: BodyType<NarrativePromptUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAiNarrativePrompt>>, TError,{promptId: string;data: BodyType<NarrativePromptUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateAiNarrativePrompt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAiNarrativePrompt>>, {promptId: string;data: BodyType<NarrativePromptUpdateInput>}> = (props) => {
+          const {promptId,data} = props ?? {};
+
+          return  updateAiNarrativePrompt(promptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAiNarrativePromptMutationResult = NonNullable<Awaited<ReturnType<typeof updateAiNarrativePrompt>>>
+    export type UpdateAiNarrativePromptMutationBody = BodyType<NarrativePromptUpdateInput>
+    export type UpdateAiNarrativePromptMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a tracked prompt
+ */
+export const useUpdateAiNarrativePrompt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAiNarrativePrompt>>, TError,{promptId: string;data: BodyType<NarrativePromptUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAiNarrativePrompt>>,
+        TError,
+        {promptId: string;data: BodyType<NarrativePromptUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateAiNarrativePromptMutationOptions(options));
+    }
+
+export const getDeleteAiNarrativePromptUrl = (promptId: string,) => {
+
+
+
+
+  return `/api/v1/ai-narrative/prompts/${promptId}`
+}
+
+/**
+ * @summary Delete a tracked prompt
+ */
+export const deleteAiNarrativePrompt = async (promptId: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAiNarrativePromptUrl(promptId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAiNarrativePromptMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiNarrativePrompt>>, TError,{promptId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAiNarrativePrompt>>, TError,{promptId: string}, TContext> => {
+
+const mutationKey = ['deleteAiNarrativePrompt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAiNarrativePrompt>>, {promptId: string}> = (props) => {
+          const {promptId} = props ?? {};
+
+          return  deleteAiNarrativePrompt(promptId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAiNarrativePromptMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAiNarrativePrompt>>>
+
+    export type DeleteAiNarrativePromptMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a tracked prompt
+ */
+export const useDeleteAiNarrativePrompt = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAiNarrativePrompt>>, TError,{promptId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAiNarrativePrompt>>,
+        TError,
+        {promptId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteAiNarrativePromptMutationOptions(options));
+    }
+
+export const getRunAiNarrativeUrl = () => {
+
+
+
+
+  return `/api/v1/ai-narrative/run`
+}
+
+/**
+ * @summary Queue a manual AI narrative monitoring run
+ */
+export const runAiNarrative = async ( options?: RequestInit): Promise<NarrativeRunQueued> => {
+
+  return customFetch<NarrativeRunQueued>(getRunAiNarrativeUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRunAiNarrativeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runAiNarrative>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runAiNarrative>>, TError,void, TContext> => {
+
+const mutationKey = ['runAiNarrative'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runAiNarrative>>, void> = () => {
+
+
+          return  runAiNarrative(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunAiNarrativeMutationResult = NonNullable<Awaited<ReturnType<typeof runAiNarrative>>>
+
+    export type RunAiNarrativeMutationError = ErrorType<void>
+
+    /**
+ * @summary Queue a manual AI narrative monitoring run
+ */
+export const useRunAiNarrative = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runAiNarrative>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runAiNarrative>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRunAiNarrativeMutationOptions(options));
+    }
+
+export const getGetAiNarrativeOverviewUrl = () => {
+
+
+
+
+  return `/api/v1/ai-narrative/overview`
+}
+
+/**
+ * @summary Latest AI narrative snapshot per entity with per-provider sentiment and deltas
+ */
+export const getAiNarrativeOverview = async ( options?: RequestInit): Promise<NarrativeOverview> => {
+
+  return customFetch<NarrativeOverview>(getGetAiNarrativeOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiNarrativeOverviewQueryKey = () => {
+    return [
+    `/api/v1/ai-narrative/overview`
+    ] as const;
+    }
+
+
+export const getGetAiNarrativeOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getAiNarrativeOverview>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiNarrativeOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiNarrativeOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiNarrativeOverview>>> = ({ signal }) => getAiNarrativeOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiNarrativeOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiNarrativeOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getAiNarrativeOverview>>>
+export type GetAiNarrativeOverviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Latest AI narrative snapshot per entity with per-provider sentiment and deltas
+ */
+
+export function useGetAiNarrativeOverview<TData = Awaited<ReturnType<typeof getAiNarrativeOverview>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiNarrativeOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiNarrativeOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAiNarrativeTimelineUrl = (params: GetAiNarrativeTimelineParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/ai-narrative/timeline?${stringifiedParams}` : `/api/v1/ai-narrative/timeline`
+}
+
+/**
+ * @summary Sentiment timeline for one entity (per provider, per run)
+ */
+export const getAiNarrativeTimeline = async (params: GetAiNarrativeTimelineParams, options?: RequestInit): Promise<NarrativeTimeline> => {
+
+  return customFetch<NarrativeTimeline>(getGetAiNarrativeTimelineUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiNarrativeTimelineQueryKey = (params?: GetAiNarrativeTimelineParams,) => {
+    return [
+    `/api/v1/ai-narrative/timeline`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAiNarrativeTimelineQueryOptions = <TData = Awaited<ReturnType<typeof getAiNarrativeTimeline>>, TError = ErrorType<void>>(params: GetAiNarrativeTimelineParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiNarrativeTimeline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiNarrativeTimelineQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiNarrativeTimeline>>> = ({ signal }) => getAiNarrativeTimeline(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiNarrativeTimeline>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAiNarrativeTimelineQueryResult = NonNullable<Awaited<ReturnType<typeof getAiNarrativeTimeline>>>
+export type GetAiNarrativeTimelineQueryError = ErrorType<void>
+
+
+/**
+ * @summary Sentiment timeline for one entity (per provider, per run)
+ */
+
+export function useGetAiNarrativeTimeline<TData = Awaited<ReturnType<typeof getAiNarrativeTimeline>>, TError = ErrorType<void>>(
+ params: GetAiNarrativeTimelineParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAiNarrativeTimeline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAiNarrativeTimelineQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAiNarrativeRunsUrl = () => {
+
+
+
+
+  return `/api/v1/ai-narrative/runs`
+}
+
+/**
+ * @summary Recent AI narrative monitoring runs
+ */
+export const listAiNarrativeRuns = async ( options?: RequestInit): Promise<NarrativeRunList> => {
+
+  return customFetch<NarrativeRunList>(getListAiNarrativeRunsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAiNarrativeRunsQueryKey = () => {
+    return [
+    `/api/v1/ai-narrative/runs`
+    ] as const;
+    }
+
+
+export const getListAiNarrativeRunsQueryOptions = <TData = Awaited<ReturnType<typeof listAiNarrativeRuns>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiNarrativeRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAiNarrativeRunsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiNarrativeRuns>>> = ({ signal }) => listAiNarrativeRuns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiNarrativeRuns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAiNarrativeRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiNarrativeRuns>>>
+export type ListAiNarrativeRunsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Recent AI narrative monitoring runs
+ */
+
+export function useListAiNarrativeRuns<TData = Awaited<ReturnType<typeof listAiNarrativeRuns>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiNarrativeRuns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAiNarrativeRunsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

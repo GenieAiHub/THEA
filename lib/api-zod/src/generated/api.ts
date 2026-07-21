@@ -2691,3 +2691,186 @@ export const AskTheaBody = zod.object({
 export const AskTheaResponse = zod.unknown()
 
 
+/**
+ * @summary List tracked AI narrative prompts (auto-seeds from watchlist on first access)
+ */
+export const ListAiNarrativePromptsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "entity": zod.string(),
+  "entityType": zod.enum(['brand', 'competitor', 'person', 'keyword']),
+  "promptText": zod.string(),
+  "isActive": zod.boolean(),
+  "seededFromKeywordId": zod.string().uuid().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "seeded": zod.number().describe('Number of prompts auto-seeded during this request'),
+  "promptCap": zod.number().describe('Max prompts queried per run for the org\'s tier')
+})
+
+
+/**
+ * @summary Create a tracked prompt
+ */
+export const createAiNarrativePromptBodyEntityMax = 200;
+
+export const createAiNarrativePromptBodyEntityTypeDefault = `brand`;
+export const createAiNarrativePromptBodyPromptTextMax = 1000;
+
+
+
+export const CreateAiNarrativePromptBody = zod.object({
+  "entity": zod.string().max(createAiNarrativePromptBodyEntityMax),
+  "entityType": zod.enum(['brand', 'competitor', 'person', 'keyword']).default(createAiNarrativePromptBodyEntityTypeDefault),
+  "promptText": zod.string().max(createAiNarrativePromptBodyPromptTextMax)
+})
+
+export const CreateAiNarrativePromptResponse = zod.object({
+  "data": zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "entity": zod.string(),
+  "entityType": zod.enum(['brand', 'competitor', 'person', 'keyword']),
+  "promptText": zod.string(),
+  "isActive": zod.boolean(),
+  "seededFromKeywordId": zod.string().uuid().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Update a tracked prompt
+ */
+export const UpdateAiNarrativePromptParams = zod.object({
+  "promptId": zod.coerce.string().uuid()
+})
+
+export const updateAiNarrativePromptBodyEntityMax = 200;
+
+export const updateAiNarrativePromptBodyPromptTextMax = 1000;
+
+
+
+export const UpdateAiNarrativePromptBody = zod.object({
+  "entity": zod.string().max(updateAiNarrativePromptBodyEntityMax).optional(),
+  "entityType": zod.enum(['brand', 'competitor', 'person', 'keyword']).optional(),
+  "promptText": zod.string().max(updateAiNarrativePromptBodyPromptTextMax).optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateAiNarrativePromptResponse = zod.object({
+  "data": zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "entity": zod.string(),
+  "entityType": zod.enum(['brand', 'competitor', 'person', 'keyword']),
+  "promptText": zod.string(),
+  "isActive": zod.boolean(),
+  "seededFromKeywordId": zod.string().uuid().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Delete a tracked prompt
+ */
+export const DeleteAiNarrativePromptParams = zod.object({
+  "promptId": zod.coerce.string().uuid()
+})
+
+export const DeleteAiNarrativePromptResponse = zod.void()
+
+
+/**
+ * @summary Queue a manual AI narrative monitoring run
+ */
+export const RunAiNarrativeResponse = zod.object({
+  "queued": zod.boolean()
+})
+
+
+/**
+ * @summary Latest AI narrative snapshot per entity with per-provider sentiment and deltas
+ */
+export const GetAiNarrativeOverviewResponse = zod.object({
+  "lastRun": zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.string(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish(),
+  "trigger": zod.string()
+}).nullish(),
+  "entities": zod.array(zod.object({
+  "entity": zod.string(),
+  "entityType": zod.string(),
+  "providers": zod.array(zod.object({
+  "provider": zod.enum(['openai', 'gemini']),
+  "model": zod.string(),
+  "sentiment": zod.number().nullish().describe('−1 (very negative) … +1 (very positive)'),
+  "delta": zod.number().nullish().describe('Change vs the previous run for this provider'),
+  "quoteSnippets": zod.array(zod.string()),
+  "notableClaims": zod.array(zod.string()),
+  "groundingSources": zod.array(zod.object({
+  "uri": zod.string(),
+  "title": zod.string()
+})),
+  "answeredAt": zod.coerce.date()
+})),
+  "avgSentiment": zod.number().nullish(),
+  "avgDelta": zod.number().nullish()
+})),
+  "tier": zod.enum(['starter', 'pro', 'enterprise'])
+})
+
+
+/**
+ * @summary Sentiment timeline for one entity (per provider, per run)
+ */
+export const getAiNarrativeTimelineQueryDaysDefault = 30;
+export const getAiNarrativeTimelineQueryDaysMax = 365;
+
+
+
+export const GetAiNarrativeTimelineQueryParams = zod.object({
+  "entity": zod.coerce.string(),
+  "days": zod.coerce.number().min(1).max(getAiNarrativeTimelineQueryDaysMax).default(getAiNarrativeTimelineQueryDaysDefault)
+})
+
+export const GetAiNarrativeTimelineResponse = zod.object({
+  "data": zod.array(zod.object({
+  "runId": zod.string().uuid(),
+  "at": zod.coerce.date(),
+  "provider": zod.string(),
+  "sentiment": zod.number()
+})),
+  "entity": zod.string(),
+  "days": zod.number()
+})
+
+
+/**
+ * @summary Recent AI narrative monitoring runs
+ */
+export const ListAiNarrativeRunsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "status": zod.enum(['running', 'completed', 'partial', 'failed']),
+  "trigger": zod.enum(['scheduled', 'manual']),
+  "promptCount": zod.number(),
+  "responseCount": zod.number(),
+  "error": zod.string().nullish(),
+  "startedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullish()
+})),
+  "total": zod.number()
+})
+
+

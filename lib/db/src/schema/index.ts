@@ -36,3 +36,4 @@ export * from "./mmp";
 export * from "./watch";
 export * from "./push_tokens";
 export * from "./chat_conversations";
+export * from "./ai_narrative";
