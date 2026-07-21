@@ -13,7 +13,7 @@ import { SectionRecommendations } from "@/components/mmp-report/SectionRecommend
 
 export default function MmpReportPage() {
   useEffect(() => {
-    document.title = "CONFIDENTIAL | MMP Competitive Landscape & Gap Analysis";
+    document.title = "CONFIDENTIAL | THEA MMP — Competitive Landscape & Gap Analysis";
   }, []);
 
   const { scrollYProgress } = useScroll();

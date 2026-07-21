@@ -13,7 +13,7 @@ export function SectionOverview() {
         transition={{ duration: 0.6 }}
       >
         <h1 className="text-5xl lg:text-7xl font-display font-bold text-white tracking-tight mb-6">
-          MMP Competitive<br/>Landscape & <span className="text-[#d4af37]">Gap Analysis</span>
+          THEA MMP Competitive<br/>Landscape & <span className="text-[#d4af37]">Gap Analysis</span>
         </h1>
         <p className="text-xl text-slate-400 font-light max-w-3xl leading-relaxed mb-16">
           A definitive assessment of the mobile measurement partner ecosystem, 

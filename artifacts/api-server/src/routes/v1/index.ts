@@ -28,6 +28,7 @@ import membersRouter from "./members";
 import accessRouter from "./access";
 import walletRouter from "./wallet";
 import depositsRouter from "./deposits";
+import mmpRouter from "./mmp";
 
 const router = Router();
 
@@ -69,5 +70,6 @@ router.use("/members", membersRouter);
 router.use("/access", accessRouter);
 router.use("/wallet/deposit", depositsRouter);
 router.use("/wallet", walletRouter);
+router.use("/mmp", mmpRouter);
 
 export default router;

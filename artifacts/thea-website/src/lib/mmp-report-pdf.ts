@@ -66,7 +66,7 @@ export function buildMmpReportDocDefinition(): TDocumentDefinitions {
   const cover: Content = {
     stack: [
       { text: "INTERNAL BRIEFING — CONFIDENTIAL", fontSize: 9, color: "#dc2626", bold: true, characterSpacing: 2, margin: [0, 160, 0, 18] },
-      { text: "MMP Competitive Landscape", fontSize: 30, bold: true, color: DARK },
+      { text: "THEA MMP Competitive Landscape", fontSize: 30, bold: true, color: DARK },
       { text: "& Gap Analysis", fontSize: 30, bold: true, color: GOLD, margin: [0, 0, 0, 20] },
       {
         text: "A definitive assessment of the mobile measurement partner ecosystem, identifying vulnerable incumbents and high-value product opportunities for immediate development.",
@@ -336,7 +336,7 @@ export function buildMmpReportDocDefinition(): TDocumentDefinitions {
     pageSize: "A4",
     pageMargins: [50, 50, 50, 60],
     info: {
-      title: "MMP Competitive Landscape & Gap Analysis",
+      title: "THEA MMP — Competitive Landscape & Gap Analysis",
       author: "Project Navigator",
       subject: "Internal briefing — confidential",
     },
@@ -371,5 +371,5 @@ export async function downloadMmpReportPdf(): Promise<void> {
   ]);
   (pdfMake as any).vfs = (pdfFonts as any).pdfMake?.vfs ?? (pdfFonts as any).vfs ?? (pdfFonts as any);
   const dd = buildMmpReportDocDefinition();
-  pdfMake.createPdf(dd).download("mmp-competitive-landscape-gap-analysis.pdf");
+  pdfMake.createPdf(dd).download("thea-mmp-competitive-landscape-gap-analysis.pdf");
 }

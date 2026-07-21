@@ -38,6 +38,7 @@ import KnowledgeBasePage from "@/pages/KnowledgeBasePage";
 import KnowledgeBaseArticlePage from "@/pages/KnowledgeBaseArticlePage";
 import PrivacyPage from "@/pages/legal/PrivacyPage";
 const MmpReportPage = lazy(() => import("@/pages/MmpReportPage"));
+const MmpPage = lazy(() => import("@/pages/MmpPage"));
 import TermsPage from "@/pages/legal/TermsPage";
 import DisclaimerPage from "@/pages/legal/DisclaimerPage";
 
@@ -88,6 +89,15 @@ function AppRoutes() {
           <Protected>
             <Suspense fallback={<AuthLoading />}>
               <MmpReportPage />
+            </Suspense>
+          </Protected>
+        )}
+      </Route>
+      <Route path="/mmp">
+        {() => (
+          <Protected>
+            <Suspense fallback={<AuthLoading />}>
+              <MmpPage />
             </Suspense>
           </Protected>
         )}

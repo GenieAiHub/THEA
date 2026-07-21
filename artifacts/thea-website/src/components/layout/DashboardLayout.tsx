@@ -58,7 +58,7 @@ interface ServiceItem extends SidebarItem {
 }
 
 const serviceItems: ServiceItem[] = [
-  { icon: <FileBarChart className="w-4 h-4" />, label: "MMP Report", href: "/mmp-report" },
+  { icon: <FileBarChart className="w-4 h-4" />, label: "THEA MMP", href: "/mmp" },
   { icon: <LineChart className="w-4 h-4" />, label: "THEA Markets", href: MARKETS_URL, external: true },
   { icon: <ScanFace className="w-4 h-4" />, label: "THEA Access", href: ACCESS_URL, external: true },
 ];
