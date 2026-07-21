@@ -163,14 +163,15 @@ async function matchObjects(
   return [...matches.values()];
 }
 
-async function matchPlates(
+/**
+ * OCR plate-text candidates from vehicle crops (plates live on vehicles);
+ * falls back to the whole frame when no vehicles were detected (e.g. tight
+ * camera angle on a gate). Deduplicated by text, best confidence wins.
+ */
+async function extractPlateCandidates(
   frame: RgbImage,
   detections: ObjectDetection[],
-  plateTargets: TargetWithRefs[],
-): Promise<PendingMatch[]> {
-  const matches = new Map<string, PendingMatch>();
-  // OCR each vehicle crop (plates live on vehicles); fall back to whole frame when
-  // no vehicles were detected (e.g. tight camera angle on a gate).
+): Promise<Array<{ text: string; confidence: number }>> {
   const regions: RgbImage[] = [];
   for (const det of detections) {
     if (!VEHICLE_CLASSES.has(det.class)) continue;
@@ -184,6 +185,7 @@ async function matchPlates(
   }
   if (regions.length === 0) regions.push(frame);
 
+  const byText = new Map<string, { text: string; confidence: number }>();
   for (const region of regions.slice(0, 6)) {
     // OCR both the raw crop and an upscaled contrast-stretched variant; each
     // wins in different lighting, and candidates are cheap to union.
@@ -191,24 +193,120 @@ async function matchPlates(
     const variants = [encodeRgbToJpeg(region, 90), encodeRgbToJpeg(grayscaleStretch(upscaled), 90)];
     const candidates = (await Promise.all(variants.map((v) => recognizePlateCandidates(v)))).flat();
     for (const cand of candidates) {
-      for (const target of plateTargets) {
-        if (!target.plateText) continue;
-        if (platesMatch(cand.text, target.plateText)) {
-          const confidence = Math.max(cand.confidence, 0.5);
-          const existing = matches.get(target.id);
-          if (!existing || confidence > existing.confidence) {
-            matches.set(target.id, {
-              target,
-              matchType: "plate",
-              confidence,
-              detail: `plate ${cand.text}`,
-            });
-          }
+      const existing = byText.get(cand.text);
+      if (!existing || cand.confidence > existing.confidence) {
+        byText.set(cand.text, { text: cand.text, confidence: cand.confidence });
+      }
+    }
+  }
+  return [...byText.values()].sort((a, b) => b.confidence - a.confidence);
+}
+
+async function matchPlates(
+  frame: RgbImage,
+  detections: ObjectDetection[],
+  plateTargets: TargetWithRefs[],
+): Promise<PendingMatch[]> {
+  const matches = new Map<string, PendingMatch>();
+  const candidates = await extractPlateCandidates(frame, detections);
+  for (const cand of candidates) {
+    for (const target of plateTargets) {
+      if (!target.plateText) continue;
+      if (platesMatch(cand.text, target.plateText)) {
+        const confidence = Math.max(cand.confidence, 0.5);
+        const existing = matches.get(target.id);
+        if (!existing || confidence > existing.confidence) {
+          matches.set(target.id, {
+            target,
+            matchType: "plate",
+            confidence,
+            detail: `plate ${cand.text}`,
+          });
         }
       }
     }
   }
   return [...matches.values()];
+}
+
+export interface FrameAnalysis {
+  /** All COCO-SSD detections (class, score, bbox [x,y,w,h] in source pixels). */
+  objects: Array<{ class: string; score: number; box: [number, number, number, number] }>;
+  /** All detected faces with their 128-d descriptors (for caller-side matching). */
+  faces: Array<{ score: number; descriptor: number[] }>;
+  /** OCR'd plate-text candidates (best-confidence first). */
+  plates: Array<{ text: string; confidence: number }>;
+  /** Active watch targets this frame matched. */
+  targetMatches: Array<{
+    targetId: string;
+    name: string;
+    type: string;
+    matchType: "face" | "object" | "plate";
+    confidence: number;
+    detail: string | null;
+  }>;
+}
+
+/**
+ * Analyze one frame WITHOUT recording sightings or firing alerts: detect all
+ * objects and faces, OCR plate candidates when a vehicle is present, and match
+ * against the org's active watch targets. Used by the mobile "Recognize"
+ * feature; face→member matching is done by the caller (access domain).
+ */
+export async function analyzeFrame(jpegBuffer: Buffer, orgId: string): Promise<FrameAnalysis> {
+  const targets = await loadActiveTargets(orgId);
+  const personTargets = targets.filter((t) => t.type === "person" && t.refs.some((r) => r.faceEmbedding));
+  const objectTargets = targets.filter((t) => t.type === "vehicle" || t.type === "object");
+  const plateTargets = targets.filter((t) => t.type === "plate" && t.plateText);
+
+  const frame = decodeJpegToRgb(jpegBuffer);
+  const [detections, descriptors] = await Promise.all([detectObjects(frame), computeAllDescriptors(jpegBuffer)]);
+
+  // OCR is the slow pipeline — only run it when the picture plausibly has a
+  // plate (a vehicle was detected) or the org actively watches plates.
+  const hasVehicle = detections.some((d) => VEHICLE_CLASSES.has(d.class));
+  const plates = hasVehicle || plateTargets.length > 0 ? await extractPlateCandidates(frame, detections) : [];
+
+  const allMatches: PendingMatch[] = [];
+  if (personTargets.length > 0 && descriptors.length > 0) {
+    allMatches.push(...matchFaces(descriptors, personTargets));
+  }
+  if (objectTargets.length > 0 && detections.length > 0) {
+    allMatches.push(...(await matchObjects(frame, detections, objectTargets)));
+  }
+  if (plateTargets.length > 0 && plates.length > 0) {
+    for (const cand of plates) {
+      for (const target of plateTargets) {
+        if (!target.plateText || !platesMatch(cand.text, target.plateText)) continue;
+        const confidence = Math.max(cand.confidence, 0.5);
+        const existing = allMatches.find((m) => m.target.id === target.id && m.matchType === "plate");
+        if (!existing) {
+          allMatches.push({ target, matchType: "plate", confidence, detail: `plate ${cand.text}` });
+        } else if (confidence > existing.confidence) {
+          existing.confidence = confidence;
+          existing.detail = `plate ${cand.text}`;
+        }
+      }
+    }
+  }
+
+  return {
+    objects: detections.map((d) => ({
+      class: d.class,
+      score: d.score,
+      box: [d.bbox[0], d.bbox[1], d.bbox[2], d.bbox[3]],
+    })),
+    faces: descriptors.map((d) => ({ score: d.score, descriptor: d.descriptor })),
+    plates: plates.slice(0, 5),
+    targetMatches: allMatches.map((m) => ({
+      targetId: m.target.id,
+      name: m.target.name,
+      type: m.target.type,
+      matchType: m.matchType,
+      confidence: m.confidence,
+      detail: m.detail,
+    })),
+  };
 }
 
 /**

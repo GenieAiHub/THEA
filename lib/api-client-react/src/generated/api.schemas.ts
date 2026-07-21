@@ -1225,6 +1225,85 @@ export interface WatchStatus {
   ffmpegAvailable: boolean;
 }
 
+export interface WatchRecognizeInput {
+  /** JPEG photo as base64 (raw or data: URL) */
+  imageBase64: string;
+}
+
+export interface WatchRecognizedObject {
+  /** COCO-SSD class label (e.g. person, car, dog) */
+  class: string;
+  /** Detection confidence 0-1 */
+  score: number;
+  /**
+     * [x, y, width, height] in source-image pixels
+     * @minItems 4
+     * @maxItems 4
+     */
+  box: number[];
+}
+
+/**
+ * @nullable
+ */
+export type WatchRecognizedFaceMember = {
+  id: string;
+  fullName: string;
+} | null;
+
+export interface WatchRecognizedFace {
+  /** Face-detection confidence 0-1 */
+  score: number;
+  /** @nullable */
+  member?: WatchRecognizedFaceMember;
+  /**
+     * L2 distance to the nearest enrolled member face
+     * @nullable
+     */
+  distance?: number | null;
+}
+
+export interface WatchRecognizedPlate {
+  text: string;
+  confidence: number;
+}
+
+export type WatchRecognizedTargetMatchType = typeof WatchRecognizedTargetMatchType[keyof typeof WatchRecognizedTargetMatchType];
+
+
+export const WatchRecognizedTargetMatchType = {
+  person: 'person',
+  vehicle: 'vehicle',
+  object: 'object',
+  plate: 'plate',
+} as const;
+
+export type WatchRecognizedTargetMatchMatchType = typeof WatchRecognizedTargetMatchMatchType[keyof typeof WatchRecognizedTargetMatchMatchType];
+
+
+export const WatchRecognizedTargetMatchMatchType = {
+  face: 'face',
+  object: 'object',
+  plate: 'plate',
+} as const;
+
+export interface WatchRecognizedTargetMatch {
+  targetId: string;
+  name: string;
+  type: WatchRecognizedTargetMatchType;
+  matchType: WatchRecognizedTargetMatchMatchType;
+  confidence: number;
+  /** @nullable */
+  detail?: string | null;
+}
+
+export interface WatchRecognitionResult {
+  objects: WatchRecognizedObject[];
+  faces: WatchRecognizedFace[];
+  plates: WatchRecognizedPlate[];
+  targetMatches: WatchRecognizedTargetMatch[];
+}
+
 export interface WatchAlertChannels {
   email?: boolean;
   emails?: string[];

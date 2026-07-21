@@ -95,3 +95,9 @@ id = "ZmsEsHmWMNoxcG8GBNI_v"
 uri = "file://attached_assets/stock_images/test_car_full.jpg"
 type = "image"
 title = "sedan car full view parking lot wide shot entire vehicle"
+
+[[outputs]]
+id = "3Uxm4wd087huvj4qN5gyi"
+uri = "file://exports/thea-access-android.zip"
+type = "unspecified"
+title = "THEA Access — Android build archive (9.2 MB)"

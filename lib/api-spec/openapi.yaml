@@ -1920,6 +1920,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WatchStatus"
+  /v1/watch/recognize:
+    post:
+      operationId: recognizeWatchImage
+      tags: [watch]
+      summary: Analyze one photo — objects, member faces, plates, watch-target matches (read-only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchRecognizeInput"
+      responses:
+        "200":
+          description: Recognition results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchRecognitionResult"
+        "400": { description: imageBase64 missing }
+        "422": { description: Image could not be decoded/processed }
   /v1/watch/cameras:
     get:
       operationId: listWatchCameras
@@ -3375,6 +3395,77 @@ components:
       properties:
         liveSamplingEnabled: { type: boolean }
         ffmpegAvailable:     { type: boolean }
+    WatchRecognizeInput:
+      type: object
+      required: [imageBase64]
+      properties:
+        imageBase64:
+          type: string
+          description: "JPEG photo as base64 (raw or data: URL)"
+    WatchRecognizedObject:
+      type: object
+      required: [class, score, box]
+      properties:
+        class: { type: string, description: "COCO-SSD class label (e.g. person, car, dog)" }
+        score: { type: number, description: "Detection confidence 0-1" }
+        box:
+          type: array
+          items: { type: number }
+          minItems: 4
+          maxItems: 4
+          description: "[x, y, width, height] in source-image pixels"
+    WatchRecognizedFace:
+      type: object
+      required: [score]
+      properties:
+        score: { type: number, description: "Face-detection confidence 0-1" }
+        member:
+          type: object
+          nullable: true
+          required: [id, fullName]
+          properties:
+            id:       { type: string, format: uuid }
+            fullName: { type: string }
+        distance:
+          type: number
+          nullable: true
+          description: L2 distance to the nearest enrolled member face
+    WatchRecognizedPlate:
+      type: object
+      required: [text, confidence]
+      properties:
+        text:       { type: string }
+        confidence: { type: number }
+    WatchRecognizedTargetMatch:
+      type: object
+      required: [targetId, name, type, matchType, confidence]
+      properties:
+        targetId:   { type: string, format: uuid }
+        name:       { type: string }
+        type:       { type: string, enum: [person, vehicle, object, plate] }
+        matchType:  { type: string, enum: [face, object, plate] }
+        confidence: { type: number }
+        detail:     { type: string, nullable: true }
+    WatchRecognitionResult:
+      type: object
+      required: [objects, faces, plates, targetMatches]
+      properties:
+        objects:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchRecognizedObject"
+        faces:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchRecognizedFace"
+        plates:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchRecognizedPlate"
+        targetMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchRecognizedTargetMatch"
     WatchAlertChannels:
       type: object
       properties:

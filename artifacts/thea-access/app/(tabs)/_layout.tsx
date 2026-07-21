@@ -16,6 +16,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "viewfinder", selected: "viewfinder" }} />
         <Label>Scan</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="recognize">
+        <Icon sf={{ default: "eye", selected: "eye.fill" }} />
+        <Label>Recognize</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="members">
         <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
         <Label>Members</Label>
@@ -88,6 +92,13 @@ function ClassicTabLayout() {
         options={{
           title: "Scan",
           tabBarIcon: ({ color }) => iconFor("camera", "viewfinder", color),
+        }}
+      />
+      <Tabs.Screen
+        name="recognize"
+        options={{
+          title: "Recognize",
+          tabBarIcon: ({ color }) => iconFor("eye", "eye.fill", color),
         }}
       />
       <Tabs.Screen

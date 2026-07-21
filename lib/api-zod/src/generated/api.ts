@@ -1991,6 +1991,47 @@ export const GetWatchStatusResponse = zod.object({
 
 
 /**
+ * @summary Analyze one photo — objects, member faces, plates, watch-target matches (read-only)
+ */
+export const RecognizeWatchImageBody = zod.object({
+  "imageBase64": zod.string().describe('JPEG photo as base64 (raw or data: URL)')
+})
+
+export const recognizeWatchImageResponseObjectsItemBoxMin = 4;
+export const recognizeWatchImageResponseObjectsItemBoxMax = 4;
+
+
+
+export const RecognizeWatchImageResponse = zod.object({
+  "objects": zod.array(zod.object({
+  "class": zod.string().describe('COCO-SSD class label (e.g. person, car, dog)'),
+  "score": zod.number().describe('Detection confidence 0-1'),
+  "box": zod.array(zod.number()).min(recognizeWatchImageResponseObjectsItemBoxMin).max(recognizeWatchImageResponseObjectsItemBoxMax).describe('[x, y, width, height] in source-image pixels')
+})),
+  "faces": zod.array(zod.object({
+  "score": zod.number().describe('Face-detection confidence 0-1'),
+  "member": zod.object({
+  "id": zod.string().uuid(),
+  "fullName": zod.string()
+}).nullish(),
+  "distance": zod.number().nullish().describe('L2 distance to the nearest enrolled member face')
+})),
+  "plates": zod.array(zod.object({
+  "text": zod.string(),
+  "confidence": zod.number()
+})),
+  "targetMatches": zod.array(zod.object({
+  "targetId": zod.string().uuid(),
+  "name": zod.string(),
+  "type": zod.enum(['person', 'vehicle', 'object', 'plate']),
+  "matchType": zod.enum(['face', 'object', 'plate']),
+  "confidence": zod.number(),
+  "detail": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary List registered cameras
  */
 export const ListWatchCamerasResponse = zod.object({

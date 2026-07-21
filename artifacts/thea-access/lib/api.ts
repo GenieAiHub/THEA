@@ -9,8 +9,10 @@ import type {
   MemberDetail,
 } from "./types";
 
-const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN;
-const BASE_URL = DOMAIN ? `https://${DOMAIN}` : "";
+// Dev builds inject EXPO_PUBLIC_DOMAIN (Replit preview); production APK/IPA
+// builds fall back to the deployed mobile origin, whose nginx proxies /api.
+const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN || "m.thea.quest";
+const BASE_URL = `https://${DOMAIN}`;
 
 let authToken: string | null = null;
 
@@ -287,7 +289,48 @@ export const api = {
   async getSighting(id: string): Promise<Sighting> {
     return request<Sighting>(`/v1/watch/sightings/${id}`);
   },
+
+  // ── Image recognition ───────────────────────────────────────────────────
+  async recognize(imageBase64: string): Promise<RecognitionResult> {
+    return request<RecognitionResult>("/v1/watch/recognize", {
+      method: "POST",
+      body: { imageBase64 },
+    });
+  },
 };
+
+export interface RecognizedObject {
+  class: string;
+  score: number;
+  box: [number, number, number, number];
+}
+
+export interface RecognizedFace {
+  score: number;
+  member: { id: string; fullName: string } | null;
+  distance: number | null;
+}
+
+export interface RecognizedPlate {
+  text: string;
+  confidence: number;
+}
+
+export interface RecognizedTargetMatch {
+  targetId: string;
+  name: string;
+  type: string;
+  matchType: "face" | "object" | "plate";
+  confidence: number;
+  detail: string | null;
+}
+
+export interface RecognitionResult {
+  objects: RecognizedObject[];
+  faces: RecognizedFace[];
+  plates: RecognizedPlate[];
+  targetMatches: RecognizedTargetMatch[];
+}
 
 export interface Sighting {
   id: string;

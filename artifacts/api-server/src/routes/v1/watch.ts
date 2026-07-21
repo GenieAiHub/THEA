@@ -4,19 +4,21 @@ import { createWriteStream, mkdirSync, existsSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { randomUUID } from "node:crypto";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import {
   watchCamerasTable,
   watchTargetsTable,
   watchTargetImagesTable,
   watchSightingsTable,
   watchVideoJobsTable,
+  membersTable,
   type WatchAlertChannels,
 } from "@workspace/db/schema";
 import { eq, and, desc, count, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../middlewares/auth";
 import { logger } from "../../lib/logger";
-import { computeDescriptor } from "../../lib/faceRecognition";
+import { computeDescriptor, FACE_MATCH_THRESHOLD } from "../../lib/faceRecognition";
+import { analyzeFrame } from "../../lib/watch/frameProcessor";
 import { detectObjects, computeObjectEmbedding, VEHICLE_CLASSES } from "../../lib/watch/objectRecognition";
 import { decodeJpegToRgb, cropRgb } from "../../lib/watch/imageOps";
 import { normalizePlate } from "../../lib/watch/plateOcr";
@@ -60,6 +62,77 @@ router.get("/status", (_req, res) => {
   res.json({
     liveSamplingEnabled: isSamplerRunning(),
     ffmpegAvailable: isFfmpegAvailable(),
+  });
+});
+
+// ─── POST /api/v1/watch/recognize ────────────────────────────────────────────
+// Mobile "Recognize" feature: analyze one photo (base64 JPEG) and report what
+// it contains — detected objects, faces matched against enrolled members,
+// plate-text candidates, and any active watch-target matches. Read-only: no
+// sightings, access events, or alerts are recorded. Available to every org
+// member (not just admins) since it mutates nothing.
+router.post("/recognize", async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const { imageBase64 } = req.body as { imageBase64?: string };
+  if (!imageBase64 || typeof imageBase64 !== "string") {
+    res.status(400).json({ error: "imageBase64 is required" });
+    return;
+  }
+
+  let analysis;
+  try {
+    analysis = await analyzeFrame(decodeBase64Jpeg(imageBase64), orgId);
+  } catch (err) {
+    logger.warn({ err, orgId }, "Recognize: failed to decode/process image");
+    res.status(422).json({ error: "Could not process the image. Ensure it is a valid JPEG photo." });
+    return;
+  }
+
+  // Match each detected face against the org's enrolled members (same
+  // pgvector nearest-neighbour search the access identify flow uses).
+  const MAX_FACE_LOOKUPS = 5;
+  const faces: Array<{
+    score: number;
+    member: { id: string; fullName: string } | null;
+    distance: number | null;
+  }> = [];
+  const client = await pool.connect();
+  try {
+    for (const face of analysis.faces.slice(0, MAX_FACE_LOOKUPS)) {
+      const vectorStr = `[${face.descriptor.join(",")}]`;
+      const result = await client.query(
+        `SELECT member_id, embedding <-> $1::vector AS distance
+         FROM face_embeddings
+         WHERE org_id = $2
+         ORDER BY embedding <-> $1::vector
+         LIMIT 1`,
+        [vectorStr, orgId],
+      );
+      let member: { id: string; fullName: string } | null = null;
+      let distance: number | null = null;
+      if (result.rows.length > 0) {
+        distance = Number(result.rows[0].distance);
+        if (distance <= FACE_MATCH_THRESHOLD) {
+          const memberId = String(result.rows[0].member_id);
+          const [row] = await db
+            .select({ id: membersTable.id, fullName: membersTable.fullName })
+            .from(membersTable)
+            .where(and(eq(membersTable.id, memberId), eq(membersTable.orgId, orgId)))
+            .limit(1);
+          if (row) member = row;
+        }
+      }
+      faces.push({ score: face.score, member, distance });
+    }
+  } finally {
+    client.release();
+  }
+
+  res.json({
+    objects: analysis.objects,
+    faces,
+    plates: analysis.plates,
+    targetMatches: analysis.targetMatches,
   });
 });
 

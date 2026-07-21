@@ -136,6 +136,8 @@ import type {
   WalletResponse,
   WatchCamera,
   WatchCameraList,
+  WatchRecognitionResult,
+  WatchRecognizeInput,
   WatchSightingList,
   WatchStatus,
   WatchStreamSession,
@@ -8020,6 +8022,76 @@ export function useGetWatchStatus<TData = Awaited<ReturnType<typeof getWatchStat
 
 
 
+
+export const getRecognizeWatchImageUrl = () => {
+
+
+
+
+  return `/api/v1/watch/recognize`
+}
+
+/**
+ * @summary Analyze one photo — objects, member faces, plates, watch-target matches (read-only)
+ */
+export const recognizeWatchImage = async (watchRecognizeInput: WatchRecognizeInput, options?: RequestInit): Promise<WatchRecognitionResult> => {
+
+  return customFetch<WatchRecognitionResult>(getRecognizeWatchImageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(watchRecognizeInput)
+  }
+);}
+
+
+
+
+export const getRecognizeWatchImageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recognizeWatchImage>>, TError,{data: BodyType<WatchRecognizeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recognizeWatchImage>>, TError,{data: BodyType<WatchRecognizeInput>}, TContext> => {
+
+const mutationKey = ['recognizeWatchImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recognizeWatchImage>>, {data: BodyType<WatchRecognizeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  recognizeWatchImage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecognizeWatchImageMutationResult = NonNullable<Awaited<ReturnType<typeof recognizeWatchImage>>>
+    export type RecognizeWatchImageMutationBody = BodyType<WatchRecognizeInput>
+    export type RecognizeWatchImageMutationError = ErrorType<void>
+
+    /**
+ * @summary Analyze one photo — objects, member faces, plates, watch-target matches (read-only)
+ */
+export const useRecognizeWatchImage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recognizeWatchImage>>, TError,{data: BodyType<WatchRecognizeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recognizeWatchImage>>,
+        TError,
+        {data: BodyType<WatchRecognizeInput>},
+        TContext
+      > => {
+      return useMutation(getRecognizeWatchImageMutationOptions(options));
+    }
 
 export const getListWatchCamerasUrl = () => {
 
