@@ -85,9 +85,11 @@ function AppRoutes() {
       {/* Hidden internal reference report — intentionally absent from nav, PUBLIC_ROUTES, and the sitemap. */}
       <Route path="/mmp-report">
         {() => (
-          <Suspense fallback={<AuthLoading />}>
-            <MmpReportPage />
-          </Suspense>
+          <Protected>
+            <Suspense fallback={<AuthLoading />}>
+              <MmpReportPage />
+            </Suspense>
+          </Protected>
         )}
       </Route>
       <Route path="/sign-in" component={SignInPage} />
