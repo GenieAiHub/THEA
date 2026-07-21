@@ -35,3 +35,4 @@ export * from "./deposit_intents";
 export * from "./mmp";
 export * from "./watch";
 export * from "./push_tokens";
+export * from "./chat_conversations";

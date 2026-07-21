@@ -59,8 +59,23 @@ export function startLlmProcessingWorker(): void {
       }
 
       case "embed": {
-        const count = await embedPendingItems(200);
-        logger.info({ embedded: count }, "Embedding job complete");
+        // Loop through the backlog in batches so a large un-embedded backlog
+        // drains in hours instead of weeks. Re-check the spend cap between
+        // batches so a long run can't blow past the daily budget.
+        const BATCH = 500;
+        const MAX_BATCHES = 10;
+        let total = 0;
+        for (let i = 0; i < MAX_BATCHES; i++) {
+          const cap = await checkDailySpendCap();
+          if (!cap.withinCap) {
+            logger.warn({ todayUsd: cap.todayUsd, capUsd: cap.capUsd }, "Spend cap hit mid-embedding — stopping batch loop");
+            break;
+          }
+          const count = await embedPendingItems(BATCH);
+          total += count;
+          if (count < BATCH) break;
+        }
+        logger.info({ embedded: total }, "Embedding job complete");
         break;
       }
 

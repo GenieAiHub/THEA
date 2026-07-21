@@ -304,3 +304,145 @@ export async function chat(
   if (provider === "deepseek") return chatWithDeepSeek(messages, opts);
   throw new Error(`Unknown LLM provider: ${provider}`);
 }
+
+// ─── Streaming chat ───────────────────────────────────────────────────────────
+export interface LlmStreamOptions {
+  model?: string;
+  operation?: string;
+  /** Abort the provider stream (e.g. when the SSE client disconnects). */
+  signal?: AbortSignal;
+}
+
+/** Shared streaming implementation for OpenAI-compatible APIs (OpenAI, DeepSeek). */
+async function streamOpenAiCompatible(
+  provider: LlmProvider,
+  client: OpenAI,
+  model: string,
+  operation: string,
+  messages: LlmMessage[],
+  signal: AbortSignal | undefined,
+  onDelta: (delta: string) => void
+): Promise<LlmResponse> {
+  const start = Date.now();
+  try {
+    const stream = await client.chat.completions.create(
+      {
+        model,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        stream: true,
+        stream_options: { include_usage: true },
+      },
+      { signal }
+    );
+
+    let content = "";
+    let promptTokens = 0;
+    let completionTokens = 0;
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (delta) {
+        content += delta;
+        onDelta(delta);
+      }
+      if (chunk.usage) {
+        promptTokens = chunk.usage.prompt_tokens ?? 0;
+        completionTokens = chunk.usage.completion_tokens ?? 0;
+      }
+    }
+
+    const durationMs = Date.now() - start;
+    await logUsage({ model, operation, promptTokens, completionTokens, durationMs, status: "success" });
+    return { provider, model, content, promptTokens, completionTokens, durationMs };
+  } catch (err: unknown) {
+    const durationMs = Date.now() - start;
+    const msg = err instanceof Error ? err.message : String(err);
+    await logUsage({ model, operation, promptTokens: 0, completionTokens: 0, durationMs, status: "error", errorMessage: msg });
+    throw err;
+  }
+}
+
+/**
+ * Streaming variant of chat(): emits each text delta through onDelta as it
+ * arrives and resolves with the full LlmResponse (usage included) at the end.
+ * Usage is logged exactly like the non-streaming path.
+ */
+export async function chatStream(
+  provider: LlmProvider,
+  messages: LlmMessage[],
+  opts: LlmStreamOptions,
+  onDelta: (delta: string) => void
+): Promise<LlmResponse> {
+  const operation = opts.operation ?? "chat-stream";
+
+  if (provider === "openai") {
+    const apiKey = await getConfig("openai_api_key");
+    if (!apiKey) throw new Error("OpenAI API key is not configured. Add it in Super Admin → API Keys.");
+    const model = opts.model ?? (await getConfig("openai_default_model")) ?? "gpt-4o-mini";
+    const client = new OpenAI({ apiKey });
+    return streamOpenAiCompatible("openai", client, model, operation, messages, opts.signal, onDelta);
+  }
+
+  if (provider === "deepseek") {
+    const apiKey = await getConfig("deepseek_api_key");
+    if (!apiKey) throw new Error("DeepSeek API key is not configured. Add it in Super Admin → API Keys.");
+    const model = opts.model ?? (await getConfig("deepseek_default_model")) ?? "deepseek-chat";
+    const client = new OpenAI({ apiKey, baseURL: "https://api.deepseek.com" });
+    return streamOpenAiCompatible("deepseek", client, model, operation, messages, opts.signal, onDelta);
+  }
+
+  if (provider === "gemini") {
+    const apiKey = await getConfig("gemini_api_key");
+    if (!apiKey) throw new Error("Gemini API key is not configured. Add it in Super Admin → API Keys.");
+    const model = opts.model ?? (await getConfig("gemini_default_model")) ?? "gemini-2.0-flash";
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const genModel = genAI.getGenerativeModel({ model });
+    const start = Date.now();
+
+    try {
+      const systemMsg = messages.find((m) => m.role === "system");
+      const history = messages
+        .filter((m) => m.role !== "system")
+        .slice(0, -1)
+        .map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        }));
+      const lastMsg = messages.filter((m) => m.role !== "system").at(-1);
+      const promptText = lastMsg?.content ?? "";
+
+      const chatSession = genModel.startChat({
+        history,
+        ...(systemMsg?.content ? { systemInstruction: systemMsg.content } : {}),
+      });
+
+      const result = await chatSession.sendMessageStream(promptText, { signal: opts.signal });
+
+      let content = "";
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) {
+          content += text;
+          onDelta(text);
+        }
+      }
+
+      const final = await result.response;
+      const durationMs = Date.now() - start;
+      const usageMeta = final.usageMetadata;
+      const promptTokens = usageMeta?.promptTokenCount ?? 0;
+      const completionTokens = usageMeta?.candidatesTokenCount ?? 0;
+
+      await logUsage({ model, operation, promptTokens, completionTokens, durationMs, status: "success" });
+      return { provider: "gemini", model, content, promptTokens, completionTokens, durationMs };
+    } catch (err: unknown) {
+      const durationMs = Date.now() - start;
+      const msg = err instanceof Error ? err.message : String(err);
+      await logUsage({ model, operation, promptTokens: 0, completionTokens: 0, durationMs, status: "error", errorMessage: msg });
+      throw err;
+    }
+  }
+
+  throw new Error(`Unknown LLM provider: ${provider}`);
+}

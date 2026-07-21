@@ -22,6 +22,7 @@ import {
   ScanFace,
   ExternalLink,
   Camera,
+  Sparkles,
 } from "lucide-react";
 import { MARKETS_URL, ACCESS_URL } from "@/lib/urls";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,6 +48,7 @@ const navItems: SidebarItem[] = [
   { icon: <Eye className="w-4 h-4" />, label: "Watchlist", href: "/watchlist" },
   { icon: <ShieldAlert className="w-4 h-4" />, label: "Alerts", href: "/alerts" },
   { icon: <Brain className="w-4 h-4" />, label: "Intelligence", href: "/intelligence" },
+  { icon: <Sparkles className="w-4 h-4" />, label: "Ask THEA", href: "/ask-thea" },
   { icon: <Radar className="w-4 h-4" />, label: "Simulation", href: "/simulation" },
   { icon: <Database className="w-4 h-4" />, label: "Data Explorer", href: "/data-explorer" },
   { icon: <Target className="w-4 h-4" />, label: "Campaigns", href: "/campaigns" },

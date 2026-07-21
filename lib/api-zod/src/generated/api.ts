@@ -2613,3 +2613,81 @@ export const GetWatchVideoJobResponse = zod.object({
 })
 
 
+/**
+ * @summary List the current user's Ask THEA conversations (Pro tier)
+ */
+export const ListAskTheaConversationsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get a conversation with all its messages (Pro tier)
+ */
+export const GetAskTheaConversationParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetAskTheaConversationResponse = zod.object({
+  "conversation": zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "messages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "conversationId": zod.string().uuid(),
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string(),
+  "citations": zod.array(zod.object({
+  "marker": zod.string().describe('Inline marker used in the answer text, e.g. S1'),
+  "type": zod.enum(['content', 'alert', 'crisis', 'trend']),
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "url": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "date": zod.string().nullish(),
+  "similarity": zod.number().nullish()
+})),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Delete a conversation and its messages (Pro tier)
+ */
+export const DeleteAskTheaConversationParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteAskTheaConversationResponse = zod.void()
+
+
+/**
+ * Responds as text/event-stream with events: meta ({conversationId, title}), sources ({citations}), token ({delta}), done ({conversationId, messageId, provider, model, usage}) and error ({error}). Omit conversationId to start a new conversation.
+ * @summary Ask a question — answers stream back as Server-Sent Events (Pro tier)
+ */
+export const askTheaBodyMessageMax = 4000;
+
+export const askTheaBodyProviderDefault = `openai`;
+
+export const AskTheaBody = zod.object({
+  "conversationId": zod.string().uuid().optional().describe('Omit to start a new conversation'),
+  "message": zod.string().max(askTheaBodyMessageMax),
+  "provider": zod.enum(['openai', 'gemini', 'deepseek']).default(askTheaBodyProviderDefault)
+})
+
+export const AskTheaResponse = zod.unknown()
+
+

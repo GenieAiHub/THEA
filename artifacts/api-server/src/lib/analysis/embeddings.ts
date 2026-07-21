@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import { db } from "@workspace/db";
 import { llmUsageLogsTable, contentItemsTable } from "@workspace/db/schema";
-import { eq, and, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, isNull } from "drizzle-orm";
 import { getPlatformConfig as getConfig } from "../platform-config";
+import { PLATFORM_ORG_ID } from "../tenantScope";
 import { logger } from "../logger";
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
@@ -73,6 +74,14 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<(number[
   return results;
 }
 
+/**
+ * Embed content items that don't have an embedding yet, newest first.
+ *
+ * Deliberately NOT gated on processedAt: classification and embedding are
+ * independent enrichment steps (title/body exist at ingestion time), and
+ * requiring classification first starves retrieval whenever the classify
+ * pipeline lags or is disabled.
+ */
 export async function embedPendingItems(limit = 200): Promise<number> {
   const items = await db
     .select({
@@ -82,12 +91,8 @@ export async function embedPendingItems(limit = 200): Promise<number> {
       body: contentItemsTable.body,
     })
     .from(contentItemsTable)
-    .where(
-      and(
-        isNotNull(contentItemsTable.processedAt),
-        isNull(contentItemsTable.embedding as unknown as Parameters<typeof isNull>[0])
-      )
-    )
+    .where(isNull(contentItemsTable.embedding as unknown as Parameters<typeof isNull>[0]))
+    .orderBy(desc(contentItemsTable.collectedAt))
     .limit(limit);
 
   if (!items.length) return 0;
@@ -123,11 +128,22 @@ export async function embedPendingItems(limit = 200): Promise<number> {
  * This makes cross-tenant data access architecturally impossible by
  * removing any unscoped code path.
  */
+export interface SemanticSearchResult {
+  id: string;
+  similarity: number;
+  title: string | null;
+  summary: string | null;
+  category: string | null;
+  platform: string;
+  sourceUrl: string | null;
+  publishedAt: Date | null;
+}
+
 export async function semanticSearch(
   queryText: string,
   orgId: string,
-  opts: { category?: string; limit?: number; minSimilarity?: number } = {}
-): Promise<Array<{ id: string; similarity: number; title: string | null; summary: string | null; category: string | null; platform: string; publishedAt: Date | null }>> {
+  opts: { category?: string; limit?: number; minSimilarity?: number; includePlatform?: boolean } = {}
+): Promise<SemanticSearchResult[]> {
   if (!orgId) throw new Error("semanticSearch: orgId is required for tenant isolation");
 
   const embedding = await generateEmbedding(queryText);
@@ -141,62 +157,42 @@ export async function semanticSearch(
 
   const vectorStr = `[${embedding.join(",")}]`;
 
-  let query: string;
-  let params: unknown[];
+  // Build the WHERE clause dynamically. NOTE: processed_at is intentionally
+  // not required — items are retrievable as soon as they are embedded.
+  const conditions: string[] = ["embedding IS NOT NULL"];
+  const params: unknown[] = [vectorStr];
+  let p = 2;
 
-  if (orgId && category) {
-    query = `
-      SELECT id, title, summary, category, platform, published_at,
-             1 - (embedding <=> $1::vector) AS similarity
-      FROM content_items
-      WHERE processed_at IS NOT NULL
-        AND embedding IS NOT NULL
-        AND org_id = $2
-        AND category = $3
-        AND 1 - (embedding <=> $1::vector) >= $4
-      ORDER BY embedding <=> $1::vector
-      LIMIT $5
-    `;
-    params = [vectorStr, orgId, category, safeMinSimilarity, safeLimit];
-  } else if (orgId) {
-    query = `
-      SELECT id, title, summary, category, platform, published_at,
-             1 - (embedding <=> $1::vector) AS similarity
-      FROM content_items
-      WHERE processed_at IS NOT NULL
-        AND embedding IS NOT NULL
-        AND org_id = $2
-        AND 1 - (embedding <=> $1::vector) >= $3
-      ORDER BY embedding <=> $1::vector
-      LIMIT $4
-    `;
-    params = [vectorStr, orgId, safeMinSimilarity, safeLimit];
-  } else if (category) {
-    query = `
-      SELECT id, title, summary, category, platform, published_at,
-             1 - (embedding <=> $1::vector) AS similarity
-      FROM content_items
-      WHERE processed_at IS NOT NULL
-        AND embedding IS NOT NULL
-        AND category = $2
-        AND 1 - (embedding <=> $1::vector) >= $3
-      ORDER BY embedding <=> $1::vector
-      LIMIT $4
-    `;
-    params = [vectorStr, category, safeMinSimilarity, safeLimit];
+  if (opts.includePlatform) {
+    // Shared platform collection pool is visible to every tenant (tenantOr convention)
+    conditions.push(`org_id IN ($${p}, $${p + 1})`);
+    params.push(orgId, PLATFORM_ORG_ID);
+    p += 2;
   } else {
-    query = `
-      SELECT id, title, summary, category, platform, published_at,
-             1 - (embedding <=> $1::vector) AS similarity
-      FROM content_items
-      WHERE processed_at IS NOT NULL
-        AND embedding IS NOT NULL
-        AND 1 - (embedding <=> $1::vector) >= $2
-      ORDER BY embedding <=> $1::vector
-      LIMIT $3
-    `;
-    params = [vectorStr, safeMinSimilarity, safeLimit];
+    conditions.push(`org_id = $${p}`);
+    params.push(orgId);
+    p += 1;
   }
+
+  if (category) {
+    conditions.push(`category = $${p}`);
+    params.push(category);
+    p += 1;
+  }
+
+  conditions.push(`1 - (embedding <=> $1::vector) >= $${p}`);
+  params.push(safeMinSimilarity);
+  p += 1;
+
+  const query = `
+    SELECT id, title, summary, category, platform, source_url, published_at,
+           1 - (embedding <=> $1::vector) AS similarity
+    FROM content_items
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY embedding <=> $1::vector
+    LIMIT $${p}
+  `;
+  params.push(safeLimit);
 
   const client = await pool.connect();
   try {
@@ -208,6 +204,7 @@ export async function semanticSearch(
       summary: r.summary as string | null,
       category: r.category as string | null,
       platform: String(r.platform),
+      sourceUrl: (r.source_url as string | null) ?? null,
       publishedAt: r.published_at ? new Date(r.published_at as string) : null,
     }));
   } finally {

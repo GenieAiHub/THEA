@@ -30,9 +30,12 @@ import type {
   AdminListConfigs200,
   AnalysisReportList,
   AnalysisRunInput,
+  AskTheaInput,
   BulkConfigInput,
   Campaign,
   CampaignList,
+  ChatConversationDetail,
+  ChatConversationList,
   CheckDisinformationBody,
   ContentItem,
   ContentItemList,
@@ -9710,4 +9713,299 @@ export function useGetWatchVideoJob<TData = Awaited<ReturnType<typeof getWatchVi
 
 
 
+
+export const getListAskTheaConversationsUrl = () => {
+
+
+
+
+  return `/api/v1/ask-thea/conversations`
+}
+
+/**
+ * @summary List the current user's Ask THEA conversations (Pro tier)
+ */
+export const listAskTheaConversations = async ( options?: RequestInit): Promise<ChatConversationList> => {
+
+  return customFetch<ChatConversationList>(getListAskTheaConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAskTheaConversationsQueryKey = () => {
+    return [
+    `/api/v1/ask-thea/conversations`
+    ] as const;
+    }
+
+
+export const getListAskTheaConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listAskTheaConversations>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAskTheaConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAskTheaConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAskTheaConversations>>> = ({ signal }) => listAskTheaConversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAskTheaConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAskTheaConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAskTheaConversations>>>
+export type ListAskTheaConversationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the current user's Ask THEA conversations (Pro tier)
+ */
+
+export function useListAskTheaConversations<TData = Awaited<ReturnType<typeof listAskTheaConversations>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAskTheaConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAskTheaConversationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAskTheaConversationUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/ask-thea/conversations/${id}`
+}
+
+/**
+ * @summary Get a conversation with all its messages (Pro tier)
+ */
+export const getAskTheaConversation = async (id: string, options?: RequestInit): Promise<ChatConversationDetail> => {
+
+  return customFetch<ChatConversationDetail>(getGetAskTheaConversationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAskTheaConversationQueryKey = (id: string,) => {
+    return [
+    `/api/v1/ask-thea/conversations/${id}`
+    ] as const;
+    }
+
+
+export const getGetAskTheaConversationQueryOptions = <TData = Awaited<ReturnType<typeof getAskTheaConversation>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAskTheaConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAskTheaConversationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAskTheaConversation>>> = ({ signal }) => getAskTheaConversation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAskTheaConversation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAskTheaConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getAskTheaConversation>>>
+export type GetAskTheaConversationQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a conversation with all its messages (Pro tier)
+ */
+
+export function useGetAskTheaConversation<TData = Awaited<ReturnType<typeof getAskTheaConversation>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAskTheaConversation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAskTheaConversationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteAskTheaConversationUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/ask-thea/conversations/${id}`
+}
+
+/**
+ * @summary Delete a conversation and its messages (Pro tier)
+ */
+export const deleteAskTheaConversation = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAskTheaConversationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAskTheaConversationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAskTheaConversation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAskTheaConversation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteAskTheaConversation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAskTheaConversation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAskTheaConversation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAskTheaConversationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAskTheaConversation>>>
+
+    export type DeleteAskTheaConversationMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a conversation and its messages (Pro tier)
+ */
+export const useDeleteAskTheaConversation = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAskTheaConversation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAskTheaConversation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteAskTheaConversationMutationOptions(options));
+    }
+
+export const getAskTheaUrl = () => {
+
+
+
+
+  return `/api/v1/ask-thea/ask`
+}
+
+/**
+ * Responds as text/event-stream with events: meta ({conversationId, title}), sources ({citations}), token ({delta}), done ({conversationId, messageId, provider, model, usage}) and error ({error}). Omit conversationId to start a new conversation.
+ * @summary Ask a question — answers stream back as Server-Sent Events (Pro tier)
+ */
+export const askThea = async (askTheaInput: AskTheaInput, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getAskTheaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(askTheaInput)
+  }
+);}
+
+
+
+
+export const getAskTheaMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askThea>>, TError,{data: BodyType<AskTheaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof askThea>>, TError,{data: BodyType<AskTheaInput>}, TContext> => {
+
+const mutationKey = ['askThea'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof askThea>>, {data: BodyType<AskTheaInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  askThea(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AskTheaMutationResult = NonNullable<Awaited<ReturnType<typeof askThea>>>
+    export type AskTheaMutationBody = BodyType<AskTheaInput>
+    export type AskTheaMutationError = ErrorType<void>
+
+    /**
+ * @summary Ask a question — answers stream back as Server-Sent Events (Pro tier)
+ */
+export const useAskThea = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof askThea>>, TError,{data: BodyType<AskTheaInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof askThea>>,
+        TError,
+        {data: BodyType<AskTheaInput>},
+        TContext
+      > => {
+      return useMutation(getAskTheaMutationOptions(options));
+    }
 

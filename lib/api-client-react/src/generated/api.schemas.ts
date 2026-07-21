@@ -1675,6 +1675,84 @@ export interface WatchVideoJobList {
   total: number;
 }
 
+export interface ChatConversation {
+  id: string;
+  orgId: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatConversationList {
+  data: ChatConversation[];
+}
+
+export type AskTheaSourceCitationType = typeof AskTheaSourceCitationType[keyof typeof AskTheaSourceCitationType];
+
+
+export const AskTheaSourceCitationType = {
+  content: 'content',
+  alert: 'alert',
+  crisis: 'crisis',
+  trend: 'trend',
+} as const;
+
+export interface AskTheaSourceCitation {
+  /** Inline marker used in the answer text, e.g. S1 */
+  marker: string;
+  type: AskTheaSourceCitationType;
+  id: string;
+  title: string;
+  /** @nullable */
+  url?: string | null;
+  /** @nullable */
+  platform?: string | null;
+  /** @nullable */
+  date?: string | null;
+  /** @nullable */
+  similarity?: number | null;
+}
+
+export type ChatMessageRecordRole = typeof ChatMessageRecordRole[keyof typeof ChatMessageRecordRole];
+
+
+export const ChatMessageRecordRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface ChatMessageRecord {
+  id: string;
+  conversationId: string;
+  role: ChatMessageRecordRole;
+  content: string;
+  citations: AskTheaSourceCitation[];
+  createdAt: string;
+}
+
+export interface ChatConversationDetail {
+  conversation: ChatConversation;
+  messages: ChatMessageRecord[];
+}
+
+export type AskTheaInputProvider = typeof AskTheaInputProvider[keyof typeof AskTheaInputProvider];
+
+
+export const AskTheaInputProvider = {
+  openai: 'openai',
+  gemini: 'gemini',
+  deepseek: 'deepseek',
+} as const;
+
+export interface AskTheaInput {
+  /** Omit to start a new conversation */
+  conversationId?: string;
+  /** @maxLength 4000 */
+  message: string;
+  provider?: AskTheaInputProvider;
+}
+
 export type ListContentParams = {
 platform?: string;
 category?: string;
