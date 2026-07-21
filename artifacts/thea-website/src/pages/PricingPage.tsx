@@ -23,6 +23,7 @@ const PLANS = [
       "Basic trend intelligence",
       "Up to 5 active tracked entities",
       "Daily sentiment alerts via email",
+      "Scheduled intelligence digest emails",
       "30-day historical data access",
     ],
   },
@@ -40,6 +41,7 @@ const PLANS = [
       "Competitor narrative tracking",
       "Up to 25 active tracked entities",
       "AI-drafted holding statements",
+      "Expanded social coverage: TikTok, Telegram, YouTube & more",
       "1-year historical data access",
       "Custom white-label reporting",
     ],
@@ -57,6 +59,7 @@ const PLANS = [
       "Opponent disinformation tracking",
       "Unlimited active tracked entities",
       "Simulated response forecasting",
+      "THEA Access — biometric access control for events & HQs",
       "Full API access for command centers",
       "Dedicated intelligence analyst",
     ],
@@ -117,6 +120,10 @@ export default function PricingPage() {
                 </span>
               </Label>
             </div>
+
+            <p className="mt-6 text-sm text-muted-foreground">
+              All plans can be paid by card, PayPal, or cryptocurrency.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 items-start">

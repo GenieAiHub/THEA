@@ -98,11 +98,26 @@ export function amountForPlan(key: PlanKey, interval: BillingInterval): number {
 /** Factual, tier-derived marketing bullets used to seed a new plan's display list. */
 function featuresForTier(tier: Tier): string[] {
   const l = TIER_LIMITS[tier];
-  return [
+  const base = [
     l.maxKeywords >= 9999 ? "Unlimited tracked keywords" : `Up to ${l.maxKeywords} tracked keywords`,
     l.maxCategories >= 99 ? "Unlimited categories" : `${l.maxCategories} categories`,
     `${l.historyDays} days of history`,
   ];
+  // Display-only bullets for newer platform services, layered by tier.
+  const extras: Record<Tier, string[]> = {
+    starter: ["Scheduled intelligence digest emails"],
+    pro: [
+      "Scheduled intelligence digest emails",
+      "Expanded social coverage: TikTok, Telegram, YouTube & more",
+    ],
+    enterprise: [
+      "Scheduled intelligence digest emails",
+      "Expanded social coverage: TikTok, Telegram, YouTube & more",
+      "What-if response simulations",
+      "THEA Access — biometric access control for events & HQs",
+    ],
+  };
+  return [...base, ...extras[tier]];
 }
 
 /**

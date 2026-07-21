@@ -119,6 +119,7 @@ services:
         APP: thea-website
         BASE_PATH: ${WEBSITE_BASE_PATH:-/}
         VITE_MARKETS_URL: ${WEBSITE_MARKETS_URL:-https://markets.thea.quest}
+        VITE_ACCESS_URL: ${WEBSITE_ACCESS_URL:-https://m.thea.quest}
         VITE_SITE_URL: ${WEBSITE_SITE_URL:-https://thea.quest}
     image: thea-website
     restart: unless-stopped

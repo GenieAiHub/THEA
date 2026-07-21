@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_MARKETS_URL?: string;
+  readonly VITE_ACCESS_URL?: string;
 }
 
 interface ImportMeta {

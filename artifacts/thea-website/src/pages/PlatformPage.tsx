@@ -11,6 +11,9 @@ import {
   Plug,
   Webhook,
   ChevronRight,
+  Mail,
+  LineChart,
+  ScanFace,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -73,6 +76,21 @@ const suite = [
     icon: <Webhook className="h-6 w-6 text-blue-400" />,
     title: "Custom Webhooks",
     desc: "Trigger automated workflows in Zapier, Slack, Teams, or proprietary systems the moment sentiment thresholds are breached.",
+  },
+  {
+    icon: <Mail className="h-6 w-6 text-blue-400" />,
+    title: "Scheduled Intelligence Digests",
+    desc: "Daily or weekly email digests summarize trends, sentiment shifts, and volume spikes across your watchlists — delivered on your schedule.",
+  },
+  {
+    icon: <LineChart className="h-6 w-6 text-blue-400" />,
+    title: "THEA Markets",
+    desc: "Live public-opinion markets generated automatically from detected trends — a real-time signal of collective conviction.",
+  },
+  {
+    icon: <ScanFace className="h-6 w-6 text-blue-400" />,
+    title: "THEA Access",
+    desc: "Biometric face-recognition access control for events, campaign HQs, and secure facilities — verified in seconds from a phone or browser.",
   },
 ];
 

@@ -58,6 +58,16 @@ const FAQ_GROUPS: { category: string; items: Qa[] }[] = [
         answer:
           "Yes. Enterprise deployments include a fine-tuning phase where THEA ingests your organization's historical press releases, brand guidelines, and executive speech patterns so generative outputs match your precise corporate voice.",
       },
+      {
+        question: "What is THEA Markets?",
+        answer:
+          "THEA Markets is a live public-opinion layer built on top of the intelligence engine. Prediction-style polls are generated automatically from the trends THEA detects, and market movement acts as a real-time signal of collective conviction around a narrative.",
+      },
+      {
+        question: "What is THEA Access?",
+        answer:
+          "THEA Access is a biometric access-control service for events, campaign headquarters, and secure facilities. Staff verify visitors with face recognition from a mobile app or any modern browser, and access lists are managed centrally in the platform.",
+      },
     ],
   },
   {
@@ -87,6 +97,11 @@ const FAQ_GROUPS: { category: string; items: Qa[] }[] = [
         question: "Can I change plans later?",
         answer:
           "Yes. You can upgrade as your needs grow, and plan entitlements — such as tracked entities and historical data access — adjust accordingly.",
+      },
+      {
+        question: "What payment methods do you accept?",
+        answer:
+          "You can pay by credit or debit card, PayPal, or cryptocurrency. Both monthly and annual billing are supported, with annual billing discounted.",
       },
     ],
   },

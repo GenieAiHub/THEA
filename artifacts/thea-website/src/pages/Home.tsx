@@ -4,14 +4,14 @@ import {
   ChevronDown, Activity, Globe, ShieldAlert, FileText, 
   Database, BarChart3, Eye, Bell, MessageSquare, 
   Building, Mic, Briefcase, ChevronRight, Target,
-  Radio, Shield, LineChart, Network
+  Radio, Shield, LineChart, Network, ScanFace
 } from "lucide-react";
 import { Link } from "wouter";
 import { AreaChart, Area, ResponsiveContainer, LineChart as RechartsLineChart, Line } from "recharts";
 
 // @ts-ignore
 import logo from "@assets/thea-logo.png";
-import { MARKETS_URL } from "@/lib/urls";
+import { MARKETS_URL, ACCESS_URL } from "@/lib/urls";
 // @ts-ignore
 import heroEarth from "@assets/generated_images/hero_earth.png";
 // @ts-ignore
@@ -497,7 +497,10 @@ const PlatformFeatures = () => {
     { title: "What-If Simulation", desc: "Run predictive simulations on proposed statements to gauge likely public reaction before you hit publish." },
     { title: "White-Label Reporting", desc: "Export gorgeous, data-rich PDF and PPTX intelligence briefs branded for your agency or organization with a single click." },
     { title: "Enterprise API", desc: "Integrate THEA's cognitive engine directly into your existing dashboards, CRMs, or command center software via our robust REST API." },
-    { title: "Custom Webhooks", desc: "Trigger automated workflows in Zapier, Slack, Teams, or proprietary systems the moment specific sentiment thresholds are breached." }
+    { title: "Custom Webhooks", desc: "Trigger automated workflows in Zapier, Slack, Teams, or proprietary systems the moment specific sentiment thresholds are breached." },
+    { title: "Scheduled Intelligence Digests", desc: "Daily or weekly email digests summarize everything THEA observed across your watchlists — emerging trends, sentiment shifts, and volume spikes — delivered on your schedule." },
+    { title: "THEA Markets", desc: "Live public-opinion markets generated automatically from the trends THEA detects. Watch collective conviction move in real time and use it as a leading signal." },
+    { title: "THEA Access", desc: "Biometric face-recognition access control for events, campaign HQs, and secure facilities — with a mobile app and browser check-in for staff at the door." }
   ];
 
   return (
@@ -559,6 +562,33 @@ const MarketsPromo = () => {
         <div className="w-full md:w-1/3 aspect-square relative flex items-center justify-center">
            <div className="absolute inset-0 bg-blue-500/20 blur-[80px] rounded-full animate-pulse" />
            <Network className="w-32 h-32 text-blue-400 relative z-10 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]" />
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const AccessPromo = () => {
+  return (
+    <section id="access" className="scroll-mt-20 py-24 px-6 relative overflow-hidden border-b border-white/5 bg-background">
+      <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row-reverse items-center justify-between gap-12 bg-slate-950/60 border border-white/10 rounded-3xl p-10 md:p-16 backdrop-blur-xl">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6 border border-blue-500/30">
+            <ScanFace className="w-4 h-4" /> New Service
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 font-display text-white">THEA Access</h2>
+          <p className="text-lg text-blue-100/70 mb-8 leading-relaxed">
+            Biometric access control for the physical side of your operation. Face-recognition check-in for events, campaign headquarters, and secure facilities — managed from the same platform, verified in seconds from a phone or any modern browser.
+          </p>
+          <Button size="lg" className="bg-white text-black hover:bg-white/90 px-8" asChild>
+            <a href={ACCESS_URL} data-testid="link-access-promo">
+              Explore THEA Access <ChevronRight className="w-4 h-4 ml-2" />
+            </a>
+          </Button>
+        </div>
+        <div className="w-full md:w-1/3 aspect-square relative flex items-center justify-center">
+          <div className="absolute inset-0 bg-blue-500/10 blur-[80px] rounded-full animate-pulse" />
+          <ScanFace className="w-32 h-32 text-blue-400 relative z-10 drop-shadow-[0_0_20px_rgba(59,130,246,0.8)]" />
         </div>
       </div>
     </section>
@@ -642,6 +672,7 @@ export default function Home() {
       <Audiences />
       <PlatformFeatures />
       <MarketsPromo />
+      <AccessPromo />
       <FAQ />
       <CTA />
     </PublicLayout>
