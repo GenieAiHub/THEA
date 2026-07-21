@@ -17,6 +17,8 @@ export interface MmpApp {
   id: string;
   name: string;
   platform: string;
+  category: string;
+  appleAppId: string | null;
   ingestToken: string;
   createdAt: string;
 }
@@ -106,6 +108,70 @@ export interface DebugRow {
   status: string;
   reason: string | null;
   payload: string | null;
+  createdAt: string;
+}
+
+export interface BenchmarkMetric {
+  key: string;
+  label: string;
+  yours: number | null;
+  benchmark: number;
+  direction: "higher" | "lower";
+  unit: "usd" | "pct" | "ratio";
+  verdict: "better" | "inline" | "worse" | "no_data";
+}
+
+export interface BenchmarkReport {
+  app: { id: string; name: string; category: string };
+  benchmarksVersion: string;
+  source: string;
+  windows: { performanceDays: number; retentionInstallWindowDays: number };
+  metrics: BenchmarkMetric[];
+}
+
+export interface PltvResponse {
+  installs: number;
+  category: string;
+  method: "log_fit" | "category_standard" | "none";
+  confidence: "high" | "medium" | "low" | "none";
+  observed: LtvPoint[];
+  projected: LtvPoint[];
+  milestones: { d30: number | null; d90: number | null; d180: number | null };
+  note: string;
+}
+
+export interface MediaMixChannel {
+  channel: string;
+  spendUsd: number;
+  revenueUsd: number;
+  installs: number;
+  roas: number | null;
+  marginalRoas: number | null;
+  currentSharePct: number;
+  suggestedSharePct: number;
+}
+
+export interface MediaMixResponse {
+  insufficient: boolean;
+  totalSpendUsd: number;
+  totalRevenueUsd: number;
+  blendedRoas?: number | null;
+  channels: MediaMixChannel[];
+  note: string;
+}
+
+export interface SkanPostbackRow {
+  id: string;
+  appId: string;
+  version: string | null;
+  adNetworkId: string | null;
+  transactionId: string;
+  sourceIdentifier: string | null;
+  conversionValue: number | null;
+  coarseConversionValue: string | null;
+  didWin: boolean | null;
+  postbackSequenceIndex: number | null;
+  fidelityType: number | null;
   createdAt: string;
 }
 

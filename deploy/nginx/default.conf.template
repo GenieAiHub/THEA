@@ -31,6 +31,18 @@ server {
         proxy_send_timeout 3600s;
     }
 
+    # Apple SKAdNetwork developer postbacks. Apple POSTs to this exact path on
+    # the domain configured in the app's NSAdvertisingAttributionReportEndpoint
+    # — it cannot be moved under /api/, so proxy it explicitly to Express.
+    location = /.well-known/skadnetwork/report {
+        proxy_pass http://${API_HOST}:${API_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # PWA service worker + manifest must never be cached by intermediaries, or
     # clients won't pick up new deploys (the update prompt re-fetches sw.js).
     # Harmless for the non-PWA SPAs — they simply don't ship these files.

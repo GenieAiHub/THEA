@@ -10,6 +10,7 @@ import {
   mmpCreatorsTable,
   mmpLinkCostsTable,
   mmpIngestLogTable,
+  mmpSkanPostbacksTable,
   type MmpApp,
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lt, sql, isNull } from "drizzle-orm";
@@ -42,6 +43,10 @@ function newLinkCode(): string {
   return randomBytes(8).toString("hex").slice(0, 10);
 }
 
+/** App verticals with industry benchmark data. */
+const MMP_CATEGORIES = ["gaming", "social", "ecommerce", "finance", "utility", "health", "education", "travel", "other"] as const;
+type MmpCategory = (typeof MMP_CATEGORIES)[number];
+
 /** Deep links allow custom app schemes (myapp://…) but never script/data URIs. */
 const FORBIDDEN_SCHEMES = new Set(["javascript:", "data:", "vbscript:", "file:", "blob:"]);
 function isValidDeepLink(value: string): boolean {
@@ -59,6 +64,9 @@ const CTIT_MIN_MS = 10_000; // click-to-install faster than 10s = bot-like
 const CLICK_FLOOD_PER_DAY = 50; // >50 clicks/day from one ipHash = flooding
 
 const INGEST_LOG_RETENTION_MS = 72 * 60 * 60 * 1000;
+
+/** Cap on stored SKAdNetwork postbacks per app (unauthenticated endpoint — prevents DB-fill abuse). */
+const SKAN_MAX_ROWS_PER_APP = 5000;
 
 /**
  * Fire-and-forget ingest log for the SDK debugger. Payload is the JSON body
@@ -336,6 +344,92 @@ router.post("/ingest/uninstall", requireIngestToken, async (req: IngestRequest, 
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SKAN — SKAdNetwork postback receiver (PUBLIC — Apple posts here, no auth)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Handles Apple SKAdNetwork developer postbacks. Apple POSTs a copy of each
+ * postback to https://<domain>/.well-known/skadnetwork/report when the app's
+ * Info.plist sets NSAdvertisingAttributionReportEndpoint = https://<domain>.
+ * Registered app-level in app.ts for that exact path; also aliased under
+ * /api/v1/mmp/skan/postback for dev/curl testing.
+ *
+ * ALWAYS returns 200 — a non-2xx response makes Apple retry the postback.
+ * Unknown app-ids are dropped without storing (unauthenticated endpoint —
+ * storing unmatched rows would be an unauthenticated DB-write DoS vector).
+ * The Apple attribution-signature is NOT verified (MVP): raw JSON is stored
+ * for later verification and the UI labels rows "unverified".
+ */
+export async function handleSkanPostback(req: Request, res: Response): Promise<void> {
+  try {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const appleAppId = b["app-id"] !== undefined && b["app-id"] !== null ? String(b["app-id"]) : "";
+    const transactionId = typeof b["transaction-id"] === "string" ? b["transaction-id"].trim() : "";
+    if (!/^\d{1,20}$/.test(appleAppId) || !transactionId || transactionId.length > 100) {
+      res.json({ received: true });
+      return;
+    }
+    const [app] = await db
+      .select({ id: mmpAppsTable.id, orgId: mmpAppsTable.orgId })
+      .from(mmpAppsTable)
+      .where(eq(mmpAppsTable.appleAppId, appleAppId))
+      .limit(1);
+    if (!app) {
+      res.json({ received: true });
+      return;
+    }
+    const int = (v: unknown): number | null =>
+      typeof v === "number" && Number.isInteger(v) && v >= -1_000_000_000 && v <= 1_000_000_000 ? v : null;
+    await db
+      .insert(mmpSkanPostbacksTable)
+      .values({
+        orgId: app.orgId,
+        appId: app.id,
+        version: typeof b.version === "string" ? b.version.slice(0, 10) : null,
+        adNetworkId: typeof b["ad-network-id"] === "string" ? b["ad-network-id"].slice(0, 100) : null,
+        transactionId,
+        sourceIdentifier: b["source-identifier"] !== undefined && b["source-identifier"] !== null
+          ? String(b["source-identifier"]).slice(0, 50)
+          : b["campaign-id"] !== undefined && b["campaign-id"] !== null
+            ? String(b["campaign-id"]).slice(0, 50)
+            : null,
+        conversionValue: int(b["conversion-value"]),
+        coarseConversionValue: typeof b["coarse-conversion-value"] === "string" ? b["coarse-conversion-value"].slice(0, 10) : null,
+        didWin: typeof b["did-win"] === "boolean" ? b["did-win"] : null,
+        // SKAN ≤3 has a single postback (no sequence index) — normalize to 0 so
+        // the (appId, transactionId, seq) unique constraint dedupes re-sends
+        // (Postgres treats NULLs as distinct in unique indexes).
+        postbackSequenceIndex: int(b["postback-sequence-index"]) ?? 0,
+        fidelityType: int(b["fidelity-type"]),
+        raw: JSON.stringify(b).slice(0, 4096),
+      })
+      .onConflictDoNothing({
+        target: [mmpSkanPostbacksTable.appId, mmpSkanPostbacksTable.transactionId, mmpSkanPostbacksTable.postbackSequenceIndex],
+      });
+    // Opportunistic per-app cap (~2% of inserts): the endpoint is unauthenticated,
+    // so without a cap an attacker who knows a public Apple App ID could fill the
+    // table with unlimited unique transaction-ids.
+    if (Math.random() < 0.02) {
+      await db.execute(sql`
+        delete from mmp_skan_postbacks
+        where app_id = ${app.id} and id not in (
+          select id from mmp_skan_postbacks
+          where app_id = ${app.id}
+          order by created_at desc
+          limit ${SKAN_MAX_ROWS_PER_APP}
+        )`);
+    }
+    res.json({ received: true });
+  } catch (err) {
+    logger.warn({ err }, "mmp: SKAN postback handling failed");
+    res.json({ received: true });
+  }
+}
+
+// Dev/curl alias — Apple itself only posts to /.well-known/skadnetwork/report.
+router.post("/skan/postback", handleSkanPostback);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PORTAL — org-scoped management + analytics (cookie session auth)
 // ═══════════════════════════════════════════════════════════════════════════
 router.use(requireAuth);
@@ -352,23 +446,82 @@ router.get("/apps", async (req, res) => {
 });
 
 router.post("/apps", requireRole("owner", "admin"), async (req, res) => {
-  const { name, platform } = req.body as { name?: string; platform?: string };
+  const { name, platform, category } = req.body as { name?: string; platform?: string; category?: string };
   if (!name || typeof name !== "string" || !name.trim()) {
     res.status(400).json({ error: "name is required" });
     return;
   }
   const plat = ["android", "ios", "web"].includes(platform || "") ? platform! : "android";
+  const cat: MmpCategory = MMP_CATEGORIES.includes(category as MmpCategory) ? (category as MmpCategory) : "other";
   const [app] = await db
     .insert(mmpAppsTable)
     .values({
       orgId: req.thea!.org.id,
       name: name.trim().slice(0, 100),
       platform: plat,
+      category: cat,
       ingestToken: `mmpi_${randomBytes(24).toString("hex")}`,
       ipSalt: randomBytes(16).toString("hex"),
     })
     .returning();
   res.status(201).json(app);
+});
+
+router.patch("/apps/:id", requireRole("owner", "admin"), async (req, res) => {
+  const { name, category, appleAppId } = req.body as { name?: string; category?: string; appleAppId?: string | null };
+  const updates: Partial<{ name: string; category: string; appleAppId: string | null; updatedAt: Date }> = {};
+  if (name !== undefined) {
+    if (typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ error: "name must be a non-empty string" });
+      return;
+    }
+    updates.name = name.trim().slice(0, 100);
+  }
+  if (category !== undefined) {
+    if (!MMP_CATEGORIES.includes(category as MmpCategory)) {
+      res.status(400).json({ error: `category must be one of: ${MMP_CATEGORIES.join(", ")}` });
+      return;
+    }
+    updates.category = category;
+  }
+  if (appleAppId !== undefined) {
+    if (appleAppId === null || appleAppId === "") {
+      updates.appleAppId = null;
+    } else if (typeof appleAppId === "string" && /^\d{1,20}$/.test(appleAppId.trim())) {
+      updates.appleAppId = appleAppId.trim();
+    } else {
+      res.status(400).json({ error: "appleAppId must be the numeric Apple App ID (digits only)" });
+      return;
+    }
+  }
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Nothing to update (name, category, appleAppId accepted)" });
+    return;
+  }
+  updates.updatedAt = new Date();
+  try {
+    const [app] = await db
+      .update(mmpAppsTable)
+      .set(updates)
+      .where(and(eq(mmpAppsTable.id, req.params.id as string), eq(mmpAppsTable.orgId, req.thea!.org.id)))
+      .returning();
+    if (!app) {
+      res.status(404).json({ error: "App not found" });
+      return;
+    }
+    res.json(app);
+  } catch (err) {
+    // Apple App IDs are globally unique — a duplicate means another app (possibly
+    // another org's) already claims this ID for SKAdNetwork postback matching.
+    // Drizzle may wrap the pg error, so check both the error and its cause.
+    const pgCode = (err as { code?: string }).code
+      ?? ((err as { cause?: { code?: string } }).cause?.code);
+    if (pgCode === "23505") {
+      res.status(409).json({ error: "This Apple App ID is already registered to another app" });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.post("/apps/:id/regenerate-token", requireRole("owner", "admin"), async (req, res) => {
@@ -1361,6 +1514,473 @@ router.get("/debug/recent", async (req, res) => {
     .orderBy(desc(mmpIngestLogTable.createdAt))
     .limit(50);
   res.json({ count: rows.length, data: rows });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STANDARD-DATA ANALYTICS — benchmarks, predictive LTV, media mix, SKAN list
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Industry benchmark reference data (v1, 2025). Median values per app vertical
+ * compiled from published mobile-marketing benchmark reports (AppsFlyer,
+ * Adjust, Liftoff, Business of Apps — 2024/25 editions). These are STANDARD
+ * reference figures, not measured from THEA data — the UI labels them as such.
+ * Retention figures are classic day-N retention rates; cvr is click→install.
+ */
+const BENCHMARKS_VERSION = "2025.1";
+const BENCHMARKS: Record<MmpCategory, { cpiUsd: number; cvr: number; d1: number; d7: number; d30: number; roasD30: number }> = {
+  gaming: { cpiUsd: 2.5, cvr: 0.30, d1: 0.28, d7: 0.12, d30: 0.045, roasD30: 0.35 },
+  social: { cpiUsd: 1.8, cvr: 0.28, d1: 0.30, d7: 0.14, d30: 0.060, roasD30: 0.25 },
+  ecommerce: { cpiUsd: 3.5, cvr: 0.25, d1: 0.22, d7: 0.10, d30: 0.040, roasD30: 0.45 },
+  finance: { cpiUsd: 5.0, cvr: 0.20, d1: 0.24, d7: 0.11, d30: 0.050, roasD30: 0.30 },
+  utility: { cpiUsd: 1.2, cvr: 0.32, d1: 0.25, d7: 0.10, d30: 0.035, roasD30: 0.20 },
+  health: { cpiUsd: 3.0, cvr: 0.26, d1: 0.26, d7: 0.12, d30: 0.050, roasD30: 0.30 },
+  education: { cpiUsd: 2.2, cvr: 0.27, d1: 0.27, d7: 0.13, d30: 0.055, roasD30: 0.28 },
+  travel: { cpiUsd: 4.0, cvr: 0.22, d1: 0.20, d7: 0.09, d30: 0.035, roasD30: 0.40 },
+  other: { cpiUsd: 2.5, cvr: 0.27, d1: 0.25, d7: 0.11, d30: 0.045, roasD30: 0.30 },
+};
+
+type BenchmarkVerdict = "better" | "inline" | "worse" | "no_data";
+function benchmarkVerdict(yours: number | null, benchmark: number, direction: "higher" | "lower"): BenchmarkVerdict {
+  if (yours === null || !Number.isFinite(yours)) return "no_data";
+  if (benchmark <= 0) return "no_data";
+  const ratio = yours / benchmark;
+  if (ratio >= 0.85 && ratio <= 1.15) return "inline";
+  const above = ratio > 1.15;
+  return direction === "higher" ? (above ? "better" : "worse") : (above ? "worse" : "better");
+}
+
+/**
+ * App actuals vs industry-standard benchmarks for the app's category.
+ * CPI / CVR / ROAS use the last 30 days; retention uses installs from the
+ * last 90 days with per-day maturity gating (an install only counts toward
+ * day-N retention once it is at least N days old).
+ */
+router.get("/benchmarks", async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const appId = req.query.appId as string | undefined;
+  if (!appId || !UUID_RE.test(appId)) {
+    res.status(400).json({ error: "appId (uuid) is required" });
+    return;
+  }
+  const [app] = await db
+    .select({ id: mmpAppsTable.id, name: mmpAppsTable.name, category: mmpAppsTable.category })
+    .from(mmpAppsTable)
+    .where(and(eq(mmpAppsTable.id, appId), eq(mmpAppsTable.orgId, orgId)));
+  if (!app) {
+    res.status(404).json({ error: "App not found" });
+    return;
+  }
+  const category = (MMP_CATEGORIES.includes(app.category as MmpCategory) ? app.category : "other") as MmpCategory;
+  const bench = BENCHMARKS[category];
+  const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const since30Day = since30.toISOString().slice(0, 10);
+  const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+  const [[clicks], [installs], [events], [spend], retentionRes] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` })
+      .from(mmpClicksTable)
+      .where(and(eq(mmpClicksTable.orgId, orgId), eq(mmpClicksTable.appId, appId), gte(mmpClicksTable.createdAt, since30))),
+    db.select({
+      attributed: sql<number>`count(*) filter (where ${mmpInstallsTable.attributedLinkId} is not null and ${mmpInstallsTable.suspectReason} is null)::int`,
+      total: sql<number>`count(*) filter (where ${mmpInstallsTable.suspectReason} is null)::int`,
+    })
+      .from(mmpInstallsTable)
+      .where(and(eq(mmpInstallsTable.orgId, orgId), eq(mmpInstallsTable.appId, appId), gte(mmpInstallsTable.createdAt, since30))),
+    db.select({ revenueUsd: sql<number>`coalesce(sum(${mmpEventsTable.revenueMicro}), 0)::float8 / 1e6` })
+      .from(mmpEventsTable)
+      .where(and(eq(mmpEventsTable.orgId, orgId), eq(mmpEventsTable.appId, appId), gte(mmpEventsTable.createdAt, since30))),
+    db.select({ spendUsd: sql<number>`coalesce(sum(${mmpLinkCostsTable.costMicro}), 0)::float8 / 1e6` })
+      .from(mmpLinkCostsTable)
+      .innerJoin(mmpTrackingLinksTable, eq(mmpLinkCostsTable.linkId, mmpTrackingLinksTable.id))
+      .where(and(
+        eq(mmpLinkCostsTable.orgId, orgId),
+        gte(mmpLinkCostsTable.day, since30Day),
+        eq(mmpTrackingLinksTable.appId, appId),
+      )),
+    db.execute(sql`
+      select
+        count(*) filter (where i.created_at <= now() - interval '2 days')::int as d1_mature,
+        count(*) filter (where i.created_at <= now() - interval '2 days' and exists (
+          select 1 from mmp_events e where e.install_id = i.id
+            and e.created_at >= i.created_at + interval '1 day'
+            and e.created_at < i.created_at + interval '2 days'))::int as d1_active,
+        count(*) filter (where i.created_at <= now() - interval '8 days')::int as d7_mature,
+        count(*) filter (where i.created_at <= now() - interval '8 days' and exists (
+          select 1 from mmp_events e where e.install_id = i.id
+            and e.created_at >= i.created_at + interval '7 days'
+            and e.created_at < i.created_at + interval '8 days'))::int as d7_active,
+        count(*) filter (where i.created_at <= now() - interval '31 days')::int as d30_mature,
+        count(*) filter (where i.created_at <= now() - interval '31 days' and exists (
+          select 1 from mmp_events e where e.install_id = i.id
+            and e.created_at >= i.created_at + interval '30 days'
+            and e.created_at < i.created_at + interval '31 days'))::int as d30_active
+      from mmp_installs i
+      where i.org_id = ${orgId} and i.app_id = ${appId}
+        and i.created_at >= ${since90} and i.suspect_reason is null
+    `),
+  ]);
+
+  const ret = (retentionRes.rows[0] ?? {}) as Record<string, unknown>;
+  const rate = (mature: unknown, active: unknown): number | null => {
+    const m = Number(mature ?? 0);
+    return m > 0 ? Number(active ?? 0) / m : null;
+  };
+  const clickCount = clicks?.n ?? 0;
+  const attributed = installs?.attributed ?? 0;
+  const spendUsd = spend?.spendUsd ?? 0;
+  const revenueUsd = events?.revenueUsd ?? 0;
+
+  const yoursCpi = spendUsd > 0 && attributed > 0 ? spendUsd / attributed : null;
+  const yoursCvr = clickCount > 0 ? attributed / clickCount : null;
+  const yoursD1 = rate(ret.d1_mature, ret.d1_active);
+  const yoursD7 = rate(ret.d7_mature, ret.d7_active);
+  const yoursD30 = rate(ret.d30_mature, ret.d30_active);
+  const yoursRoas = spendUsd > 0 ? revenueUsd / spendUsd : null;
+
+  const metric = (key: string, label: string, yours: number | null, benchmark: number, direction: "higher" | "lower", unit: "usd" | "pct" | "ratio") => ({
+    key, label, yours, benchmark, direction, unit, verdict: benchmarkVerdict(yours, benchmark, direction),
+  });
+  res.json({
+    app: { id: app.id, name: app.name, category },
+    benchmarksVersion: BENCHMARKS_VERSION,
+    source: "Industry medians compiled from published 2024/25 mobile marketing benchmark reports (AppsFlyer, Adjust, Liftoff, Business of Apps). Standard reference data — not measured by THEA.",
+    windows: { performanceDays: 30, retentionInstallWindowDays: 90 },
+    metrics: [
+      metric("cpi", "Cost per install", yoursCpi, bench.cpiUsd, "lower", "usd"),
+      metric("cvr", "Click → install rate", yoursCvr, bench.cvr, "higher", "pct"),
+      metric("d1", "Day 1 retention", yoursD1, bench.d1, "higher", "pct"),
+      metric("d7", "Day 7 retention", yoursD7, bench.d7, "higher", "pct"),
+      metric("d30", "Day 30 retention", yoursD30, bench.d30, "higher", "pct"),
+      metric("roasD30", "ROAS (30d)", yoursRoas, bench.roasD30, "higher", "ratio"),
+    ],
+  });
+});
+
+/**
+ * Standard cumulative-LTV growth multipliers per category (how much LTV
+ * typically grows between milestones), used only when there is not enough
+ * observed data to fit a curve. Derived from published LTV-curve shapes.
+ */
+const LTV_MULTIPLIERS: Record<MmpCategory, { d30FromD7: number; d90FromD30: number; d180FromD90: number }> = {
+  gaming: { d30FromD7: 1.9, d90FromD30: 1.45, d180FromD90: 1.2 },
+  social: { d30FromD7: 1.8, d90FromD30: 1.4, d180FromD90: 1.2 },
+  ecommerce: { d30FromD7: 2.2, d90FromD30: 1.6, d180FromD90: 1.3 },
+  finance: { d30FromD7: 2.3, d90FromD30: 1.7, d180FromD90: 1.35 },
+  utility: { d30FromD7: 1.7, d90FromD30: 1.35, d180FromD90: 1.15 },
+  health: { d30FromD7: 2.1, d90FromD30: 1.55, d180FromD90: 1.3 },
+  education: { d30FromD7: 2.0, d90FromD30: 1.5, d180FromD90: 1.25 },
+  travel: { d30FromD7: 2.4, d90FromD30: 1.7, d180FromD90: 1.35 },
+  other: { d30FromD7: 2.0, d90FromD30: 1.5, d180FromD90: 1.25 },
+};
+
+/**
+ * Predictive LTV. Builds an unbiased observed cumulative-LTV curve using
+ * per-age denominators (incremental ARPU at age d divides revenue earned at
+ * age d by installs that are at least d days old — avoiding the
+ * right-censoring bias of dividing by the total install count), then fits
+ * ltv(t) = a + b·ln(t+1) by least squares and projects to D30/D90/D180.
+ * Falls back to standard category multipliers when data is thin.
+ */
+router.get("/stats/pltv", async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const { since, appId } = statsWindow(req);
+  const appFilter = appId ? sql` and i.app_id = ${appId}` : sql``;
+
+  const [agesRes, revRes, appRow] = await Promise.all([
+    db.execute(sql`
+      select floor(extract(epoch from (now() - i.created_at)) / 86400)::int as age_now, count(*)::int as n
+      from mmp_installs i
+      where i.org_id = ${orgId} and i.created_at >= ${since}
+        and i.suspect_reason is null${appFilter}
+      group by 1
+    `),
+    db.execute(sql`
+      select floor(extract(epoch from (e.created_at - i.created_at)) / 86400)::int as age,
+        coalesce(sum(e.revenue_micro), 0)::float8 / 1e6 as rev
+      from mmp_events e
+      join mmp_installs i on i.id = e.install_id
+      where i.org_id = ${orgId} and i.created_at >= ${since}
+        and i.suspect_reason is null${appFilter}
+        and e.created_at >= i.created_at
+      group by 1
+      order by 1
+    `),
+    appId
+      ? db.select({ category: mmpAppsTable.category }).from(mmpAppsTable)
+          .where(and(eq(mmpAppsTable.id, appId), eq(mmpAppsTable.orgId, orgId)))
+      : Promise.resolve([] as { category: string }[]),
+  ]);
+
+  const category = (appRow[0] && MMP_CATEGORIES.includes(appRow[0].category as MmpCategory)
+    ? appRow[0].category : "other") as MmpCategory;
+
+  // matureAt(d) = number of installs at least d days old.
+  const ageCounts = new Map<number, number>();
+  let totalInstalls = 0;
+  for (const r of agesRes.rows as Record<string, unknown>[]) {
+    const a = Number(r.age_now);
+    const n = Number(r.n);
+    if (Number.isFinite(a) && a >= 0) ageCounts.set(a, n);
+    totalInstalls += n;
+  }
+  const maxAgeNow = ageCounts.size > 0 ? Math.max(...ageCounts.keys()) : -1;
+  const matureAt: number[] = [];
+  let running = 0;
+  for (let d = maxAgeNow; d >= 0; d--) {
+    running += ageCounts.get(d) ?? 0;
+    matureAt[d] = running;
+  }
+
+  const revMap = new Map((revRes.rows as Record<string, unknown>[]).map((r) => [Number(r.age), Number(r.rev)]));
+
+  const MIN_DENOM = 5;
+  const observed: { day: number; ltvUsd: number }[] = [];
+  let cum = 0;
+  for (let d = 0; d <= maxAgeNow && d <= 180; d++) {
+    const denom = matureAt[d] ?? 0;
+    if (denom < MIN_DENOM) break;
+    cum += (revMap.get(d) ?? 0) / denom;
+    observed.push({ day: d, ltvUsd: cum });
+  }
+
+  const lastObserved = observed[observed.length - 1];
+  const MILESTONES = [30, 90, 180];
+
+  let method: "log_fit" | "category_standard" | "none" = "none";
+  const projected: { day: number; ltvUsd: number }[] = [];
+  const milestones: { d30: number | null; d90: number | null; d180: number | null } = { d30: null, d90: null, d180: null };
+
+  const canFit = observed.length >= 5 && totalInstalls >= 50 && lastObserved && lastObserved.ltvUsd > 0;
+  if (canFit) {
+    // Least-squares fit of ltv = a + b·ln(d+1) over observed points.
+    const pts = observed.map((p) => ({ x: Math.log(p.day + 1), y: p.ltvUsd }));
+    const n = pts.length;
+    const sx = pts.reduce((s, p) => s + p.x, 0);
+    const sy = pts.reduce((s, p) => s + p.y, 0);
+    const sxx = pts.reduce((s, p) => s + p.x * p.x, 0);
+    const sxy = pts.reduce((s, p) => s + p.x * p.y, 0);
+    const denom = n * sxx - sx * sx;
+    let b = denom !== 0 ? (n * sxy - sx * sy) / denom : 0;
+    if (!Number.isFinite(b) || b < 0) b = 0;
+    const a = (sy - b * sx) / n;
+    method = "log_fit";
+    let prev = lastObserved!.ltvUsd;
+    for (let d = lastObserved!.day + 1; d <= 180; d++) {
+      const v = Math.max(prev, a + b * Math.log(d + 1)); // clamp monotone non-decreasing
+      if (d % 5 === 0 || MILESTONES.includes(d)) projected.push({ day: d, ltvUsd: v });
+      if (d === 30) milestones.d30 = v;
+      if (d === 90) milestones.d90 = v;
+      if (d === 180) milestones.d180 = v;
+      prev = v;
+    }
+    for (const m of MILESTONES) {
+      const obs = observed.find((p) => p.day === m);
+      if (obs) {
+        if (m === 30) milestones.d30 = obs.ltvUsd;
+        if (m === 90) milestones.d90 = obs.ltvUsd;
+        if (m === 180) milestones.d180 = obs.ltvUsd;
+      }
+    }
+  } else if (lastObserved && lastObserved.ltvUsd > 0) {
+    // Thin data → standard category multipliers anchored on observed D7 (or latest).
+    method = "category_standard";
+    const mult = LTV_MULTIPLIERS[category];
+    const anchor7 = observed.find((p) => p.day === Math.min(7, lastObserved.day))?.ltvUsd ?? lastObserved.ltvUsd;
+    const obs30 = observed.find((p) => p.day === 30)?.ltvUsd;
+    const d30 = obs30 ?? Math.max(lastObserved.ltvUsd, anchor7 * mult.d30FromD7);
+    const d90 = Math.max(d30, d30 * mult.d90FromD30);
+    const d180 = Math.max(d90, d90 * mult.d180FromD90);
+    milestones.d30 = d30;
+    milestones.d90 = d90;
+    milestones.d180 = d180;
+    // Smooth ln-interpolation between anchor and milestones for the chart.
+    const anchorsIn: { day: number; ltvUsd: number }[] = [
+      { day: lastObserved.day, ltvUsd: lastObserved.ltvUsd },
+      ...(lastObserved.day < 30 ? [{ day: 30, ltvUsd: d30 }] : []),
+      { day: 90, ltvUsd: d90 },
+      { day: 180, ltvUsd: d180 },
+    ].filter((p, i, arr) => arr.findIndex((q) => q.day === p.day) === i && p.day >= lastObserved.day);
+    for (let i = 0; i < anchorsIn.length - 1; i++) {
+      const a0 = anchorsIn[i]!;
+      const a1 = anchorsIn[i + 1]!;
+      for (let d = a0.day + 1; d <= a1.day; d++) {
+        const t = (Math.log(d + 1) - Math.log(a0.day + 1)) / (Math.log(a1.day + 1) - Math.log(a0.day + 1));
+        const v = a0.ltvUsd + (a1.ltvUsd - a0.ltvUsd) * t;
+        if (d % 5 === 0 || MILESTONES.includes(d)) projected.push({ day: d, ltvUsd: v });
+      }
+    }
+  }
+
+  const spanDays = lastObserved?.day ?? 0;
+  const confidence = method === "none"
+    ? "none"
+    : totalInstalls >= 500 && spanDays >= 30 && method === "log_fit"
+      ? "high"
+      : totalInstalls >= 50 && spanDays >= 14
+        ? "medium"
+        : "low";
+
+  res.json({
+    installs: totalInstalls,
+    category,
+    method,
+    confidence,
+    observed,
+    projected,
+    milestones,
+    note: method === "category_standard"
+      ? "Projection uses standard industry LTV-curve multipliers for this category — not enough observed data to fit a curve. Projections are estimates, not actuals."
+      : method === "log_fit"
+        ? "Projection fits ltv(t) = a + b·ln(t+1) to observed per-age revenue (right-censoring corrected). Projections are estimates, not actuals."
+        : totalInstalls < MIN_DENOM
+          ? `Not enough installs to build an LTV curve (need at least ${MIN_DENOM} non-suspect installs in this window).`
+          : "No revenue data in this window — nothing to project.",
+  });
+});
+
+/**
+ * MMM-lite media mix view. Per-channel spend vs attributed revenue with a
+ * standard diminishing-returns (hill saturation) assumption: revenue(s) =
+ * Vmax·s/(K+s) with K set to current spend (half-saturation at today's
+ * budget — a standard heuristic, clearly labeled). Suggested budget share is
+ * proportional to √ROAS across channels — a simple, clearly-labeled
+ * reallocation heuristic, not a fitted econometric model.
+ */
+router.get("/stats/media-mix", async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const { since, appId } = statsWindow(req);
+  const sinceDay = since.toISOString().slice(0, 10);
+  const appFilter = appId ? sql` and i.app_id = ${appId}` : sql``;
+
+  const [spendRows, installRows, revRows] = await Promise.all([
+    db.select({
+      channel: mmpTrackingLinksTable.channel,
+      spendUsd: sql<number>`coalesce(sum(${mmpLinkCostsTable.costMicro}), 0)::float8 / 1e6`,
+    })
+      .from(mmpLinkCostsTable)
+      .innerJoin(mmpTrackingLinksTable, eq(mmpLinkCostsTable.linkId, mmpTrackingLinksTable.id))
+      .where(and(
+        eq(mmpLinkCostsTable.orgId, orgId),
+        gte(mmpLinkCostsTable.day, sinceDay),
+        ...(appId ? [eq(mmpTrackingLinksTable.appId, appId)] : []),
+      ))
+      .groupBy(mmpTrackingLinksTable.channel),
+    db.execute(sql`
+      select l.channel, count(*)::int as installs
+      from mmp_installs i
+      join mmp_tracking_links l on l.id = i.attributed_link_id
+      where i.org_id = ${orgId} and i.created_at >= ${since}
+        and i.suspect_reason is null${appFilter}
+      group by 1
+    `),
+    db.execute(sql`
+      select l.channel, coalesce(sum(e.revenue_micro), 0)::float8 / 1e6 as rev
+      from mmp_events e
+      join mmp_installs i on i.id = e.install_id
+      join mmp_tracking_links l on l.id = i.attributed_link_id
+      where i.org_id = ${orgId} and i.created_at >= ${since}
+        and i.suspect_reason is null${appFilter}
+      group by 1
+    `),
+  ]);
+
+  const installsByChannel = new Map((installRows.rows as Record<string, unknown>[]).map((r) => [String(r.channel), Number(r.installs)]));
+  const revByChannel = new Map((revRows.rows as Record<string, unknown>[]).map((r) => [String(r.channel), Number(r.rev)]));
+  const spendByChannel = new Map(spendRows.map((r) => [r.channel, r.spendUsd]));
+
+  const allChannels = new Set<string>([...spendByChannel.keys(), ...installsByChannel.keys(), ...revByChannel.keys()]);
+  const spendChannels = [...allChannels].filter((c) => (spendByChannel.get(c) ?? 0) > 0);
+
+  const totalSpend = [...spendByChannel.values()].reduce((s, v) => s + v, 0);
+  const totalRevenue = [...revByChannel.values()].reduce((s, v) => s + v, 0);
+
+  if (spendChannels.length < 2) {
+    res.json({
+      insufficient: true,
+      totalSpendUsd: totalSpend,
+      totalRevenueUsd: totalRevenue,
+      channels: [],
+      note: "Media-mix analysis needs recorded ad spend on at least 2 channels in this window. Add per-link daily costs under the Costs tab.",
+    });
+    return;
+  }
+
+  const sqrtRoasSum = spendChannels.reduce((s, c) => {
+    const spend = spendByChannel.get(c) ?? 0;
+    const roas = spend > 0 ? (revByChannel.get(c) ?? 0) / spend : 0;
+    return s + Math.sqrt(Math.max(roas, 0));
+  }, 0);
+
+  const channels = [...allChannels].map((c) => {
+    const spendUsd = spendByChannel.get(c) ?? 0;
+    const revenueUsd = revByChannel.get(c) ?? 0;
+    const roas = spendUsd > 0 ? revenueUsd / spendUsd : null;
+    return {
+      channel: c,
+      spendUsd,
+      revenueUsd,
+      installs: installsByChannel.get(c) ?? 0,
+      roas,
+      // Hill saturation with K = current spend → marginal ROAS at current spend = ROAS/2.
+      marginalRoas: roas !== null ? roas / 2 : null,
+      currentSharePct: totalSpend > 0 ? (spendUsd / totalSpend) * 100 : 0,
+      suggestedSharePct: spendUsd > 0 && sqrtRoasSum > 0
+        ? (Math.sqrt(Math.max(roas ?? 0, 0)) / sqrtRoasSum) * 100
+        : 0,
+    };
+  }).sort((a, b) => b.spendUsd - a.spendUsd);
+
+  res.json({
+    insufficient: false,
+    totalSpendUsd: totalSpend,
+    totalRevenueUsd: totalRevenue,
+    blendedRoas: totalSpend > 0 ? totalRevenue / totalSpend : null,
+    channels,
+    note: "Heuristic model: standard hill diminishing-returns curve with half-saturation at current spend; suggested share ∝ √ROAS. A directional guide, not a fitted econometric MMM. Revenue excludes suspect installs.",
+  });
+});
+
+// ─── SKAN postbacks list (portal) ─────────────────────────────────────────
+router.get("/skan/postbacks", async (req, res) => {
+  const orgId = req.thea!.org.id;
+  const appId = req.query.appId as string | undefined;
+  if (appId && !UUID_RE.test(appId)) {
+    res.status(400).json({ error: "appId must be a valid UUID" });
+    return;
+  }
+  const where = appId
+    ? and(eq(mmpSkanPostbacksTable.orgId, orgId), eq(mmpSkanPostbacksTable.appId, appId))
+    : eq(mmpSkanPostbacksTable.orgId, orgId);
+  const [rows, byCv] = await Promise.all([
+    db.select({
+      id: mmpSkanPostbacksTable.id,
+      appId: mmpSkanPostbacksTable.appId,
+      version: mmpSkanPostbacksTable.version,
+      adNetworkId: mmpSkanPostbacksTable.adNetworkId,
+      transactionId: mmpSkanPostbacksTable.transactionId,
+      sourceIdentifier: mmpSkanPostbacksTable.sourceIdentifier,
+      conversionValue: mmpSkanPostbacksTable.conversionValue,
+      coarseConversionValue: mmpSkanPostbacksTable.coarseConversionValue,
+      didWin: mmpSkanPostbacksTable.didWin,
+      postbackSequenceIndex: mmpSkanPostbacksTable.postbackSequenceIndex,
+      fidelityType: mmpSkanPostbacksTable.fidelityType,
+      createdAt: mmpSkanPostbacksTable.createdAt,
+    })
+      .from(mmpSkanPostbacksTable)
+      .where(where)
+      .orderBy(desc(mmpSkanPostbacksTable.createdAt))
+      .limit(200),
+    db.select({
+      conversionValue: mmpSkanPostbacksTable.conversionValue,
+      n: sql<number>`count(*)::int`,
+    })
+      .from(mmpSkanPostbacksTable)
+      .where(where)
+      .groupBy(mmpSkanPostbacksTable.conversionValue)
+      .orderBy(mmpSkanPostbacksTable.conversionValue),
+  ]);
+  res.json({ count: rows.length, data: rows, byConversionValue: byCv });
 });
 
 export default router;

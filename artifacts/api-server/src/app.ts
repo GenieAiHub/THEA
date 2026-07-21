@@ -14,6 +14,7 @@ import v1Router from "./routes/v1";
 import healthRouter from "./routes/health";
 import { handleStripeWebhook } from "./routes/webhooks/stripe";
 import { handlePaypalWebhook } from "./routes/webhooks/paypal";
+import { handleSkanPostback } from "./routes/v1/mmp";
 
 let openApiSpec: Record<string, unknown> = {};
 try {
@@ -101,6 +102,12 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 app.use(defaultRateLimiter);
+
+// Apple SKAdNetwork developer postbacks — Apple appends this fixed path to the
+// domain set in the app's NSAdvertisingAttributionReportEndpoint. Public, no
+// auth; handler always returns 200 (non-2xx makes Apple retry). Also aliased
+// at POST /api/v1/mmp/skan/postback for dev/curl testing.
+app.post("/.well-known/skadnetwork/report", handleSkanPostback);
 
 app.use("/api", healthRouter);
 app.use("/api/v1", v1Router);

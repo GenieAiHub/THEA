@@ -10,8 +10,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Upload } from "lucide-react";
-import { api, fmtUsd, type CostRow, type MmpLink } from "./api";
+import { Badge } from "@/components/ui/badge";
+import { DollarSign, Upload, Shuffle } from "lucide-react";
+import { api, fmtUsd, type CostRow, type MediaMixResponse, type MmpLink } from "./api";
+
+function prettyChannel(value: string): string {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export function CostsTab({ links, selectedAppId, days }: { links: MmpLink[]; selectedAppId: string; days: string }) {
   const { toast } = useToast();
@@ -22,6 +27,11 @@ export function CostsTab({ links, selectedAppId, days }: { links: MmpLink[]; sel
     queryKey: ["mmp", "costs", selectedAppId, days],
     queryFn: () => api<{ data: CostRow[] }>(`/costs?days=${days}${appFilter}`),
   });
+  const mixQ = useQuery({
+    queryKey: ["mmp", "media-mix", selectedAppId, days],
+    queryFn: () => api<MediaMixResponse>(`/stats/media-mix?days=${days}${appFilter}`),
+  });
+  const mix = mixQ.data;
 
   const [entry, setEntry] = useState({ linkId: "", day: new Date().toISOString().slice(0, 10), costUsd: "" });
   const addCost = useMutation({
@@ -173,6 +183,82 @@ export function CostsTab({ links, selectedAppId, days }: { links: MmpLink[]; sel
                 </tbody>
               </table>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card data-testid="card-media-mix">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2"><Shuffle className="w-4 h-4" /> Media mix — budget reallocation</CardTitle>
+              <CardDescription className="mt-1">
+                Where your next dollar works hardest, based on per-channel return in this window
+                {mix && !mix.insufficient
+                  ? ` — ${fmtUsd(mix.totalSpendUsd)} spend, ${fmtUsd(mix.totalRevenueUsd)} revenue${mix.blendedRoas != null ? `, blended ROAS ${mix.blendedRoas.toFixed(2)}` : ""}`
+                  : ""}.
+              </CardDescription>
+            </div>
+            <Badge variant="secondary">Heuristic model</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mixQ.isLoading ? (
+            <Skeleton className="h-32 w-full" />
+          ) : !mix || mix.insufficient ? (
+            <p className="text-sm text-muted-foreground py-6 text-center" data-testid="text-media-mix-empty">
+              {mix?.note ?? "Media-mix analysis needs recorded ad spend on at least 2 channels."}
+            </p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium">Channel</th>
+                      <th className="py-2 pr-4 font-medium text-right">Spend</th>
+                      <th className="py-2 pr-4 font-medium text-right">Revenue</th>
+                      <th className="py-2 pr-4 font-medium text-right">Installs</th>
+                      <th className="py-2 pr-4 font-medium text-right">ROAS</th>
+                      <th className="py-2 pr-4 font-medium text-right">Marginal ROAS</th>
+                      <th className="py-2 pr-4 font-medium w-56">Share: current → suggested</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mix.channels.map((c) => {
+                      const up = c.suggestedSharePct > c.currentSharePct + 0.5;
+                      const down = c.suggestedSharePct < c.currentSharePct - 0.5;
+                      return (
+                        <tr key={c.channel} className="border-b last:border-0" data-testid={`row-mix-${c.channel}`}>
+                          <td className="py-2 pr-4 font-medium">{prettyChannel(c.channel)}</td>
+                          <td className="py-2 pr-4 text-right">{fmtUsd(c.spendUsd)}</td>
+                          <td className="py-2 pr-4 text-right">{fmtUsd(c.revenueUsd)}</td>
+                          <td className="py-2 pr-4 text-right">{c.installs}</td>
+                          <td className="py-2 pr-4 text-right">{c.roas !== null ? c.roas.toFixed(2) : "—"}</td>
+                          <td className="py-2 pr-4 text-right">{c.marginalRoas !== null ? c.marginalRoas.toFixed(2) : "—"}</td>
+                          <td className="py-2 pr-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 space-y-1">
+                                <div className="h-2 bg-muted rounded overflow-hidden">
+                                  <div className="h-full bg-muted-foreground/40 rounded" style={{ width: `${Math.min(100, c.currentSharePct)}%` }} />
+                                </div>
+                                <div className="h-2 bg-muted rounded overflow-hidden">
+                                  <div className={`h-full rounded ${up ? "bg-emerald-500/70" : down ? "bg-amber-500/70" : "bg-blue-500/60"}`} style={{ width: `${Math.min(100, c.suggestedSharePct)}%` }} />
+                                </div>
+                              </div>
+                              <span className={`text-xs whitespace-nowrap font-medium ${up ? "text-emerald-600 dark:text-emerald-400" : down ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                                {c.currentSharePct.toFixed(0)}% → {c.suggestedSharePct.toFixed(0)}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground border-t pt-3" data-testid="text-media-mix-note">{mix.note}</p>
+            </>
           )}
         </CardContent>
       </Card>

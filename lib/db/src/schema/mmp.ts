@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, bigint, index, unique, date } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, bigint, index, unique, date, integer, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -20,6 +20,10 @@ export const mmpAppsTable = pgTable("mmp_apps", {
     .references(() => organizationsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   platform: text("platform").notNull().default("android"), // android | ios | web
+  /** App vertical for industry benchmark comparisons: gaming | social | ecommerce | finance | utility | health | education | travel | other */
+  category: text("category").notNull().default("other"),
+  /** Apple numeric App ID (e.g. "1234567890") — matches SKAdNetwork postback app-id. */
+  appleAppId: text("apple_app_id"),
   /** S2S ingest auth token (prefix mmpi_). Write-only scope for this app. */
   ingestToken: text("ingest_token").notNull().unique(),
   /** Per-app random salt for click/install IP hashing (stable so the 7-day window matches). */
@@ -28,6 +32,9 @@ export const mmpAppsTable = pgTable("mmp_apps", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("mmp_apps_org_idx").on(table.orgId),
+  // Apple App IDs are public — without uniqueness any org could register another
+  // company's App ID and intercept its SKAdNetwork postbacks (cross-tenant hijack).
+  unique("mmp_apps_apple_app_id_uq").on(table.appleAppId),
 ]);
 
 /** Influencers / creators whose campaigns are measured via dedicated tracking links. */
@@ -200,6 +207,46 @@ export const mmpIngestLogTable = pgTable("mmp_ingest_log", {
   index("mmp_ingest_log_ts_idx").on(table.createdAt),
 ]);
 
+/**
+ * SKAdNetwork postbacks — Apple sends a copy of winning (and SKAN 4 non-winning)
+ * postbacks to POST https://<domain>/.well-known/skadnetwork/report when the app's
+ * Info.plist sets NSAdvertisingAttributionReportEndpoint to <domain>.
+ * Unmatched postbacks (unknown apple app id) are dropped, never stored — so both
+ * orgId and appId are NOT NULL. Signature is NOT verified (MVP): raw JSON kept for
+ * later verification; UI labels rows "unverified".
+ */
+export const mmpSkanPostbacksTable = pgTable("mmp_skan_postbacks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizationsTable.id, { onDelete: "cascade" }),
+  appId: uuid("app_id")
+    .notNull()
+    .references(() => mmpAppsTable.id, { onDelete: "cascade" }),
+  /** SKAN version string, e.g. "4.0". */
+  version: text("version"),
+  /** Ad network identifier, e.g. "example123.skadnetwork". */
+  adNetworkId: text("ad_network_id"),
+  /** Apple transaction id — same across re-sends of one postback. */
+  transactionId: text("transaction_id").notNull(),
+  /** SKAN 4 hierarchical source identifier (or SKAN ≤3 campaign-id as text). */
+  sourceIdentifier: text("source_identifier"),
+  /** Fine-grained conversion value 0-63 (winning postbacks only). */
+  conversionValue: integer("conversion_value"),
+  /** SKAN 4 coarse value: low | medium | high. */
+  coarseConversionValue: text("coarse_conversion_value"),
+  didWin: boolean("did_win"),
+  /** SKAN 4: 0, 1 or 2 (three postback windows). */
+  postbackSequenceIndex: integer("postback_sequence_index"),
+  fidelityType: integer("fidelity_type"),
+  /** Full raw postback JSON (truncated ~4KB) for later signature verification. */
+  raw: text("raw"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("mmp_skan_postbacks_app_ts_idx").on(table.appId, table.createdAt),
+  unique("mmp_skan_postbacks_dedupe_uq").on(table.appId, table.transactionId, table.postbackSequenceIndex),
+]);
+
 export const insertMmpAppSchema = createInsertSchema(mmpAppsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const selectMmpAppSchema = createSelectSchema(mmpAppsTable);
 export type InsertMmpApp = z.infer<typeof insertMmpAppSchema>;
@@ -234,3 +281,7 @@ export type MmpLinkCost = typeof mmpLinkCostsTable.$inferSelect;
 export const insertMmpIngestLogSchema = createInsertSchema(mmpIngestLogTable).omit({ id: true, createdAt: true });
 export type InsertMmpIngestLog = z.infer<typeof insertMmpIngestLogSchema>;
 export type MmpIngestLog = typeof mmpIngestLogTable.$inferSelect;
+
+export const insertMmpSkanPostbackSchema = createInsertSchema(mmpSkanPostbacksTable).omit({ id: true, createdAt: true });
+export type InsertMmpSkanPostback = z.infer<typeof insertMmpSkanPostbackSchema>;
+export type MmpSkanPostback = typeof mmpSkanPostbacksTable.$inferSelect;

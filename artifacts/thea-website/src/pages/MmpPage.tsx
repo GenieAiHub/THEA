@@ -25,6 +25,8 @@ import {
 } from "recharts";
 import { api, fmtUsd, type Creator, type MmpApp, type MmpLink } from "@/components/mmp/api";
 import { HealthTab } from "@/components/mmp/HealthTab";
+import { BenchmarksTab } from "@/components/mmp/BenchmarksTab";
+import { SkanTab } from "@/components/mmp/SkanTab";
 import { CreatorsTab } from "@/components/mmp/CreatorsTab";
 import { CohortsTab } from "@/components/mmp/CohortsTab";
 import { CostsTab } from "@/components/mmp/CostsTab";
@@ -298,7 +300,9 @@ export default function MmpPage() {
             <TabsTrigger value="health" data-testid="tab-trigger-health">Health</TabsTrigger>
             <TabsTrigger value="creators" data-testid="tab-trigger-creators">Creators</TabsTrigger>
             <TabsTrigger value="cohorts" data-testid="tab-trigger-cohorts">Cohorts</TabsTrigger>
+            <TabsTrigger value="benchmarks" data-testid="tab-trigger-benchmarks">Benchmarks</TabsTrigger>
             <TabsTrigger value="costs" data-testid="tab-trigger-costs">Costs</TabsTrigger>
+            <TabsTrigger value="skan" data-testid="tab-trigger-skan">SKAN</TabsTrigger>
             <TabsTrigger value="debug" data-testid="tab-trigger-debug">Debug</TabsTrigger>
           </TabsList>
 
@@ -721,8 +725,14 @@ export default function MmpPage() {
           <TabsContent value="cohorts">
             <CohortsTab selectedAppId={selectedAppId} days={days} />
           </TabsContent>
+          <TabsContent value="benchmarks">
+            <BenchmarksTab apps={apps} selectedAppId={selectedAppId} />
+          </TabsContent>
           <TabsContent value="costs">
             <CostsTab links={links} selectedAppId={selectedAppId} days={days} />
+          </TabsContent>
+          <TabsContent value="skan">
+            <SkanTab apps={apps} selectedAppId={selectedAppId} />
           </TabsContent>
           <TabsContent value="debug">
             <DebugTab selectedAppId={selectedAppId} />
