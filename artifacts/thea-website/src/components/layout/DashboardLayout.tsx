@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { Link, useLocation, Redirect } from "wouter";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -134,20 +134,34 @@ function NotificationBell() {
   );
 }
 
-export function DashboardLayout({ children, title }: { children: React.ReactNode, title?: string }) {
-  const { user, org, logout, isLoaded, isSignedIn } = useAuth();
-  const [location, setLocation] = useLocation();
-  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+/** Sidebar nav scroll position, preserved across remounts (each page renders
+ *  its own DashboardLayout, so the sidebar remounts on every navigation). */
+let sidebarScrollTop = 0;
 
-  const displayName = user?.name || user?.email || "User";
-  const initials = (user?.name?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
+function SidebarContent({
+  location,
+  basePath,
+  displayName,
+  initials,
+  email,
+  onSignOut,
+}: {
+  location: string;
+  basePath: string;
+  displayName: string;
+  initials: string;
+  email?: string;
+  onSignOut: () => void;
+}) {
+  const navRef = useRef<HTMLElement | null>(null);
 
-  const handleSignOut = async () => {
-    await logout();
-    setLocation("/");
-  };
+  useLayoutEffect(() => {
+    if (navRef.current) {
+      navRef.current.scrollTop = sidebarScrollTop;
+    }
+  }, []);
 
-  const SidebarContent = () => (
+  return (
     <div className="flex flex-col h-full bg-slate-950 border-r border-slate-800 w-full text-slate-300">
       <div className="p-6">
         <Link href="/dashboard" className="flex items-center gap-3">
@@ -155,7 +169,13 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+      <nav
+        ref={navRef}
+        onScroll={(e) => {
+          sidebarScrollTop = e.currentTarget.scrollTop;
+        }}
+        className="flex-1 px-4 space-y-1 overflow-y-auto"
+      >
         {navItems.map((item) => {
           const isActive = location === item.href || location.startsWith(`${item.href}/`);
           return (
@@ -226,14 +246,14 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
               {displayName}
             </span>
             <span className="text-xs text-slate-500 truncate">
-              {user?.email}
+              {email}
             </span>
           </div>
         </div>
         <Button
           variant="ghost"
           className="w-full justify-start text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-          onClick={handleSignOut}
+          onClick={onSignOut}
         >
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
@@ -241,6 +261,29 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
       </div>
     </div>
   );
+}
+
+export function DashboardLayout({ children, title }: { children: React.ReactNode, title?: string }) {
+  const { user, org, logout, isLoaded, isSignedIn } = useAuth();
+  const [location, setLocation] = useLocation();
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  const displayName = user?.name || user?.email || "User";
+  const initials = (user?.name?.charAt(0) || user?.email?.charAt(0) || "U").toUpperCase();
+
+  const handleSignOut = async () => {
+    await logout();
+    setLocation("/");
+  };
+
+  const sidebarProps = {
+    location,
+    basePath,
+    displayName,
+    initials,
+    email: user?.email,
+    onSignOut: handleSignOut,
+  };
 
   if (!isLoaded) {
     return <div className="h-[100dvh] bg-[#020617]" />;
@@ -253,7 +296,7 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
     <div className="flex h-[100dvh] bg-[#020617] text-slate-200 font-sans overflow-hidden">
           {/* Desktop Sidebar */}
           <div className="hidden md:flex w-64 flex-col fixed inset-y-0 z-10">
-            <SidebarContent />
+            <SidebarContent {...sidebarProps} />
           </div>
 
           {/* Main Content */}
@@ -268,7 +311,7 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="p-0 w-72 bg-slate-950 border-r-slate-800">
-                    <SidebarContent />
+                    <SidebarContent {...sidebarProps} />
                   </SheetContent>
                 </Sheet>
                 
