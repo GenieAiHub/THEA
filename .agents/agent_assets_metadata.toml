@@ -83,3 +83,15 @@ id = "mDngKKouLESE9SWxzAraS"
 uri = "file://attached_assets/stock_images/test_person.jpg"
 type = "image"
 title = "person walking on sidewalk full body"
+
+[[outputs]]
+id = "TZwr7ho030ktfkN-i9Uj7"
+uri = "file://attached_assets/stock_images/test_car.jpg"
+type = "image"
+title = "car parked on street, side view, full vehicle visible"
+
+[[outputs]]
+id = "ZmsEsHmWMNoxcG8GBNI_v"
+uri = "file://attached_assets/stock_images/test_car_full.jpg"
+type = "image"
+title = "sedan car full view parking lot wide shot entire vehicle"

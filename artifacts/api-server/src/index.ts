@@ -77,6 +77,25 @@ if (Number.isNaN(port) || port <= 0) {
   process.exit(1);
 }
 
+/**
+ * Start the Security Watch camera sampler, retrying with backoff — during
+ * boot the DB pool can be saturated by the other bootstrap tasks, and a
+ * single connection timeout must not permanently disable live monitoring.
+ */
+async function startSecurityWatchWithRetry(maxAttempts = 5): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await startCameraSampler();
+      return;
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+      const delayMs = attempt * 15_000;
+      logger.warn({ err, attempt, delayMs }, "Security Watch start failed — retrying");
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 app.listen(port, async (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
@@ -161,7 +180,7 @@ app.listen(port, async (err) => {
           pruneSnapshots().catch(() => undefined);
           enforceSightingCap().catch(() => undefined);
         }, 24 * 60 * 60 * 1000);
-        return startCameraSampler();
+        return startSecurityWatchWithRetry();
       })
       .catch((err) =>
         logger.warn({ err }, "Security Watch bootstrap failed — will retry on next startup")
