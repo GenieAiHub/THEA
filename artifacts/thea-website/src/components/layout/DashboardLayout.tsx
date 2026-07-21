@@ -17,7 +17,12 @@ import {
   Sword,
   Bell,
   Building2,
+  FileBarChart,
+  LineChart,
+  ScanFace,
+  ExternalLink,
 } from "lucide-react";
+import { MARKETS_URL, ACCESS_URL } from "@/lib/urls";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +51,16 @@ const navItems: SidebarItem[] = [
   { icon: <Target className="w-4 h-4" />, label: "Campaigns", href: "/campaigns" },
   { icon: <Sword className="w-4 h-4" />, label: "Competitors", href: "/competitors" },
   { icon: <Settings className="w-4 h-4" />, label: "Settings", href: "/settings" },
+];
+
+interface ServiceItem extends SidebarItem {
+  external?: boolean;
+}
+
+const serviceItems: ServiceItem[] = [
+  { icon: <FileBarChart className="w-4 h-4" />, label: "MMP Report", href: "/mmp-report" },
+  { icon: <LineChart className="w-4 h-4" />, label: "THEA Markets", href: MARKETS_URL, external: true },
+  { icon: <ScanFace className="w-4 h-4" />, label: "THEA Access", href: ACCESS_URL, external: true },
 ];
 
 function GlobalAlertWatcher() {
@@ -149,6 +164,45 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
                     ? "bg-blue-600/10 text-blue-400 font-medium"
                     : "hover:bg-slate-900 hover:text-slate-100"
                 }`}
+              >
+                {item.icon}
+                <span className="text-sm">{item.label}</span>
+              </div>
+            </Link>
+          );
+        })}
+
+        <div className="pt-5 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+          Services
+        </div>
+        {serviceItems.map((item) => {
+          if (item.external) {
+            return (
+              <a
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`link-service-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer hover:bg-slate-900 hover:text-slate-100">
+                  {item.icon}
+                  <span className="text-sm flex-1">{item.label}</span>
+                  <ExternalLink className="w-3 h-3 text-slate-600" />
+                </div>
+              </a>
+            );
+          }
+          const isActive = location === item.href || location.startsWith(`${item.href}/`);
+          return (
+            <Link key={item.href} href={item.href}>
+              <div
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "bg-blue-600/10 text-blue-400 font-medium"
+                    : "hover:bg-slate-900 hover:text-slate-100"
+                }`}
+                data-testid={`link-service-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 {item.icon}
                 <span className="text-sm">{item.label}</span>
