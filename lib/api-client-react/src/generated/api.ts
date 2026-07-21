@@ -25,6 +25,8 @@ import type {
   AccessGrantList,
   AccessPoint,
   AccessPointList,
+  AddWatchTargetImagesInput,
+  AddWatchTargetImagesResult,
   AdminListConfigs200,
   AnalysisReportList,
   AnalysisRunInput,
@@ -44,6 +46,8 @@ import type {
   CreateDepositIntentBody,
   CreateGrantInput,
   CreateMemberInput,
+  CreateWatchCameraInput,
+  CreateWatchTargetInput,
   CreateWatchlistKeyword,
   CreateWebhook,
   DepositCoinList,
@@ -83,6 +87,7 @@ import type {
   ListMarketCategories200,
   ListMarketsParams,
   ListTrendsParams,
+  ListWatchSightingsParams,
   LlmChatInput,
   LlmReply,
   LoginInput,
@@ -101,6 +106,7 @@ import type {
   Member,
   MemberDetail,
   MemberList,
+  OkResult,
   OrganicConfidenceResult,
   PlatformConfig,
   PlatformConfigInput,
@@ -119,9 +125,22 @@ import type {
   UpdateAccessPointInput,
   UpdateApiKeyBody,
   UpdateMemberInput,
+  UpdateWatchCameraInput,
+  UpdateWatchTargetInput,
   UpdateWatchlistKeyword,
+  UploadWatchVideoBody,
   VerifyDepositIntentBody,
-  WalletResponse
+  WalletResponse,
+  WatchCamera,
+  WatchCameraList,
+  WatchSightingList,
+  WatchStatus,
+  WatchTarget,
+  WatchTargetCreated,
+  WatchTargetDetail,
+  WatchTargetList,
+  WatchVideoJob,
+  WatchVideoJobList
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -7909,6 +7928,1338 @@ export function useAuthMe<TData = Awaited<ReturnType<typeof authMe>>, TError = E
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getAuthMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetWatchStatusUrl = () => {
+
+
+
+
+  return `/api/v1/watch/status`
+}
+
+/**
+ * @summary Security Watch runtime status (sampler + ffmpeg availability)
+ */
+export const getWatchStatus = async ( options?: RequestInit): Promise<WatchStatus> => {
+
+  return customFetch<WatchStatus>(getGetWatchStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWatchStatusQueryKey = () => {
+    return [
+    `/api/v1/watch/status`
+    ] as const;
+    }
+
+
+export const getGetWatchStatusQueryOptions = <TData = Awaited<ReturnType<typeof getWatchStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWatchStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchStatus>>> = ({ signal }) => getWatchStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWatchStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWatchStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getWatchStatus>>>
+export type GetWatchStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Security Watch runtime status (sampler + ffmpeg availability)
+ */
+
+export function useGetWatchStatus<TData = Awaited<ReturnType<typeof getWatchStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWatchStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListWatchCamerasUrl = () => {
+
+
+
+
+  return `/api/v1/watch/cameras`
+}
+
+/**
+ * @summary List registered cameras
+ */
+export const listWatchCameras = async ( options?: RequestInit): Promise<WatchCameraList> => {
+
+  return customFetch<WatchCameraList>(getListWatchCamerasUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWatchCamerasQueryKey = () => {
+    return [
+    `/api/v1/watch/cameras`
+    ] as const;
+    }
+
+
+export const getListWatchCamerasQueryOptions = <TData = Awaited<ReturnType<typeof listWatchCameras>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchCameras>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWatchCamerasQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWatchCameras>>> = ({ signal }) => listWatchCameras({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWatchCameras>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWatchCamerasQueryResult = NonNullable<Awaited<ReturnType<typeof listWatchCameras>>>
+export type ListWatchCamerasQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List registered cameras
+ */
+
+export function useListWatchCameras<TData = Awaited<ReturnType<typeof listWatchCameras>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchCameras>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWatchCamerasQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateWatchCameraUrl = () => {
+
+
+
+
+  return `/api/v1/watch/cameras`
+}
+
+/**
+ * @summary Register a camera stream (owner/admin)
+ */
+export const createWatchCamera = async (createWatchCameraInput: CreateWatchCameraInput, options?: RequestInit): Promise<WatchCamera> => {
+
+  return customFetch<WatchCamera>(getCreateWatchCameraUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createWatchCameraInput)
+  }
+);}
+
+
+
+
+export const getCreateWatchCameraMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWatchCamera>>, TError,{data: BodyType<CreateWatchCameraInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWatchCamera>>, TError,{data: BodyType<CreateWatchCameraInput>}, TContext> => {
+
+const mutationKey = ['createWatchCamera'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWatchCamera>>, {data: BodyType<CreateWatchCameraInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWatchCamera(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWatchCameraMutationResult = NonNullable<Awaited<ReturnType<typeof createWatchCamera>>>
+    export type CreateWatchCameraMutationBody = BodyType<CreateWatchCameraInput>
+    export type CreateWatchCameraMutationError = ErrorType<void>
+
+    /**
+ * @summary Register a camera stream (owner/admin)
+ */
+export const useCreateWatchCamera = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWatchCamera>>, TError,{data: BodyType<CreateWatchCameraInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWatchCamera>>,
+        TError,
+        {data: BodyType<CreateWatchCameraInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWatchCameraMutationOptions(options));
+    }
+
+export const getUpdateWatchCameraUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/cameras/${id}`
+}
+
+/**
+ * @summary Update a camera (owner/admin)
+ */
+export const updateWatchCamera = async (id: string,
+    updateWatchCameraInput: UpdateWatchCameraInput, options?: RequestInit): Promise<WatchCamera> => {
+
+  return customFetch<WatchCamera>(getUpdateWatchCameraUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateWatchCameraInput)
+  }
+);}
+
+
+
+
+export const getUpdateWatchCameraMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchCamera>>, TError,{id: string;data: BodyType<UpdateWatchCameraInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWatchCamera>>, TError,{id: string;data: BodyType<UpdateWatchCameraInput>}, TContext> => {
+
+const mutationKey = ['updateWatchCamera'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWatchCamera>>, {id: string;data: BodyType<UpdateWatchCameraInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateWatchCamera(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWatchCameraMutationResult = NonNullable<Awaited<ReturnType<typeof updateWatchCamera>>>
+    export type UpdateWatchCameraMutationBody = BodyType<UpdateWatchCameraInput>
+    export type UpdateWatchCameraMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a camera (owner/admin)
+ */
+export const useUpdateWatchCamera = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchCamera>>, TError,{id: string;data: BodyType<UpdateWatchCameraInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWatchCamera>>,
+        TError,
+        {id: string;data: BodyType<UpdateWatchCameraInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWatchCameraMutationOptions(options));
+    }
+
+export const getDeleteWatchCameraUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/cameras/${id}`
+}
+
+/**
+ * @summary Delete a camera (owner/admin)
+ */
+export const deleteWatchCamera = async (id: string, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteWatchCameraUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWatchCameraMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchCamera>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWatchCamera>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteWatchCamera'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWatchCamera>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWatchCamera(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWatchCameraMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWatchCamera>>>
+
+    export type DeleteWatchCameraMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a camera (owner/admin)
+ */
+export const useDeleteWatchCamera = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchCamera>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWatchCamera>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteWatchCameraMutationOptions(options));
+    }
+
+export const getListWatchTargetsUrl = () => {
+
+
+
+
+  return `/api/v1/watch/targets`
+}
+
+/**
+ * @summary List watch targets with reference image counts
+ */
+export const listWatchTargets = async ( options?: RequestInit): Promise<WatchTargetList> => {
+
+  return customFetch<WatchTargetList>(getListWatchTargetsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWatchTargetsQueryKey = () => {
+    return [
+    `/api/v1/watch/targets`
+    ] as const;
+    }
+
+
+export const getListWatchTargetsQueryOptions = <TData = Awaited<ReturnType<typeof listWatchTargets>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchTargets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWatchTargetsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWatchTargets>>> = ({ signal }) => listWatchTargets({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWatchTargets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWatchTargetsQueryResult = NonNullable<Awaited<ReturnType<typeof listWatchTargets>>>
+export type ListWatchTargetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List watch targets with reference image counts
+ */
+
+export function useListWatchTargets<TData = Awaited<ReturnType<typeof listWatchTargets>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchTargets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWatchTargetsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateWatchTargetUrl = () => {
+
+
+
+
+  return `/api/v1/watch/targets`
+}
+
+/**
+ * @summary Create a watch target with base64 reference images (owner/admin)
+ */
+export const createWatchTarget = async (createWatchTargetInput: CreateWatchTargetInput, options?: RequestInit): Promise<WatchTargetCreated> => {
+
+  return customFetch<WatchTargetCreated>(getCreateWatchTargetUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createWatchTargetInput)
+  }
+);}
+
+
+
+
+export const getCreateWatchTargetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWatchTarget>>, TError,{data: BodyType<CreateWatchTargetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createWatchTarget>>, TError,{data: BodyType<CreateWatchTargetInput>}, TContext> => {
+
+const mutationKey = ['createWatchTarget'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createWatchTarget>>, {data: BodyType<CreateWatchTargetInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createWatchTarget(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateWatchTargetMutationResult = NonNullable<Awaited<ReturnType<typeof createWatchTarget>>>
+    export type CreateWatchTargetMutationBody = BodyType<CreateWatchTargetInput>
+    export type CreateWatchTargetMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a watch target with base64 reference images (owner/admin)
+ */
+export const useCreateWatchTarget = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createWatchTarget>>, TError,{data: BodyType<CreateWatchTargetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createWatchTarget>>,
+        TError,
+        {data: BodyType<CreateWatchTargetInput>},
+        TContext
+      > => {
+      return useMutation(getCreateWatchTargetMutationOptions(options));
+    }
+
+export const getGetWatchTargetUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/targets/${id}`
+}
+
+/**
+ * @summary Get a watch target with its reference images
+ */
+export const getWatchTarget = async (id: string, options?: RequestInit): Promise<WatchTargetDetail> => {
+
+  return customFetch<WatchTargetDetail>(getGetWatchTargetUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWatchTargetQueryKey = (id: string,) => {
+    return [
+    `/api/v1/watch/targets/${id}`
+    ] as const;
+    }
+
+
+export const getGetWatchTargetQueryOptions = <TData = Awaited<ReturnType<typeof getWatchTarget>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchTarget>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWatchTargetQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchTarget>>> = ({ signal }) => getWatchTarget(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWatchTarget>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWatchTargetQueryResult = NonNullable<Awaited<ReturnType<typeof getWatchTarget>>>
+export type GetWatchTargetQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a watch target with its reference images
+ */
+
+export function useGetWatchTarget<TData = Awaited<ReturnType<typeof getWatchTarget>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchTarget>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWatchTargetQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateWatchTargetUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/targets/${id}`
+}
+
+/**
+ * @summary Update a watch target (owner/admin)
+ */
+export const updateWatchTarget = async (id: string,
+    updateWatchTargetInput: UpdateWatchTargetInput, options?: RequestInit): Promise<WatchTarget> => {
+
+  return customFetch<WatchTarget>(getUpdateWatchTargetUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateWatchTargetInput)
+  }
+);}
+
+
+
+
+export const getUpdateWatchTargetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchTarget>>, TError,{id: string;data: BodyType<UpdateWatchTargetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWatchTarget>>, TError,{id: string;data: BodyType<UpdateWatchTargetInput>}, TContext> => {
+
+const mutationKey = ['updateWatchTarget'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWatchTarget>>, {id: string;data: BodyType<UpdateWatchTargetInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateWatchTarget(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWatchTargetMutationResult = NonNullable<Awaited<ReturnType<typeof updateWatchTarget>>>
+    export type UpdateWatchTargetMutationBody = BodyType<UpdateWatchTargetInput>
+    export type UpdateWatchTargetMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a watch target (owner/admin)
+ */
+export const useUpdateWatchTarget = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWatchTarget>>, TError,{id: string;data: BodyType<UpdateWatchTargetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateWatchTarget>>,
+        TError,
+        {id: string;data: BodyType<UpdateWatchTargetInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateWatchTargetMutationOptions(options));
+    }
+
+export const getDeleteWatchTargetUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/targets/${id}`
+}
+
+/**
+ * @summary Delete a watch target (owner/admin)
+ */
+export const deleteWatchTarget = async (id: string, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteWatchTargetUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWatchTargetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchTarget>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWatchTarget>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteWatchTarget'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWatchTarget>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWatchTarget(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWatchTargetMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWatchTarget>>>
+
+    export type DeleteWatchTargetMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a watch target (owner/admin)
+ */
+export const useDeleteWatchTarget = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchTarget>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWatchTarget>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteWatchTargetMutationOptions(options));
+    }
+
+export const getAddWatchTargetImagesUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/targets/${id}/images`
+}
+
+/**
+ * @summary Add reference images to a watch target (owner/admin)
+ */
+export const addWatchTargetImages = async (id: string,
+    addWatchTargetImagesInput: AddWatchTargetImagesInput, options?: RequestInit): Promise<AddWatchTargetImagesResult> => {
+
+  return customFetch<AddWatchTargetImagesResult>(getAddWatchTargetImagesUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addWatchTargetImagesInput)
+  }
+);}
+
+
+
+
+export const getAddWatchTargetImagesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addWatchTargetImages>>, TError,{id: string;data: BodyType<AddWatchTargetImagesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addWatchTargetImages>>, TError,{id: string;data: BodyType<AddWatchTargetImagesInput>}, TContext> => {
+
+const mutationKey = ['addWatchTargetImages'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addWatchTargetImages>>, {id: string;data: BodyType<AddWatchTargetImagesInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addWatchTargetImages(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddWatchTargetImagesMutationResult = NonNullable<Awaited<ReturnType<typeof addWatchTargetImages>>>
+    export type AddWatchTargetImagesMutationBody = BodyType<AddWatchTargetImagesInput>
+    export type AddWatchTargetImagesMutationError = ErrorType<void>
+
+    /**
+ * @summary Add reference images to a watch target (owner/admin)
+ */
+export const useAddWatchTargetImages = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addWatchTargetImages>>, TError,{id: string;data: BodyType<AddWatchTargetImagesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addWatchTargetImages>>,
+        TError,
+        {id: string;data: BodyType<AddWatchTargetImagesInput>},
+        TContext
+      > => {
+      return useMutation(getAddWatchTargetImagesMutationOptions(options));
+    }
+
+export const getDeleteWatchTargetImageUrl = (id: string,
+    imageId: string,) => {
+
+
+
+
+  return `/api/v1/watch/targets/${id}/images/${imageId}`
+}
+
+/**
+ * @summary Delete a reference image (owner/admin)
+ */
+export const deleteWatchTargetImage = async (id: string,
+    imageId: string, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteWatchTargetImageUrl(id,imageId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWatchTargetImageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchTargetImage>>, TError,{id: string;imageId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWatchTargetImage>>, TError,{id: string;imageId: string}, TContext> => {
+
+const mutationKey = ['deleteWatchTargetImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWatchTargetImage>>, {id: string;imageId: string}> = (props) => {
+          const {id,imageId} = props ?? {};
+
+          return  deleteWatchTargetImage(id,imageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWatchTargetImageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWatchTargetImage>>>
+
+    export type DeleteWatchTargetImageMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a reference image (owner/admin)
+ */
+export const useDeleteWatchTargetImage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchTargetImage>>, TError,{id: string;imageId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWatchTargetImage>>,
+        TError,
+        {id: string;imageId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteWatchTargetImageMutationOptions(options));
+    }
+
+export const getListWatchSightingsUrl = (params?: ListWatchSightingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/watch/sightings?${stringifiedParams}` : `/api/v1/watch/sightings`
+}
+
+/**
+ * @summary List sightings (newest first) with optional filters
+ */
+export const listWatchSightings = async (params?: ListWatchSightingsParams, options?: RequestInit): Promise<WatchSightingList> => {
+
+  return customFetch<WatchSightingList>(getListWatchSightingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWatchSightingsQueryKey = (params?: ListWatchSightingsParams,) => {
+    return [
+    `/api/v1/watch/sightings`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListWatchSightingsQueryOptions = <TData = Awaited<ReturnType<typeof listWatchSightings>>, TError = ErrorType<unknown>>(params?: ListWatchSightingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchSightings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWatchSightingsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWatchSightings>>> = ({ signal }) => listWatchSightings(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWatchSightings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWatchSightingsQueryResult = NonNullable<Awaited<ReturnType<typeof listWatchSightings>>>
+export type ListWatchSightingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List sightings (newest first) with optional filters
+ */
+
+export function useListWatchSightings<TData = Awaited<ReturnType<typeof listWatchSightings>>, TError = ErrorType<unknown>>(
+ params?: ListWatchSightingsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchSightings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWatchSightingsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetWatchSightingSnapshotUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/sightings/${id}/snapshot`
+}
+
+/**
+ * @summary Fetch the JPEG snapshot captured for a sighting
+ */
+export const getWatchSightingSnapshot = async (id: string, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetWatchSightingSnapshotUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWatchSightingSnapshotQueryKey = (id: string,) => {
+    return [
+    `/api/v1/watch/sightings/${id}/snapshot`
+    ] as const;
+    }
+
+
+export const getGetWatchSightingSnapshotQueryOptions = <TData = Awaited<ReturnType<typeof getWatchSightingSnapshot>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchSightingSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWatchSightingSnapshotQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchSightingSnapshot>>> = ({ signal }) => getWatchSightingSnapshot(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWatchSightingSnapshot>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWatchSightingSnapshotQueryResult = NonNullable<Awaited<ReturnType<typeof getWatchSightingSnapshot>>>
+export type GetWatchSightingSnapshotQueryError = ErrorType<void>
+
+
+/**
+ * @summary Fetch the JPEG snapshot captured for a sighting
+ */
+
+export function useGetWatchSightingSnapshot<TData = Awaited<ReturnType<typeof getWatchSightingSnapshot>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchSightingSnapshot>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWatchSightingSnapshotQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteWatchSightingUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/sightings/${id}`
+}
+
+/**
+ * @summary Delete a sighting (owner/admin)
+ */
+export const deleteWatchSighting = async (id: string, options?: RequestInit): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getDeleteWatchSightingUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWatchSightingMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchSighting>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWatchSighting>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteWatchSighting'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWatchSighting>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWatchSighting(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWatchSightingMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWatchSighting>>>
+
+    export type DeleteWatchSightingMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a sighting (owner/admin)
+ */
+export const useDeleteWatchSighting = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWatchSighting>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWatchSighting>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteWatchSightingMutationOptions(options));
+    }
+
+export const getListWatchVideoJobsUrl = () => {
+
+
+
+
+  return `/api/v1/watch/videos`
+}
+
+/**
+ * @summary List offline video scan jobs
+ */
+export const listWatchVideoJobs = async ( options?: RequestInit): Promise<WatchVideoJobList> => {
+
+  return customFetch<WatchVideoJobList>(getListWatchVideoJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWatchVideoJobsQueryKey = () => {
+    return [
+    `/api/v1/watch/videos`
+    ] as const;
+    }
+
+
+export const getListWatchVideoJobsQueryOptions = <TData = Awaited<ReturnType<typeof listWatchVideoJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchVideoJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWatchVideoJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWatchVideoJobs>>> = ({ signal }) => listWatchVideoJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWatchVideoJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWatchVideoJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listWatchVideoJobs>>>
+export type ListWatchVideoJobsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List offline video scan jobs
+ */
+
+export function useListWatchVideoJobs<TData = Awaited<ReturnType<typeof listWatchVideoJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWatchVideoJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWatchVideoJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadWatchVideoUrl = () => {
+
+
+
+
+  return `/api/v1/watch/videos`
+}
+
+/**
+ * @summary Upload a recording (multipart, max 500MB) and queue an offline scan (owner/admin)
+ */
+export const uploadWatchVideo = async (uploadWatchVideoBody: UploadWatchVideoBody, options?: RequestInit): Promise<WatchVideoJob> => {
+    const formData = new FormData();
+if(uploadWatchVideoBody.file !== undefined) {
+ formData.append(`file`, uploadWatchVideoBody.file);
+ }
+
+  return customFetch<WatchVideoJob>(getUploadWatchVideoUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+export const getUploadWatchVideoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadWatchVideo>>, TError,{data: BodyType<UploadWatchVideoBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadWatchVideo>>, TError,{data: BodyType<UploadWatchVideoBody>}, TContext> => {
+
+const mutationKey = ['uploadWatchVideo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadWatchVideo>>, {data: BodyType<UploadWatchVideoBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadWatchVideo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadWatchVideoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadWatchVideo>>>
+    export type UploadWatchVideoMutationBody = BodyType<UploadWatchVideoBody>
+    export type UploadWatchVideoMutationError = ErrorType<void>
+
+    /**
+ * @summary Upload a recording (multipart, max 500MB) and queue an offline scan (owner/admin)
+ */
+export const useUploadWatchVideo = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadWatchVideo>>, TError,{data: BodyType<UploadWatchVideoBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadWatchVideo>>,
+        TError,
+        {data: BodyType<UploadWatchVideoBody>},
+        TContext
+      > => {
+      return useMutation(getUploadWatchVideoMutationOptions(options));
+    }
+
+export const getGetWatchVideoJobUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/watch/videos/${id}`
+}
+
+/**
+ * @summary Get an offline video scan job (poll for progress)
+ */
+export const getWatchVideoJob = async (id: string, options?: RequestInit): Promise<WatchVideoJob> => {
+
+  return customFetch<WatchVideoJob>(getGetWatchVideoJobUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWatchVideoJobQueryKey = (id: string,) => {
+    return [
+    `/api/v1/watch/videos/${id}`
+    ] as const;
+    }
+
+
+export const getGetWatchVideoJobQueryOptions = <TData = Awaited<ReturnType<typeof getWatchVideoJob>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchVideoJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWatchVideoJobQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchVideoJob>>> = ({ signal }) => getWatchVideoJob(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWatchVideoJob>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWatchVideoJobQueryResult = NonNullable<Awaited<ReturnType<typeof getWatchVideoJob>>>
+export type GetWatchVideoJobQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get an offline video scan job (poll for progress)
+ */
+
+export function useGetWatchVideoJob<TData = Awaited<ReturnType<typeof getWatchVideoJob>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWatchVideoJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWatchVideoJobQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

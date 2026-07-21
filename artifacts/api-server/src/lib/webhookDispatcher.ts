@@ -4,7 +4,7 @@ import { webhookRegistrationsTable, webhookDeliveryLogsTable } from "@workspace/
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
-const VALID_EVENTS = ["alert.spike", "analysis.complete", "campaign.milestone"] as const;
+const VALID_EVENTS = ["alert.spike", "analysis.complete", "campaign.milestone", "sighting.detected"] as const;
 export type WebhookEventType = (typeof VALID_EVENTS)[number];
 
 export interface WebhookPayload {

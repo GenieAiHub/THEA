@@ -1216,6 +1216,265 @@ export interface AccessEventList {
   total: number;
 }
 
+export interface OkResult {
+  ok: boolean;
+}
+
+export interface WatchStatus {
+  liveSamplingEnabled: boolean;
+  ffmpegAvailable: boolean;
+}
+
+export interface WatchAlertChannels {
+  email?: boolean;
+  emails?: string[];
+  webhook?: boolean;
+  slack?: boolean;
+  teams?: boolean;
+}
+
+export type WatchCameraStatus = typeof WatchCameraStatus[keyof typeof WatchCameraStatus];
+
+
+export const WatchCameraStatus = {
+  online: 'online',
+  offline: 'offline',
+  error: 'error',
+} as const;
+
+export interface WatchCamera {
+  id: string;
+  orgId: string;
+  name: string;
+  /** @nullable */
+  location?: string | null;
+  streamUrl: string;
+  isActive: boolean;
+  status: WatchCameraStatus;
+  /** @nullable */
+  lastSeenAt?: string | null;
+  /** @nullable */
+  lastError?: string | null;
+  sampleIntervalSec: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WatchCameraList {
+  data: WatchCamera[];
+  total: number;
+}
+
+export interface CreateWatchCameraInput {
+  name: string;
+  location?: string;
+  /** rtsp://, rtsps://, http:// or https:// stream URL */
+  streamUrl: string;
+  /**
+     * @minimum 2
+     * @maximum 3600
+     */
+  sampleIntervalSec?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateWatchCameraInput {
+  name?: string;
+  location?: string;
+  streamUrl?: string;
+  /**
+     * @minimum 2
+     * @maximum 3600
+     */
+  sampleIntervalSec?: number;
+  isActive?: boolean;
+}
+
+export type WatchTargetType = typeof WatchTargetType[keyof typeof WatchTargetType];
+
+
+export const WatchTargetType = {
+  person: 'person',
+  vehicle: 'vehicle',
+  object: 'object',
+  plate: 'plate',
+} as const;
+
+export interface WatchTarget {
+  id: string;
+  orgId: string;
+  name: string;
+  type: WatchTargetType;
+  /** @nullable */
+  plateText?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  isActive: boolean;
+  /** @nullable */
+  minConfidence?: number | null;
+  cooldownSec: number;
+  alertChannels: WatchAlertChannels;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WatchTargetListItem = WatchTarget & {
+  imageCount: number;
+};
+
+export interface WatchTargetList {
+  data: WatchTargetListItem[];
+  total: number;
+}
+
+export interface WatchTargetImageInfo {
+  id: string;
+  /** @nullable */
+  detectedClass?: string | null;
+  hasFace: boolean;
+  createdAt: string;
+}
+
+export type WatchTargetDetail = WatchTarget & {
+  images: WatchTargetImageInfo[];
+};
+
+export type CreateWatchTargetInputType = typeof CreateWatchTargetInputType[keyof typeof CreateWatchTargetInputType];
+
+
+export const CreateWatchTargetInputType = {
+  person: 'person',
+  vehicle: 'vehicle',
+  object: 'object',
+  plate: 'plate',
+} as const;
+
+export interface CreateWatchTargetInput {
+  name: string;
+  type: CreateWatchTargetInputType;
+  /** Required for type=plate (4-10 letters/digits) */
+  plateText?: string;
+  notes?: string;
+  /**
+     * @minimum 0.1
+     * @maximum 1
+     */
+  minConfidence?: number;
+  /**
+     * @minimum 10
+     * @maximum 86400
+     */
+  cooldownSec?: number;
+  alertChannels?: WatchAlertChannels;
+  /** Base64 JPEG reference photos (required for person/object, recommended for vehicle) */
+  images?: string[];
+}
+
+export type WatchTargetCreated = WatchTarget & {
+  imageCount: number;
+  warnings: string[];
+};
+
+export interface UpdateWatchTargetInput {
+  name?: string;
+  plateText?: string;
+  notes?: string;
+  /** @nullable */
+  minConfidence?: number | null;
+  /**
+     * @minimum 10
+     * @maximum 86400
+     */
+  cooldownSec?: number;
+  alertChannels?: WatchAlertChannels;
+  isActive?: boolean;
+}
+
+export interface AddWatchTargetImagesInput {
+  /** Base64 JPEG reference photos */
+  images: string[];
+}
+
+export interface AddWatchTargetImagesResult {
+  added: number;
+  warnings: string[];
+}
+
+export type WatchSightingMatchType = typeof WatchSightingMatchType[keyof typeof WatchSightingMatchType];
+
+
+export const WatchSightingMatchType = {
+  face: 'face',
+  object: 'object',
+  plate: 'plate',
+} as const;
+
+export interface WatchSighting {
+  id: string;
+  orgId: string;
+  /** @nullable */
+  targetId?: string | null;
+  /** @nullable */
+  cameraId?: string | null;
+  /** @nullable */
+  videoJobId?: string | null;
+  matchType: WatchSightingMatchType;
+  /** @nullable */
+  detail?: string | null;
+  /** @nullable */
+  confidence?: number | null;
+  /** @nullable */
+  videoOffsetSec?: number | null;
+  alerted: boolean;
+  /** @nullable */
+  targetName?: string | null;
+  /** @nullable */
+  targetType?: string | null;
+  /** @nullable */
+  cameraName?: string | null;
+  hasSnapshot: boolean;
+  createdAt: string;
+}
+
+export interface WatchSightingList {
+  data: WatchSighting[];
+  total: number;
+}
+
+export type WatchVideoJobStatus = typeof WatchVideoJobStatus[keyof typeof WatchVideoJobStatus];
+
+
+export const WatchVideoJobStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface WatchVideoJob {
+  id: string;
+  orgId: string;
+  fileName: string;
+  status: WatchVideoJobStatus;
+  progress: number;
+  /** @nullable */
+  durationSec?: number | null;
+  framesScanned: number;
+  sightingsCount: number;
+  /** @nullable */
+  error?: string | null;
+  createdAt: string;
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+}
+
+export interface WatchVideoJobList {
+  data: WatchVideoJob[];
+  total: number;
+}
+
 export type ListContentParams = {
 platform?: string;
 category?: string;
@@ -1497,5 +1756,24 @@ export type ListAccessEventsParams = {
  * @maximum 200
  */
 limit?: number;
+};
+
+export type ListWatchSightingsParams = {
+targetId?: string;
+cameraId?: string;
+videoJobId?: string;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type UploadWatchVideoBody = {
+  file?: Blob;
 };
 

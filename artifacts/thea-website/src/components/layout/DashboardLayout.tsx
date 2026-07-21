@@ -21,6 +21,7 @@ import {
   LineChart,
   ScanFace,
   ExternalLink,
+  Camera,
 } from "lucide-react";
 import { MARKETS_URL, ACCESS_URL } from "@/lib/urls";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -50,6 +51,7 @@ const navItems: SidebarItem[] = [
   { icon: <Database className="w-4 h-4" />, label: "Data Explorer", href: "/data-explorer" },
   { icon: <Target className="w-4 h-4" />, label: "Campaigns", href: "/campaigns" },
   { icon: <Sword className="w-4 h-4" />, label: "Competitors", href: "/competitors" },
+  { icon: <Camera className="w-4 h-4" />, label: "Security Watch", href: "/security-watch" },
   { icon: <Settings className="w-4 h-4" />, label: "Settings", href: "/settings" },
 ];
 

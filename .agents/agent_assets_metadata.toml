@@ -41,3 +41,21 @@ id = "FdH92GN8xyRCP2p33US_j"
 uri = "file://exports/THEA-Product-Brochure.pdf"
 type = "pdf"
 title = "THEA Product Brochure (2026 Edition)"
+
+[[outputs]]
+id = "V1dr72SAcRAxvtLCUF9SR"
+uri = "file://attached_assets/stock_images/test_car_plate_1.jpg"
+type = "image"
+title = "car parked on street with visible license plate, daytime"
+
+[[outputs]]
+id = "KXvVryAev93XqqVawKx02"
+uri = "file://attached_assets/stock_images/test_car_plate_2.jpg"
+type = "image"
+title = "car parked on street with visible license plate, daytime"
+
+[[outputs]]
+id = "mDngKKouLESE9SWxzAraS"
+uri = "file://attached_assets/stock_images/test_person.jpg"
+type = "image"
+title = "person walking on sidewalk full body"

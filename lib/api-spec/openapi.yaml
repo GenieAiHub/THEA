@@ -41,6 +41,8 @@ tags:
     description: Custodial user wallet — USD-pegged balance and ledger history for real-money markets
   - name: deposits
     description: Custodial crypto deposits (BTC / ETH / BSC-USDT / CG) crediting the USD-pegged wallet
+  - name: watch
+    description: Security Watch — camera network visual search (cameras, watch targets, sightings, offline video scans)
 paths:
   /healthz:
     get:
@@ -1906,6 +1908,340 @@ paths:
               schema:
                 $ref: "#/components/schemas/MeResult"
         "401": { description: Unauthenticated }
+  /v1/watch/status:
+    get:
+      operationId: getWatchStatus
+      tags: [watch]
+      summary: Security Watch runtime status (sampler + ffmpeg availability)
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchStatus"
+  /v1/watch/cameras:
+    get:
+      operationId: listWatchCameras
+      tags: [watch]
+      summary: List registered cameras
+      responses:
+        "200":
+          description: Cameras
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchCameraList"
+    post:
+      operationId: createWatchCamera
+      tags: [watch]
+      summary: Register a camera stream (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWatchCameraInput"
+      responses:
+        "201":
+          description: Camera created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchCamera"
+        "400": { description: Invalid input }
+        "403": { description: Requires owner or admin role }
+  /v1/watch/cameras/{id}:
+    patch:
+      operationId: updateWatchCamera
+      tags: [watch]
+      summary: Update a camera (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWatchCameraInput"
+      responses:
+        "200":
+          description: Updated camera
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchCamera"
+        "404": { description: Not found }
+    delete:
+      operationId: deleteWatchCamera
+      tags: [watch]
+      summary: Delete a camera (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "404": { description: Not found }
+  /v1/watch/targets:
+    get:
+      operationId: listWatchTargets
+      tags: [watch]
+      summary: List watch targets with reference image counts
+      responses:
+        "200":
+          description: Targets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchTargetList"
+    post:
+      operationId: createWatchTarget
+      tags: [watch]
+      summary: Create a watch target with base64 reference images (owner/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWatchTargetInput"
+      responses:
+        "201":
+          description: Target created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchTargetCreated"
+        "400": { description: Invalid input or no usable reference images }
+        "403": { description: Requires owner or admin role }
+  /v1/watch/targets/{id}:
+    get:
+      operationId: getWatchTarget
+      tags: [watch]
+      summary: Get a watch target with its reference images
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Target detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchTargetDetail"
+        "404": { description: Not found }
+    patch:
+      operationId: updateWatchTarget
+      tags: [watch]
+      summary: Update a watch target (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateWatchTargetInput"
+      responses:
+        "200":
+          description: Updated target
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchTarget"
+        "404": { description: Not found }
+    delete:
+      operationId: deleteWatchTarget
+      tags: [watch]
+      summary: Delete a watch target (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "404": { description: Not found }
+  /v1/watch/targets/{id}/images:
+    post:
+      operationId: addWatchTargetImages
+      tags: [watch]
+      summary: Add reference images to a watch target (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddWatchTargetImagesInput"
+      responses:
+        "201":
+          description: Images added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddWatchTargetImagesResult"
+        "400": { description: No usable images or limit reached }
+        "404": { description: Not found }
+  /v1/watch/targets/{id}/images/{imageId}:
+    delete:
+      operationId: deleteWatchTargetImage
+      tags: [watch]
+      summary: Delete a reference image (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: imageId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "404": { description: Not found }
+  /v1/watch/sightings:
+    get:
+      operationId: listWatchSightings
+      tags: [watch]
+      summary: List sightings (newest first) with optional filters
+      parameters:
+        - name: targetId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: cameraId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: videoJobId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Sightings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchSightingList"
+  /v1/watch/sightings/{id}/snapshot:
+    get:
+      operationId: getWatchSightingSnapshot
+      tags: [watch]
+      summary: Fetch the JPEG snapshot captured for a sighting
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: JPEG image
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "404": { description: Snapshot not found }
+  /v1/watch/sightings/{id}:
+    delete:
+      operationId: deleteWatchSighting
+      tags: [watch]
+      summary: Delete a sighting (owner/admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResult"
+        "404": { description: Not found }
+  /v1/watch/videos:
+    get:
+      operationId: listWatchVideoJobs
+      tags: [watch]
+      summary: List offline video scan jobs
+      responses:
+        "200":
+          description: Video jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchVideoJobList"
+    post:
+      operationId: uploadWatchVideo
+      tags: [watch]
+      summary: Upload a recording (multipart, max 500MB) and queue an offline scan (owner/admin)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Scan job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchVideoJob"
+        "413": { description: Video exceeds the 500MB limit }
+        "503": { description: ffmpeg unavailable on this server }
+  /v1/watch/videos/{id}:
+    get:
+      operationId: getWatchVideoJob
+      tags: [watch]
+      summary: Get an offline video scan job (poll for progress)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Video job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchVideoJob"
+        "404": { description: Not found }
 
 components:
   securitySchemes:
@@ -2924,4 +3260,224 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AccessEvent"
+        total: { type: integer }
+    OkResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    WatchStatus:
+      type: object
+      required: [liveSamplingEnabled, ffmpegAvailable]
+      properties:
+        liveSamplingEnabled: { type: boolean }
+        ffmpegAvailable:     { type: boolean }
+    WatchAlertChannels:
+      type: object
+      properties:
+        email:   { type: boolean }
+        emails:
+          type: array
+          items: { type: string }
+        webhook: { type: boolean }
+        slack:   { type: boolean }
+        teams:   { type: boolean }
+    WatchCamera:
+      type: object
+      required: [id, orgId, name, streamUrl, isActive, status, sampleIntervalSec, createdAt, updatedAt]
+      properties:
+        id:                { type: string, format: uuid }
+        orgId:             { type: string, format: uuid }
+        name:              { type: string }
+        location:          { type: string, nullable: true }
+        streamUrl:         { type: string }
+        isActive:          { type: boolean }
+        status:            { type: string, enum: [online, offline, error] }
+        lastSeenAt:        { type: string, format: date-time, nullable: true }
+        lastError:         { type: string, nullable: true }
+        sampleIntervalSec: { type: integer }
+        createdAt:         { type: string, format: date-time }
+        updatedAt:         { type: string, format: date-time }
+    WatchCameraList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchCamera"
+        total: { type: integer }
+    CreateWatchCameraInput:
+      type: object
+      required: [name, streamUrl]
+      properties:
+        name:              { type: string }
+        location:          { type: string }
+        streamUrl:         { type: string, description: "rtsp://, rtsps://, http:// or https:// stream URL" }
+        sampleIntervalSec: { type: integer, minimum: 2, maximum: 3600, default: 3 }
+        isActive:          { type: boolean, default: true }
+    UpdateWatchCameraInput:
+      type: object
+      properties:
+        name:              { type: string }
+        location:          { type: string }
+        streamUrl:         { type: string }
+        sampleIntervalSec: { type: integer, minimum: 2, maximum: 3600 }
+        isActive:          { type: boolean }
+    WatchTarget:
+      type: object
+      required: [id, orgId, name, type, isActive, cooldownSec, alertChannels, createdAt, updatedAt]
+      properties:
+        id:            { type: string, format: uuid }
+        orgId:         { type: string, format: uuid }
+        name:          { type: string }
+        type:          { type: string, enum: [person, vehicle, object, plate] }
+        plateText:     { type: string, nullable: true }
+        notes:         { type: string, nullable: true }
+        isActive:      { type: boolean }
+        minConfidence: { type: number, nullable: true }
+        cooldownSec:   { type: integer }
+        alertChannels:
+          $ref: "#/components/schemas/WatchAlertChannels"
+        createdAt:     { type: string, format: date-time }
+        updatedAt:     { type: string, format: date-time }
+    WatchTargetListItem:
+      allOf:
+        - $ref: "#/components/schemas/WatchTarget"
+        - type: object
+          required: [imageCount]
+          properties:
+            imageCount: { type: integer }
+    WatchTargetList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchTargetListItem"
+        total: { type: integer }
+    WatchTargetImageInfo:
+      type: object
+      required: [id, hasFace, createdAt]
+      properties:
+        id:            { type: string, format: uuid }
+        detectedClass: { type: string, nullable: true }
+        hasFace:       { type: boolean }
+        createdAt:     { type: string, format: date-time }
+    WatchTargetDetail:
+      allOf:
+        - $ref: "#/components/schemas/WatchTarget"
+        - type: object
+          required: [images]
+          properties:
+            images:
+              type: array
+              items:
+                $ref: "#/components/schemas/WatchTargetImageInfo"
+    CreateWatchTargetInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:          { type: string }
+        type:          { type: string, enum: [person, vehicle, object, plate] }
+        plateText:     { type: string, description: "Required for type=plate (4-10 letters/digits)" }
+        notes:         { type: string }
+        minConfidence: { type: number, minimum: 0.1, maximum: 1 }
+        cooldownSec:   { type: integer, minimum: 10, maximum: 86400, default: 300 }
+        alertChannels:
+          $ref: "#/components/schemas/WatchAlertChannels"
+        images:
+          type: array
+          items: { type: string }
+          description: "Base64 JPEG reference photos (required for person/object, recommended for vehicle)"
+    WatchTargetCreated:
+      allOf:
+        - $ref: "#/components/schemas/WatchTarget"
+        - type: object
+          required: [imageCount, warnings]
+          properties:
+            imageCount: { type: integer }
+            warnings:
+              type: array
+              items: { type: string }
+    UpdateWatchTargetInput:
+      type: object
+      properties:
+        name:          { type: string }
+        plateText:     { type: string }
+        notes:         { type: string }
+        minConfidence: { type: number, nullable: true }
+        cooldownSec:   { type: integer, minimum: 10, maximum: 86400 }
+        alertChannels:
+          $ref: "#/components/schemas/WatchAlertChannels"
+        isActive:      { type: boolean }
+    AddWatchTargetImagesInput:
+      type: object
+      required: [images]
+      properties:
+        images:
+          type: array
+          items: { type: string }
+          description: "Base64 JPEG reference photos"
+    AddWatchTargetImagesResult:
+      type: object
+      required: [added, warnings]
+      properties:
+        added: { type: integer }
+        warnings:
+          type: array
+          items: { type: string }
+    WatchSighting:
+      type: object
+      required: [id, orgId, matchType, alerted, hasSnapshot, createdAt]
+      properties:
+        id:             { type: string, format: uuid }
+        orgId:          { type: string, format: uuid }
+        targetId:       { type: string, format: uuid, nullable: true }
+        cameraId:       { type: string, format: uuid, nullable: true }
+        videoJobId:     { type: string, format: uuid, nullable: true }
+        matchType:      { type: string, enum: [face, object, plate] }
+        detail:         { type: string, nullable: true }
+        confidence:     { type: number, nullable: true }
+        videoOffsetSec: { type: number, nullable: true }
+        alerted:        { type: boolean }
+        targetName:     { type: string, nullable: true }
+        targetType:     { type: string, nullable: true }
+        cameraName:     { type: string, nullable: true }
+        hasSnapshot:    { type: boolean }
+        createdAt:      { type: string, format: date-time }
+    WatchSightingList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchSighting"
+        total: { type: integer }
+    WatchVideoJob:
+      type: object
+      required: [id, orgId, fileName, status, progress, framesScanned, sightingsCount, createdAt]
+      properties:
+        id:             { type: string, format: uuid }
+        orgId:          { type: string, format: uuid }
+        fileName:       { type: string }
+        status:         { type: string, enum: [pending, processing, completed, failed] }
+        progress:       { type: number }
+        durationSec:    { type: number, nullable: true }
+        framesScanned:  { type: integer }
+        sightingsCount: { type: integer }
+        error:          { type: string, nullable: true }
+        createdAt:      { type: string, format: date-time }
+        startedAt:      { type: string, format: date-time, nullable: true }
+        completedAt:    { type: string, format: date-time, nullable: true }
+    WatchVideoJobList:
+      type: object
+      required: [data, total]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchVideoJob"
         total: { type: integer }

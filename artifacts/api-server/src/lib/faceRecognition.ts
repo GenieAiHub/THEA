@@ -134,3 +134,47 @@ export async function computeDescriptor(jpegBuffer: Buffer): Promise<DescriptorR
     }
   });
 }
+
+/**
+ * Detect ALL faces in a frame and return their descriptors (surveillance use:
+ * multiple people can appear in one camera frame). Inference is serialized.
+ */
+export async function computeAllDescriptors(jpegBuffer: Buffer): Promise<DescriptorResult[]> {
+  await initFaceRecognition();
+  return runExclusive(async () => {
+    const t = tf();
+    const decoded = jpeg.decode(jpegBuffer, { useTArray: true, maxMemoryUsageInMB: 1024 });
+    const { data, width, height } = decoded;
+
+    const rgb = new Uint8Array(width * height * 3);
+    for (let i = 0, j = 0; i < data.length; i += 4, j += 3) {
+      rgb[j] = data[i]!;
+      rgb[j + 1] = data[i + 1]!;
+      rgb[j + 2] = data[i + 2]!;
+    }
+
+    const inputTensor = t.tensor3d(rgb, [height, width, 3]);
+    const input = inputTensor as unknown as faceapi.TNetInput;
+    try {
+      const opt = new faceapi.TinyFaceDetectorOptions({
+        inputSize: DETECTOR_INPUT_SIZE,
+        scoreThreshold: DETECTOR_SCORE_THRESHOLD,
+      });
+      const results = await faceapi.detectAllFaces(input, opt).withFaceLandmarks().withFaceDescriptors();
+      return results.map((r) => ({ descriptor: Array.from(r.descriptor), score: r.detection.score }));
+    } finally {
+      inputTensor.dispose();
+    }
+  });
+}
+
+/** L2 distance between two descriptors. */
+export function faceDistance(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return Infinity;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i]! - b[i]!;
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
+}

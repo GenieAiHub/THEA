@@ -40,6 +40,10 @@ import { startEmailDeliveryWorker } from "./lib/emailDeliveryWorker";
 import { scheduleDigests } from "./lib/digestScheduler";
 import { startTelegramBot } from "./lib/telegramBot";
 import { initFaceRecognition } from "./lib/faceRecognition";
+import { startCameraSampler } from "./lib/watch/cameraSampler";
+import { startVisualRecognitionWorker, startVideoScanWorker } from "./lib/watch/watchWorkers";
+import { initObjectRecognition } from "./lib/watch/objectRecognition";
+import { pruneSnapshots, enforceSightingCap } from "./lib/watch/snapshots";
 import { logger as bootLogger } from "./lib/logger";
 
 function startMarketGenerationWorker(): void {
@@ -147,6 +151,23 @@ app.listen(port, async (err) => {
       ),
     initFaceRecognition().catch((err) =>
       logger.warn({ err }, "Face recognition model load failed — will retry lazily on first request")
+    ),
+    Promise.resolve()
+      .then(() => {
+        startVisualRecognitionWorker();
+        startVideoScanWorker();
+        // Daily retention prune for Security Watch sightings + snapshots
+        setInterval(() => {
+          pruneSnapshots().catch(() => undefined);
+          enforceSightingCap().catch(() => undefined);
+        }, 24 * 60 * 60 * 1000);
+        return startCameraSampler();
+      })
+      .catch((err) =>
+        logger.warn({ err }, "Security Watch bootstrap failed — will retry on next startup")
+      ),
+    initObjectRecognition().catch((err) =>
+      logger.warn({ err }, "Object recognition model load failed — will retry lazily on first use")
     ),
   ]);
 });

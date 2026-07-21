@@ -98,7 +98,16 @@ app.post("/api/webhooks/paypal", express.json({ limit: "1mb" }), (req, res) => {
   });
 });
 
-app.use(express.json({ limit: "2mb" }));
+// Security Watch parses its own body: base64 reference photos need a bigger
+// JSON cap (router-level parser) and video uploads are multipart streams.
+const globalJson = express.json({ limit: "2mb" });
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/v1/watch")) {
+    next();
+    return;
+  }
+  globalJson(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 app.use(defaultRateLimiter);

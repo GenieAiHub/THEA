@@ -64,6 +64,12 @@ const DEFAULT_CONFIGS: Array<{
   { key: "crawler_proxy_urls",                   label: "Crawler Proxy URLs",          description: "Comma-separated proxy URLs (optional)",             category: "crawler",       isSecret: false },
   { key: "use_playwright",                       label: "Use Playwright Crawler",      description: "true = headless browser crawl, else Cheerio",       category: "crawler",       isSecret: false },
 
+  // ── Security Watch ───────────────────────────────────────────────────────────
+  { key: "security_watch_enabled",               label: "Security Watch Enabled",      description: "true/false — live camera frame sampling (default true)",  category: "security-watch", isSecret: false },
+  { key: "watch_retention_days",                 label: "Sighting Retention (days)",   description: "Delete sightings & snapshots older than this (default 30)", category: "security-watch", isSecret: false },
+  { key: "watch_sightings_cap_per_org",          label: "Sightings Cap per Org",       description: "Keep only the newest N sightings per org (default 10000)",  category: "security-watch", isSecret: false },
+  { key: "watch_queue_backpressure",             label: "Frame Queue Backpressure",    description: "Skip sampling when this many frames wait (default 12)",     category: "security-watch", isSecret: false },
+
   // ── Payments (Stripe) ────────────────────────────────────────────────────────
   { key: "stripe_secret_key",                    label: "Stripe Secret Key",           description: "sk_live_... or sk_test_... from Stripe",            category: "payments",      isSecret: true  },
   { key: "stripe_webhook_secret",                label: "Stripe Webhook Secret",       description: "whsec_... endpoint signing secret",                category: "payments",      isSecret: true  },

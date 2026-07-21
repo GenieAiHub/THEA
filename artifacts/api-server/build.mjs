@@ -127,6 +127,10 @@ async function buildAll() {
       "telegram",
       "pdfkit",
       "pptxgenjs",
+      // tesseract.js spawns a worker_threads script resolved relative to its own
+      // package dir (__dirname) — must load from node_modules at runtime.
+      "tesseract.js",
+      "tesseract.js-core",
     ],
     alias: {
       "@tensorflow/tfjs": TFJS_BROWSER,

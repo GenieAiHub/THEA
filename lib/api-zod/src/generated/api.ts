@@ -1981,3 +1981,458 @@ export const AuthMeResponse = zod.object({
 })
 
 
+/**
+ * @summary Security Watch runtime status (sampler + ffmpeg availability)
+ */
+export const GetWatchStatusResponse = zod.object({
+  "liveSamplingEnabled": zod.boolean(),
+  "ffmpegAvailable": zod.boolean()
+})
+
+
+/**
+ * @summary List registered cameras
+ */
+export const ListWatchCamerasResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "location": zod.string().nullish(),
+  "streamUrl": zod.string(),
+  "isActive": zod.boolean(),
+  "status": zod.enum(['online', 'offline', 'error']),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "sampleIntervalSec": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Register a camera stream (owner/admin)
+ */
+export const createWatchCameraBodySampleIntervalSecDefault = 3;
+export const createWatchCameraBodySampleIntervalSecMin = 2;
+export const createWatchCameraBodySampleIntervalSecMax = 3600;
+
+export const createWatchCameraBodyIsActiveDefault = true;
+
+export const CreateWatchCameraBody = zod.object({
+  "name": zod.string(),
+  "location": zod.string().optional(),
+  "streamUrl": zod.string().describe('rtsp:\/\/, rtsps:\/\/, http:\/\/ or https:\/\/ stream URL'),
+  "sampleIntervalSec": zod.number().min(createWatchCameraBodySampleIntervalSecMin).max(createWatchCameraBodySampleIntervalSecMax).default(createWatchCameraBodySampleIntervalSecDefault),
+  "isActive": zod.boolean().default(createWatchCameraBodyIsActiveDefault)
+})
+
+export const CreateWatchCameraResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "location": zod.string().nullish(),
+  "streamUrl": zod.string(),
+  "isActive": zod.boolean(),
+  "status": zod.enum(['online', 'offline', 'error']),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "sampleIntervalSec": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a camera (owner/admin)
+ */
+export const UpdateWatchCameraParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateWatchCameraBodySampleIntervalSecMin = 2;
+export const updateWatchCameraBodySampleIntervalSecMax = 3600;
+
+
+
+export const UpdateWatchCameraBody = zod.object({
+  "name": zod.string().optional(),
+  "location": zod.string().optional(),
+  "streamUrl": zod.string().optional(),
+  "sampleIntervalSec": zod.number().min(updateWatchCameraBodySampleIntervalSecMin).max(updateWatchCameraBodySampleIntervalSecMax).optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateWatchCameraResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "location": zod.string().nullish(),
+  "streamUrl": zod.string(),
+  "isActive": zod.boolean(),
+  "status": zod.enum(['online', 'offline', 'error']),
+  "lastSeenAt": zod.coerce.date().nullish(),
+  "lastError": zod.string().nullish(),
+  "sampleIntervalSec": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a camera (owner/admin)
+ */
+export const DeleteWatchCameraParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteWatchCameraResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List watch targets with reference image counts
+ */
+export const ListWatchTargetsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "type": zod.enum(['person', 'vehicle', 'object', 'plate']),
+  "plateText": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "minConfidence": zod.number().nullish(),
+  "cooldownSec": zod.number(),
+  "alertChannels": zod.object({
+  "email": zod.boolean().optional(),
+  "emails": zod.array(zod.string()).optional(),
+  "webhook": zod.boolean().optional(),
+  "slack": zod.boolean().optional(),
+  "teams": zod.boolean().optional()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "imageCount": zod.number()
+}))),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Create a watch target with base64 reference images (owner/admin)
+ */
+export const createWatchTargetBodyMinConfidenceMin = 0.1;
+export const createWatchTargetBodyMinConfidenceMax = 1;
+
+export const createWatchTargetBodyCooldownSecDefault = 300;
+export const createWatchTargetBodyCooldownSecMin = 10;
+export const createWatchTargetBodyCooldownSecMax = 86400;
+
+
+
+export const CreateWatchTargetBody = zod.object({
+  "name": zod.string(),
+  "type": zod.enum(['person', 'vehicle', 'object', 'plate']),
+  "plateText": zod.string().optional().describe('Required for type=plate (4-10 letters\/digits)'),
+  "notes": zod.string().optional(),
+  "minConfidence": zod.number().min(createWatchTargetBodyMinConfidenceMin).max(createWatchTargetBodyMinConfidenceMax).optional(),
+  "cooldownSec": zod.number().min(createWatchTargetBodyCooldownSecMin).max(createWatchTargetBodyCooldownSecMax).default(createWatchTargetBodyCooldownSecDefault),
+  "alertChannels": zod.object({
+  "email": zod.boolean().optional(),
+  "emails": zod.array(zod.string()).optional(),
+  "webhook": zod.boolean().optional(),
+  "slack": zod.boolean().optional(),
+  "teams": zod.boolean().optional()
+}).optional(),
+  "images": zod.array(zod.string()).optional().describe('Base64 JPEG reference photos (required for person\/object, recommended for vehicle)')
+})
+
+export const CreateWatchTargetResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "type": zod.enum(['person', 'vehicle', 'object', 'plate']),
+  "plateText": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "minConfidence": zod.number().nullish(),
+  "cooldownSec": zod.number(),
+  "alertChannels": zod.object({
+  "email": zod.boolean().optional(),
+  "emails": zod.array(zod.string()).optional(),
+  "webhook": zod.boolean().optional(),
+  "slack": zod.boolean().optional(),
+  "teams": zod.boolean().optional()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "imageCount": zod.number(),
+  "warnings": zod.array(zod.string())
+}))
+
+
+/**
+ * @summary Get a watch target with its reference images
+ */
+export const GetWatchTargetParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetWatchTargetResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "type": zod.enum(['person', 'vehicle', 'object', 'plate']),
+  "plateText": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "minConfidence": zod.number().nullish(),
+  "cooldownSec": zod.number(),
+  "alertChannels": zod.object({
+  "email": zod.boolean().optional(),
+  "emails": zod.array(zod.string()).optional(),
+  "webhook": zod.boolean().optional(),
+  "slack": zod.boolean().optional(),
+  "teams": zod.boolean().optional()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "detectedClass": zod.string().nullish(),
+  "hasFace": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+
+
+/**
+ * @summary Update a watch target (owner/admin)
+ */
+export const UpdateWatchTargetParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateWatchTargetBodyCooldownSecMin = 10;
+export const updateWatchTargetBodyCooldownSecMax = 86400;
+
+
+
+export const UpdateWatchTargetBody = zod.object({
+  "name": zod.string().optional(),
+  "plateText": zod.string().optional(),
+  "notes": zod.string().optional(),
+  "minConfidence": zod.number().nullish(),
+  "cooldownSec": zod.number().min(updateWatchTargetBodyCooldownSecMin).max(updateWatchTargetBodyCooldownSecMax).optional(),
+  "alertChannels": zod.object({
+  "email": zod.boolean().optional(),
+  "emails": zod.array(zod.string()).optional(),
+  "webhook": zod.boolean().optional(),
+  "slack": zod.boolean().optional(),
+  "teams": zod.boolean().optional()
+}).optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateWatchTargetResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "name": zod.string(),
+  "type": zod.enum(['person', 'vehicle', 'object', 'plate']),
+  "plateText": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "minConfidence": zod.number().nullish(),
+  "cooldownSec": zod.number(),
+  "alertChannels": zod.object({
+  "email": zod.boolean().optional(),
+  "emails": zod.array(zod.string()).optional(),
+  "webhook": zod.boolean().optional(),
+  "slack": zod.boolean().optional(),
+  "teams": zod.boolean().optional()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a watch target (owner/admin)
+ */
+export const DeleteWatchTargetParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteWatchTargetResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Add reference images to a watch target (owner/admin)
+ */
+export const AddWatchTargetImagesParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const AddWatchTargetImagesBody = zod.object({
+  "images": zod.array(zod.string()).describe('Base64 JPEG reference photos')
+})
+
+export const AddWatchTargetImagesResponse = zod.object({
+  "added": zod.number(),
+  "warnings": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Delete a reference image (owner/admin)
+ */
+export const DeleteWatchTargetImageParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "imageId": zod.coerce.string().uuid()
+})
+
+export const DeleteWatchTargetImageResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List sightings (newest first) with optional filters
+ */
+export const listWatchSightingsQueryLimitDefault = 50;
+export const listWatchSightingsQueryLimitMax = 200;
+
+export const listWatchSightingsQueryOffsetDefault = 0;
+export const listWatchSightingsQueryOffsetMin = 0;
+
+
+
+export const ListWatchSightingsQueryParams = zod.object({
+  "targetId": zod.coerce.string().uuid().optional(),
+  "cameraId": zod.coerce.string().uuid().optional(),
+  "videoJobId": zod.coerce.string().uuid().optional(),
+  "limit": zod.coerce.number().min(1).max(listWatchSightingsQueryLimitMax).default(listWatchSightingsQueryLimitDefault),
+  "offset": zod.coerce.number().min(listWatchSightingsQueryOffsetMin).default(listWatchSightingsQueryOffsetDefault)
+})
+
+export const ListWatchSightingsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "targetId": zod.string().uuid().nullish(),
+  "cameraId": zod.string().uuid().nullish(),
+  "videoJobId": zod.string().uuid().nullish(),
+  "matchType": zod.enum(['face', 'object', 'plate']),
+  "detail": zod.string().nullish(),
+  "confidence": zod.number().nullish(),
+  "videoOffsetSec": zod.number().nullish(),
+  "alerted": zod.boolean(),
+  "targetName": zod.string().nullish(),
+  "targetType": zod.string().nullish(),
+  "cameraName": zod.string().nullish(),
+  "hasSnapshot": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Fetch the JPEG snapshot captured for a sighting
+ */
+export const GetWatchSightingSnapshotParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetWatchSightingSnapshotResponse = zod.unknown()
+
+
+/**
+ * @summary Delete a sighting (owner/admin)
+ */
+export const DeleteWatchSightingParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteWatchSightingResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary List offline video scan jobs
+ */
+export const ListWatchVideoJobsResponse = zod.object({
+  "data": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "fileName": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'completed', 'failed']),
+  "progress": zod.number(),
+  "durationSec": zod.number().nullish(),
+  "framesScanned": zod.number(),
+  "sightingsCount": zod.number(),
+  "error": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Upload a recording (multipart, max 500MB) and queue an offline scan (owner/admin)
+ */
+export const UploadWatchVideoBody = zod.object({
+  "file": zod.instanceof(File).optional()
+})
+
+export const UploadWatchVideoResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "fileName": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'completed', 'failed']),
+  "progress": zod.number(),
+  "durationSec": zod.number().nullish(),
+  "framesScanned": zod.number(),
+  "sightingsCount": zod.number(),
+  "error": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Get an offline video scan job (poll for progress)
+ */
+export const GetWatchVideoJobParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetWatchVideoJobResponse = zod.object({
+  "id": zod.string().uuid(),
+  "orgId": zod.string().uuid(),
+  "fileName": zod.string(),
+  "status": zod.enum(['pending', 'processing', 'completed', 'failed']),
+  "progress": zod.number(),
+  "durationSec": zod.number().nullish(),
+  "framesScanned": zod.number(),
+  "sightingsCount": zod.number(),
+  "error": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "startedAt": zod.coerce.date().nullish(),
+  "completedAt": zod.coerce.date().nullish()
+})
+
+

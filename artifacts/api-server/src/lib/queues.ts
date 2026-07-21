@@ -33,6 +33,8 @@ export const QUEUE_CONCURRENCY: Record<string, number> = {
   "email-delivery":     5,
   "market-generation":  1,   // LLM poll generation — sequential
   "intelligence-jobs":  1,   // journalist scan, newsjacking, campaign measure, competitive briefing
+  "visual-recognition": 1,   // CPU inference — strictly sequential
+  "video-scan":         1,   // offline video scanning — sequential, heavy
   "dlq":                1,   // dead-letter queue — sequential, low priority
 };
 
@@ -73,6 +75,13 @@ export function getQueues() {
         attempts: 2,
         backoff: { type: "exponential", delay: 30_000 },
       }),
+      // Camera frames are ephemeral — never retry, drop failed frames quickly
+      visualRecognition: makeQueue("visual-recognition", {
+        attempts: 1,
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 100 },
+      }),
+      videoScan: makeQueue("video-scan", { attempts: 1 }),
       // Dead-letter queue — jobs are moved here after exhausting all retries
       dlq: makeQueue("dlq", { attempts: 1, removeOnFail: { count: 10000 } }),
     };

@@ -33,3 +33,4 @@ export * from "./access_events";
 export * from "./wallets";
 export * from "./deposit_intents";
 export * from "./mmp";
+export * from "./watch";

@@ -36,4 +36,6 @@
 - [Platform config resolver & catalog](platform-config-catalog.md) — DB-first (lowercase key ↔ UPPERCASE env); keep admin_configs DEFAULT_CONFIGS synced w/ all getPlatformConfig* sites; never env→DB
 - [MiroFish real-engine integration](mirofish-integration.md) — What-If drives real OASIS sidecar; poll runner_status NOT status; compose interpolates before profile filter so use ${VAR:-} on opt-in services
 - [THEA branding assets](thea-branding-assets.md) — TWO assets: square eye-tile icon = favicon/app-icon ONLY, 3:2 thea-logo.png lockup = on-page logo everywhere (h-X w-auto object-contain, drop dup wordmark); iOS app icon needs no-alpha variant
+- [Security Watch pipeline](security-watch-pipeline.md) — plate OCR needs sliding-window token joins + ambiguity folding; raw crops beat preprocessed; in-process sampler = single instance only
+- [Orval query options](orval-query-options.md) — passing { query: {...} } to generated hooks requires explicit queryKey via getXQueryKey(params) or TS2741
 - [THEA MMP attribution platform](thea-mmp-platform.md) — mmpi_ ingest tokens; ≤7d ipSalt fingerprint; N+1-day maturity gating; unauth SKAN receiver keyed by unique apple_app_id
