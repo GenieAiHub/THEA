@@ -63,13 +63,31 @@ router.get("/status", (_req, res) => {
 
 // ═══ Cameras ═════════════════════════════════════════════════════════════════
 
+const MASKED_CREDENTIALS = "•••";
+
+/**
+ * Masks embedded credentials in a stream URL (e.g. rtsp://user:pass@host/x →
+ * rtsp://•••@host/x) so non-admin org members never see camera passwords.
+ */
+function maskStreamUrl(url: string): string {
+  return url.replace(/^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)[^@/]+@/, `$1${MASKED_CREDENTIALS}@`);
+}
+
+function canSeeFullStreamUrl(req: { thea?: { user: { role: string } } }): boolean {
+  const role = req.thea?.user.role;
+  return role === "owner" || role === "admin";
+}
+
 router.get("/cameras", async (req, res) => {
   const cameras = await db
     .select()
     .from(watchCamerasTable)
     .where(eq(watchCamerasTable.orgId, req.thea!.org.id))
     .orderBy(desc(watchCamerasTable.createdAt));
-  res.json({ data: cameras, total: cameras.length });
+  const data = canSeeFullStreamUrl(req)
+    ? cameras
+    : cameras.map((cam) => ({ ...cam, streamUrl: maskStreamUrl(cam.streamUrl) }));
+  res.json({ data, total: cameras.length });
 });
 
 router.post("/cameras", requireRole("owner", "admin"), async (req, res) => {
@@ -107,6 +125,10 @@ router.patch("/cameras/:id", requireRole("owner", "admin"), async (req, res) => 
   }
   if (location !== undefined) updates.location = location?.trim() || null;
   if (streamUrl !== undefined) {
+    if (streamUrl.includes(MASKED_CREDENTIALS)) {
+      res.status(400).json({ error: "streamUrl contains a masked credential placeholder; re-enter the full URL" });
+      return;
+    }
     const urlError = validateStreamUrl(streamUrl.trim());
     if (urlError) { res.status(400).json({ error: urlError }); return; }
     updates.streamUrl = streamUrl.trim();
