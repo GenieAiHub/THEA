@@ -1522,8 +1522,8 @@ router.get("/debug/recent", async (req, res) => {
 
 /**
  * Industry benchmark reference data (v1, 2025). Median values per app vertical
- * compiled from published mobile-marketing benchmark reports (AppsFlyer,
- * Adjust, Liftoff, Business of Apps — 2024/25 editions). These are STANDARD
+ * compiled from published mobile-marketing benchmark reports (Adjust,
+ * Liftoff, Business of Apps — 2024/25 editions). These are STANDARD
  * reference figures, not measured from THEA data — the UI labels them as such.
  * Retention figures are classic day-N retention rates; cvr is click→install.
  */
@@ -1644,7 +1644,7 @@ router.get("/benchmarks", async (req, res) => {
   res.json({
     app: { id: app.id, name: app.name, category },
     benchmarksVersion: BENCHMARKS_VERSION,
-    source: "Industry medians compiled from published 2024/25 mobile marketing benchmark reports (AppsFlyer, Adjust, Liftoff, Business of Apps). Standard reference data — not measured by THEA.",
+    source: "Industry medians compiled from published 2024/25 mobile marketing benchmark reports (Adjust, Liftoff, Business of Apps). Standard reference data — not measured by THEA.",
     windows: { performanceDays: 30, retentionInstallWindowDays: 90 },
     metrics: [
       metric("cpi", "Cost per install", yoursCpi, bench.cpiUsd, "lower", "usd"),

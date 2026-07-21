@@ -1,18 +1,18 @@
-import { APPSFLYER_PRODUCTS } from "@/content/mmp-report";
+import { THEA_PRODUCTS } from "@/content/mmp-report";
 import { motion } from "framer-motion";
 
-export function SectionAppsFlyer() {
+export function SectionThea() {
   return (
-    <section id="appsflyer" className="scroll-mt-32">
+    <section id="thea" className="scroll-mt-32">
       <div className="mb-12">
-        <h2 className="text-3xl font-display font-bold text-white mb-4">AppsFlyer Product Suite</h2>
+        <h2 className="text-3xl font-display font-bold text-white mb-4">THEA Product Suite</h2>
         <p className="text-slate-400 max-w-3xl">
-          Deconstructing the market leader's offering. Uniqueness scores (1–10) indicate defensive depth and difficulty of replication.
+          Inside the THEA offering. Uniqueness scores (1–10) indicate defensive depth and difficulty of replication.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {APPSFLYER_PRODUCTS.map((product, idx) => (
+        {THEA_PRODUCTS.map((product, idx) => (
           <motion.div
             key={product.name}
             initial={{ opacity: 0, y: 10 }}

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 const SECTIONS = [
   { id: "overview", label: "Market Overview" },
-  { id: "appsflyer", label: "AppsFlyer Suite" },
+  { id: "thea", label: "THEA Suite" },
   { id: "competitors", label: "Competitor Matrix" },
   { id: "services", label: "Service Catalogue" },
   { id: "gaps", label: "Market Gaps" },

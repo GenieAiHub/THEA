@@ -4,7 +4,7 @@ import { MmpHeader } from "@/components/mmp-report/MmpHeader";
 import { MmpFooter } from "@/components/mmp-report/MmpFooter";
 import { MmpNavigation } from "@/components/mmp-report/MmpNavigation";
 import { SectionOverview } from "@/components/mmp-report/SectionOverview";
-import { SectionAppsFlyer } from "@/components/mmp-report/SectionAppsFlyer";
+import { SectionThea } from "@/components/mmp-report/SectionThea";
 import { SectionCompetitors } from "@/components/mmp-report/SectionCompetitors";
 import { SectionServices } from "@/components/mmp-report/SectionServices";
 import { SectionGaps } from "@/components/mmp-report/SectionGaps";
@@ -42,7 +42,7 @@ export default function MmpReportPage() {
         {/* Main Content Area */}
         <main className="flex-1 min-w-0 flex flex-col gap-32">
           <SectionOverview />
-          <SectionAppsFlyer />
+          <SectionThea />
           <SectionCompetitors />
           <SectionServices />
           <SectionGaps />

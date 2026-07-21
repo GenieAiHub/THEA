@@ -4,7 +4,7 @@ import {
   MARKET_STATS,
   MARKET_TRENDS,
   MARKET_PROJECTION,
-  APPSFLYER_PRODUCTS,
+  THEA_PRODUCTS,
   COMPETITORS,
   SERVICE_CATALOGUE,
   MARKET_GAPS,
@@ -15,7 +15,7 @@ import {
 
 const SECTION_TITLES = [
   "Market Overview",
-  "AppsFlyer Product Suite",
+  "THEA Product Suite",
   "Competitor Matrix",
   "Full Service Catalogue",
   "Market Gaps",
@@ -45,7 +45,7 @@ describe("MMP report PDF", () => {
     expect(MARKET_STATS.length).toBeGreaterThan(0);
     expect(MARKET_TRENDS.length).toBeGreaterThan(0);
     expect(MARKET_PROJECTION.length).toBeGreaterThan(0);
-    expect(APPSFLYER_PRODUCTS.length).toBeGreaterThan(0);
+    expect(THEA_PRODUCTS.length).toBeGreaterThan(0);
     expect(COMPETITORS.length).toBeGreaterThan(0);
     expect(SERVICE_CATALOGUE.length).toBeGreaterThan(0);
     expect(MARKET_GAPS.length).toBeGreaterThan(0);
@@ -67,7 +67,7 @@ describe("MMP report PDF", () => {
 
     // Spot-check that real data (not just headers) made it into the document
     expect(serialized).toContain(MARKET_STATS[0].value);
-    expect(serialized).toContain(APPSFLYER_PRODUCTS[0].name);
+    expect(serialized).toContain(THEA_PRODUCTS[0].name);
     expect(serialized).toContain(COMPETITORS[0].name);
     expect(serialized).toContain(SERVICE_CATALOGUE[0].name);
     expect(serialized).toContain(MARKET_GAPS[0].name);

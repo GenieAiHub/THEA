@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { SERVICE_CATALOGUE, DEMAND_TIER_LABELS, DemandTier, CompetitorKey, COMPETITORS } from "@/content/mmp-report";
 
 const VENDOR_LABELS: Record<CompetitorKey, string> = {
-  appsflyer: "AppsFlyer",
+  thea: "THEA",
   ...Object.fromEntries(COMPETITORS.map(c => [c.key, c.name])),
 } as Record<CompetitorKey, string>;
 import { motion } from "framer-motion";

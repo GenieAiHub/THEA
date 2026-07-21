@@ -87,10 +87,10 @@ export const MARKET_PROJECTION: MarketProjectionPoint[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Section 2 — AppsFlyer Product Suite                                 */
+/* Section 2 — THEA Product Suite                                      */
 /* ------------------------------------------------------------------ */
 
-export interface AppsFlyerProduct {
+export interface TheaProduct {
   name: string;
   whatItDoes: string;
   benefit: string;
@@ -98,7 +98,7 @@ export interface AppsFlyerProduct {
   uniqueness: number;
 }
 
-export const APPSFLYER_PRODUCTS: AppsFlyerProduct[] = [
+export const THEA_PRODUCTS: TheaProduct[] = [
   {
     name: "Core Attribution",
     whatItDoes:
@@ -190,7 +190,7 @@ export const APPSFLYER_PRODUCTS: AppsFlyerProduct[] = [
 /* ------------------------------------------------------------------ */
 
 export type CompetitorKey =
-  | "appsflyer"
+  | "thea"
   | "adjust"
   | "branch"
   | "singular"
@@ -249,7 +249,7 @@ export const COMPETITORS: Competitor[] = [
       "Flexible data export and warehouse-native pipelines",
     ],
     weaknesses: [
-      "Smaller partner ecosystem than AppsFlyer/Adjust",
+      "Smaller partner ecosystem than THEA/Adjust",
       "Lower brand recognition outside performance-marketing circles",
       "Fewer adjacent products (clean room, audiences)",
     ],
@@ -358,168 +358,168 @@ export const SERVICE_CATALOGUE: ServiceCategory[] = [
     demand: "high",
     description: "Match installs to the ad, network, campaign, and creative that drove them.",
     keyDriver: "Foundation of all UA spend accountability.",
-    offeredBy: ["appsflyer", "adjust", "branch", "singular", "kochava", "tenjin", "airbridge", "firebase", "attriax"],
+    offeredBy: ["thea", "adjust", "branch", "singular", "kochava", "tenjin", "airbridge", "firebase", "attriax"],
   },
   {
     name: "In-app event & revenue tracking",
     demand: "high",
     description: "Attribute post-install events — purchases, subscriptions, retention — to acquisition source.",
     keyDriver: "ROAS optimization needs revenue tied to source.",
-    offeredBy: ["appsflyer", "adjust", "branch", "singular", "kochava", "tenjin", "airbridge", "firebase", "attriax"],
+    offeredBy: ["thea", "adjust", "branch", "singular", "kochava", "tenjin", "airbridge", "firebase", "attriax"],
   },
   {
     name: "SKAN / iOS privacy measurement",
     demand: "high",
     description: "Manage SKAdNetwork conversion values and merge postbacks with consented real-time data.",
     keyDriver: "ATT wiped out deterministic iOS attribution.",
-    offeredBy: ["appsflyer", "adjust", "singular", "kochava", "airbridge"],
+    offeredBy: ["thea", "adjust", "singular", "kochava", "airbridge"],
   },
   {
     name: "Ad fraud prevention",
     demand: "high",
     description: "Detect and block install hijacking, click flooding, bots, and SDK spoofing.",
     keyDriver: "Fraud consumes an estimated 10–20% of UA budgets.",
-    offeredBy: ["appsflyer", "adjust", "kochava", "singular"],
+    offeredBy: ["thea", "adjust", "kochava", "singular"],
   },
   {
     name: "Deep linking & deferred deep linking",
     demand: "high",
     description: "Route users to in-app content from any channel, surviving the install step.",
     keyDriver: "Conversion-rate gains across email, web, QR, and social.",
-    offeredBy: ["appsflyer", "adjust", "branch", "kochava", "airbridge"],
+    offeredBy: ["thea", "adjust", "branch", "kochava", "airbridge"],
   },
   {
     name: "Cost aggregation & ROAS reporting",
     demand: "high",
     description: "Normalize spend from hundreds of networks so cost and revenue live in one report.",
     keyDriver: "CFO-grade ROI reporting without spreadsheets.",
-    offeredBy: ["appsflyer", "adjust", "singular", "kochava", "airbridge"],
+    offeredBy: ["thea", "adjust", "singular", "kochava", "airbridge"],
   },
   {
     name: "Raw data export & warehouse streaming",
     demand: "high",
     description: "Stream attribution events to customer-owned warehouses and real-time endpoints.",
     keyDriver: "Data teams demand ownership of event-level data.",
-    offeredBy: ["appsflyer", "adjust", "singular", "kochava", "tenjin", "airbridge", "branch"],
+    offeredBy: ["thea", "adjust", "singular", "kochava", "tenjin", "airbridge", "branch"],
   },
   {
     name: "Cohort & retention analytics",
     demand: "high",
     description: "LTV, retention, and engagement curves segmented by acquisition source.",
     keyDriver: "Payback-window math drives every UA budget.",
-    offeredBy: ["appsflyer", "adjust", "singular", "kochava", "tenjin", "airbridge", "firebase"],
+    offeredBy: ["thea", "adjust", "singular", "kochava", "tenjin", "airbridge", "firebase"],
   },
   {
     name: "Audience segmentation & sync",
     demand: "high",
     description: "Build behavioral segments and sync them to networks for targeting and suppression.",
     keyDriver: "Retargeting efficiency and churn-risk winbacks.",
-    offeredBy: ["appsflyer", "adjust", "kochava"],
+    offeredBy: ["thea", "adjust", "kochava"],
   },
   {
     name: "Incrementality measurement",
     demand: "emerging",
     description: "Causal lift experiments — holdouts, geo tests — measuring true campaign impact.",
     keyDriver: "Distrust of claimed conversions after privacy changes.",
-    offeredBy: ["appsflyer", "adjust", "kochava"],
+    offeredBy: ["thea", "adjust", "kochava"],
   },
   {
     name: "Predictive LTV (pLTV)",
     demand: "emerging",
     description: "ML models estimating cohort value from early signals for day-1 optimization.",
     keyDriver: "SKAN postback windows force early-signal decisions.",
-    offeredBy: ["appsflyer"],
+    offeredBy: ["thea"],
   },
   {
     name: "Data clean rooms",
     demand: "emerging",
     description: "Privacy-safe joins between first-party, attribution, and platform data.",
     keyDriver: "Privacy/legal teams block raw data sharing.",
-    offeredBy: ["appsflyer", "kochava"],
+    offeredBy: ["thea", "kochava"],
   },
   {
     name: "CTV attribution",
     demand: "emerging",
     description: "Tie Connected-TV ad exposure to mobile installs via household-level matching.",
     keyDriver: "CTV budgets growing 30%+ YoY need app-side proof.",
-    offeredBy: ["appsflyer", "adjust", "kochava"],
+    offeredBy: ["thea", "adjust", "kochava"],
   },
   {
     name: "Web-to-app & cross-platform identity",
     demand: "emerging",
     description: "Unified user journeys across web, mobile web, and native app.",
     keyDriver: "PLG and e-commerce funnels start on the web.",
-    offeredBy: ["appsflyer", "branch", "airbridge", "singular"],
+    offeredBy: ["thea", "branch", "airbridge", "singular"],
   },
   {
     name: "Android Privacy Sandbox readiness",
     demand: "emerging",
     description: "Attribution Reporting API support as GAID deprecation approaches.",
     keyDriver: "Google will retire the ad ID as we know it.",
-    offeredBy: ["appsflyer", "adjust", "singular", "kochava"],
+    offeredBy: ["thea", "adjust", "singular", "kochava"],
   },
   {
     name: "Media mix modeling (MMM)",
     demand: "emerging",
     description: "Top-down statistical models allocating credit across all channels including offline.",
     keyDriver: "Boards want channel-mix answers user-level data can't give.",
-    offeredBy: ["appsflyer", "kochava"],
+    offeredBy: ["thea", "kochava"],
   },
   {
     name: "Creative analytics",
     demand: "emerging",
     description: "Tag, group, and score creatives; connect creative elements to performance.",
     keyDriver: "Creative is the last big performance lever left.",
-    offeredBy: ["appsflyer", "adjust", "singular"],
+    offeredBy: ["thea", "adjust", "singular"],
   },
   {
     name: "Uninstall measurement",
     demand: "medium",
     description: "Track uninstalls by source to expose low-quality acquisition channels.",
     keyDriver: "Uninstall rate is a proxy for traffic quality.",
-    offeredBy: ["appsflyer", "adjust", "kochava", "singular"],
+    offeredBy: ["thea", "adjust", "kochava", "singular"],
   },
   {
     name: "Owned-media attribution (email/SMS/push)",
     demand: "medium",
     description: "Attribute conversions to owned channels alongside paid media.",
     keyDriver: "CRM teams need credit for re-engagement wins.",
-    offeredBy: ["appsflyer", "branch", "adjust"],
+    offeredBy: ["thea", "branch", "adjust"],
   },
   {
     name: "QR & offline-to-app attribution",
     demand: "medium",
     description: "Measure app installs originating from QR codes and offline touchpoints.",
     keyDriver: "Post-COVID QR ubiquity in retail and OOH.",
-    offeredBy: ["appsflyer", "branch", "adjust"],
+    offeredBy: ["thea", "branch", "adjust"],
   },
   {
     name: "Agency & partner access controls",
     demand: "medium",
     description: "Scoped multi-tenant access for agencies, networks, and regional teams.",
     keyDriver: "Enterprise governance and agency workflows.",
-    offeredBy: ["appsflyer", "adjust", "kochava", "singular"],
+    offeredBy: ["thea", "adjust", "kochava", "singular"],
   },
   {
     name: "Benchmarks & market intelligence",
     demand: "medium",
     description: "Anonymized vertical benchmarks for CPI, retention, and ROAS.",
     keyDriver: "Teams can't judge performance without context.",
-    offeredBy: ["appsflyer"],
+    offeredBy: ["thea"],
   },
   {
     name: "PC & console attribution",
     demand: "medium",
     description: "Extend measurement to PC and console game launches and cross-play.",
     keyDriver: "Cross-platform gaming budgets keep growing.",
-    offeredBy: ["appsflyer", "adjust", "kochava"],
+    offeredBy: ["thea", "adjust", "kochava"],
   },
   {
     name: "SDK debugging & developer tools",
     demand: "medium",
     description: "Integration validators, test consoles, and event debuggers for engineers.",
     keyDriver: "Bad SDK setups silently corrupt attribution data.",
-    offeredBy: ["appsflyer", "adjust", "branch", "tenjin"],
+    offeredBy: ["thea", "adjust", "branch", "tenjin"],
   },
 ];
 
@@ -650,7 +650,7 @@ export const MARKET_GAPS: MarketGap[] = [
     tier: "warm",
     name: "Developer-Facing Attribution Tooling",
     whatsMissing:
-      "AppsFlyer is built for marketers, not engineers. SDK integration is painful — developers spend days debugging why installs aren't being attributed correctly with no good tooling.",
+      "Traditional MMPs are built for marketers, not engineers. SDK integration is painful — developers spend days debugging why installs aren't being attributed correctly with no good tooling.",
     whatToBuild:
       "Real-time SDK event inspector (like a network debugger for attribution events), attribution sandbox/testing environment to simulate installs without polluting real data, SKAN postback simulator, integration health checks inside the SDK itself, CLI tool for attribution testing.",
     clients: "Mobile developers at any app company.",

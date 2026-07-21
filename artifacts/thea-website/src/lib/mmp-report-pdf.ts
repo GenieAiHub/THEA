@@ -3,7 +3,7 @@ import {
   MARKET_STATS,
   MARKET_TRENDS,
   MARKET_PROJECTION,
-  APPSFLYER_PRODUCTS,
+  THEA_PRODUCTS,
   COMPETITORS,
   SERVICE_CATALOGUE,
   DEMAND_TIER_LABELS,
@@ -133,16 +133,16 @@ export function buildMmpReportDocDefinition(): TDocumentDefinitions {
     },
   ];
 
-  // ── Section 2: AppsFlyer Product Suite ──
-  const appsflyer: Content[] = [
-    sectionHeader("02", "AppsFlyer Product Suite"),
+  // ── Section 2: THEA Product Suite ──
+  const theaSuite: Content[] = [
+    sectionHeader("02", "THEA Product Suite"),
     {
       table: {
         headerRows: 1,
         widths: [95, "*", 130, 55],
         body: [
           [th("Product"), th("What it does"), th("Benefit"), th("Uniqueness")],
-          ...APPSFLYER_PRODUCTS.map((p): TableCell[] => [
+          ...THEA_PRODUCTS.map((p): TableCell[] => [
             { text: p.name, fontSize: 8.5, bold: true, color: DARK },
             { text: p.whatItDoes, fontSize: 8, color: SLATE },
             { text: p.benefit, fontSize: 8, color: SLATE },
@@ -343,7 +343,7 @@ export function buildMmpReportDocDefinition(): TDocumentDefinitions {
     content: [
       cover,
       { stack: overview },
-      withBreak(appsflyer),
+      withBreak(theaSuite),
       withBreak(competitors),
       withBreak(services),
       withBreak(gaps),
