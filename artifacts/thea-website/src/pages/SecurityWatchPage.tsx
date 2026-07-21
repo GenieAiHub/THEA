@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { DvrConnectDialog } from "@/components/watch/DvrConnectDialog";
 import { LiveStreamDialog } from "@/components/watch/LiveStreamDialog";
+import { useAuth } from "@/context/AuthContext";
 
 type TargetType = "person" | "vehicle" | "object" | "plate";
 
@@ -94,6 +95,8 @@ async function filesToBase64(files: FileList): Promise<string[]> {
 /* ------------------------------- Cameras tab ------------------------------ */
 
 function CamerasTab() {
+  const { user } = useAuth();
+  const canManageCameras = user?.role === "owner" || user?.role === "admin";
   const { data, isLoading } = useListWatchCameras<any>({ query: { queryKey: getListWatchCamerasQueryKey(), refetchInterval: 15_000 } });
   const createCamera = useCreateWatchCamera();
   const updateCamera = useUpdateWatchCamera();
@@ -152,7 +155,8 @@ function CamerasTab() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+    <div className={`grid grid-cols-1 ${canManageCameras ? "lg:grid-cols-3" : ""} gap-6 items-start`}>
+      {canManageCameras && (
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader className="pb-3">
           <CardTitle className="text-slate-100 text-base">Register Camera</CardTitle>
@@ -183,8 +187,9 @@ function CamerasTab() {
           </div>
         </CardContent>
       </Card>
+      )}
 
-      <Card className="bg-slate-900 border-slate-800 lg:col-span-2">
+      <Card className={`bg-slate-900 border-slate-800 ${canManageCameras ? "lg:col-span-2" : ""}`}>
         <CardHeader className="pb-2">
           <CardTitle className="text-slate-100 text-base">Cameras ({cameras.length})</CardTitle>
         </CardHeader>
@@ -218,12 +223,16 @@ function CamerasTab() {
                     <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:text-red-400 hover:border-red-500/40" onClick={() => setLiveCamera({ id: cam.id, name: cam.name })} title="Watch live" data-testid={`button-live-camera-${cam.id}`}>
                       <Radio className="w-4 h-4 mr-1.5" /> Live
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-200" onClick={() => toggleActive(cam)} title={cam.isActive ? "Pause sampling" : "Resume sampling"} data-testid={`button-toggle-camera-${cam.id}`}>
-                      {cam.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-slate-500 hover:text-red-400" onClick={() => handleDelete(cam.id)} data-testid={`button-delete-camera-${cam.id}`}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canManageCameras && (
+                      <>
+                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-200" onClick={() => toggleActive(cam)} title={cam.isActive ? "Pause sampling" : "Resume sampling"} data-testid={`button-toggle-camera-${cam.id}`}>
+                          {cam.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-slate-500 hover:text-red-400" onClick={() => handleDelete(cam.id)} data-testid={`button-delete-camera-${cam.id}`}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
