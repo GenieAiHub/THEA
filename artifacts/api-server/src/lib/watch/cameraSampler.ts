@@ -14,6 +14,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "../logger";
 import { getPlatformConfigBool, getPlatformConfigNumber } from "../platform-config";
 import { addJob, getQueues } from "../queues";
+import { getRedis } from "../redis";
 import { probeFfmpeg, captureFrame } from "./ffmpeg";
 
 export const FRAME_TMP_DIR = "/tmp/thea-watch-frames";
@@ -21,6 +22,19 @@ export const FRAME_TMP_DIR = "/tmp/thea-watch-frames";
 const REFRESH_INTERVAL_MS = 15_000;
 const MIN_SAMPLE_INTERVAL_SEC = 2;
 const DEFAULT_BACKPRESSURE_LIMIT = 12;
+
+// Distributed leader lock so only ONE API replica samples cameras.
+// TTL must comfortably exceed the renew interval so brief Redis hiccups or
+// event-loop stalls don't cause spurious leader churn.
+const LEADER_KEY = "thea:watch:camera-sampler:leader";
+const LEADER_TTL_MS = 30_000;
+const LEADER_RENEW_INTERVAL_MS = 10_000;
+const INSTANCE_ID = randomUUID();
+
+// Atomically renew the lock only if we still hold it.
+const RENEW_LUA = `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("pexpire", KEYS[1], ARGV[2]) else return 0 end`;
+// Atomically release the lock only if we still hold it.
+const RELEASE_LUA = `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end`;
 
 interface CameraRunner {
   camera: WatchCamera;
@@ -32,10 +46,101 @@ interface CameraRunner {
 const runners = new Map<string, CameraRunner>();
 let refreshTimer: NodeJS.Timeout | null = null;
 let cleanupTimer: NodeJS.Timeout | null = null;
+let leaderTimer: NodeJS.Timeout | null = null;
 let samplerEnabled = false;
+let isLeader = false;
 
 export function isSamplerRunning(): boolean {
   return samplerEnabled;
+}
+
+export function isSamplerLeader(): boolean {
+  return isLeader;
+}
+
+let lastSuccessfulLockAt = 0;
+
+/** Minimal Redis surface the leader lock needs (overridable in tests). */
+interface LockRedis {
+  eval(script: string, numKeys: number, ...args: (string | number)[]): Promise<unknown>;
+  set(key: string, value: string, px: "PX", ms: number, nx: "NX"): Promise<string | null>;
+}
+
+let redisOverride: LockRedis | null = null;
+
+function getLockRedis(): LockRedis {
+  return redisOverride ?? (getRedis() as unknown as LockRedis);
+}
+
+/**
+ * Try to become (or stay) the sampling leader. Returns whether this instance
+ * currently holds the lock. FAILS CLOSED on Redis errors:
+ * - A non-leader never assumes leadership without confirming via Redis.
+ * - A current leader tolerates errors only while its last confirmed lock is
+ *   still within the TTL (no other node can have acquired the key in that
+ *   window if Redis is fully down); once the TTL has elapsed it stands down,
+ *   since the key may have expired and been taken by another replica.
+ */
+async function tryAcquireOrRenewLeadership(): Promise<boolean> {
+  // Once Redis positively confirms the lock is no longer ours (renew returned
+  // 0), the TTL grace window must NOT apply: another replica may already hold
+  // it. Only a successful SET NX may keep us leader from that point on.
+  let lockKnownLost = false;
+  try {
+    const redis = getLockRedis();
+    if (isLeader) {
+      const renewed = await redis.eval(RENEW_LUA, 1, LEADER_KEY, INSTANCE_ID, String(LEADER_TTL_MS));
+      if (renewed === 1) {
+        lastSuccessfulLockAt = Date.now();
+        return true;
+      }
+      // Redis confirmed the lock expired / was taken over; try a clean re-acquire.
+      lockKnownLost = true;
+    }
+    const acquired = await redis.set(LEADER_KEY, INSTANCE_ID, "PX", LEADER_TTL_MS, "NX");
+    if (acquired === "OK") {
+      lastSuccessfulLockAt = Date.now();
+      return true;
+    }
+    return false;
+  } catch (err) {
+    if (isLeader && !lockKnownLost && Date.now() - lastSuccessfulLockAt < LEADER_TTL_MS) {
+      logger.warn({ err }, "Camera sampler leader lock renew errored; retaining leadership within TTL grace window");
+      return true;
+    }
+    logger.warn({ err, lockKnownLost }, "Camera sampler leader lock check failed; failing closed (not leader)");
+    return false;
+  }
+}
+
+function becomeLeader(): void {
+  if (isLeader) return;
+  isLeader = true;
+  logger.info({ instanceId: INSTANCE_ID }, "Camera sampler: this instance is now the leader");
+  void refresh();
+  refreshTimer = setInterval(() => {
+    void refresh();
+  }, REFRESH_INTERVAL_MS);
+  cleanupTimer = setInterval(() => {
+    void cleanupStaleFrames();
+  }, 5 * 60_000);
+}
+
+function relinquishLeadership(): void {
+  if (!isLeader) return;
+  isLeader = false;
+  logger.warn({ instanceId: INSTANCE_ID }, "Camera sampler: lost leadership; stopping local samplers");
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (cleanupTimer) clearInterval(cleanupTimer);
+  refreshTimer = null;
+  cleanupTimer = null;
+  for (const id of [...runners.keys()]) stopRunner(id);
+}
+
+async function leaderTick(): Promise<void> {
+  const holding = await tryAcquireOrRenewLeadership();
+  if (holding && !isLeader) becomeLeader();
+  else if (!holding && isLeader) relinquishLeadership();
 }
 
 async function updateCameraHealth(cameraId: string, status: string, lastError: string | null): Promise<void> {
@@ -173,21 +278,50 @@ export async function startCameraSampler(): Promise<void> {
 
   if (!existsSync(FRAME_TMP_DIR)) mkdirSync(FRAME_TMP_DIR, { recursive: true });
   samplerEnabled = true;
-  await refresh();
-  refreshTimer = setInterval(() => {
-    void refresh();
-  }, REFRESH_INTERVAL_MS);
-  cleanupTimer = setInterval(() => {
-    void cleanupStaleFrames();
-  }, 5 * 60_000);
-  logger.info("Security Watch camera sampler running");
+
+  // Leader election: only the lock holder runs samplers. On a single instance
+  // the lock is acquired immediately here, so behavior is unchanged.
+  await leaderTick();
+  leaderTimer = setInterval(() => {
+    void leaderTick();
+  }, LEADER_RENEW_INTERVAL_MS);
+  logger.info(
+    { leader: isLeader, instanceId: INSTANCE_ID },
+    isLeader
+      ? "Security Watch camera sampler running (leader)"
+      : "Security Watch camera sampler on standby (another instance is leader)",
+  );
 }
 
 export function stopCameraSampler(): void {
-  if (refreshTimer) clearInterval(refreshTimer);
-  if (cleanupTimer) clearInterval(cleanupTimer);
-  refreshTimer = null;
-  cleanupTimer = null;
-  for (const id of [...runners.keys()]) stopRunner(id);
+  if (leaderTimer) clearInterval(leaderTimer);
+  leaderTimer = null;
+  const wasLeader = isLeader;
+  relinquishLeadership();
   samplerEnabled = false;
+  if (wasLeader) {
+    // Best-effort release so a replacement instance can take over immediately
+    // instead of waiting out the TTL.
+    try {
+      void Promise.resolve(getLockRedis().eval(RELEASE_LUA, 1, LEADER_KEY, INSTANCE_ID)).catch(() => undefined);
+    } catch {
+      /* redis unavailable — lock will expire via TTL */
+    }
+  }
 }
+
+/** Test-only hooks — never use in production code paths. */
+export const __leaderLockTesting = {
+  tryAcquireOrRenewLeadership,
+  setRedisOverride(r: LockRedis | null): void {
+    redisOverride = r;
+  },
+  getState() {
+    return { isLeader, lastSuccessfulLockAt };
+  },
+  setState(state: { isLeader?: boolean; lastSuccessfulLockAt?: number }): void {
+    if (state.isLeader !== undefined) isLeader = state.isLeader;
+    if (state.lastSuccessfulLockAt !== undefined) lastSuccessfulLockAt = state.lastSuccessfulLockAt;
+  },
+  constants: { LEADER_KEY, LEADER_TTL_MS, INSTANCE_ID },
+};
