@@ -9,6 +9,9 @@
  *   - member PATCH /watch/cameras/:id is rejected with 403
  *   - member DELETE /watch/cameras/:id is rejected with 403
  *   - admin PATCH with the masked ••• placeholder is rejected with 400
+ *   - a lastError containing raw credentialed URLs (simulating un-redacted
+ *     ffmpeg stderr) is redacted at read time for BOTH member and admin
+ *   - redactStreamCredentials unit behavior on multi-URL free-form text
  *
  * Requires the API Server workflow to be running (like tenant-isolation).
  * Run (from workspace root): pnpm dlx tsx artifacts/api-server/src/tests/watch-camera-masking.test.ts
@@ -24,6 +27,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { generateSessionToken, hashToken, SESSION_TTL_MS } from "../lib/auth";
+import { redactStreamCredentials, MASKED_CREDENTIALS } from "../lib/watch/mask";
 
 const API_BASE = process.env.WATCH_TEST_API_BASE ?? "http://localhost:80/api";
 
@@ -169,6 +173,58 @@ async function run() {
     const adminPatch = await api(adminToken, "PATCH", `/v1/watch/cameras/${camera.id}`, { name: "Renamed by Admin" });
     assert(adminPatch.status === 200, `admin PATCH returns 200 (got ${adminPatch.status})`);
     assert(adminPatch.json?.name === "Renamed by Admin", "admin PATCH applied the new name");
+
+    console.log("\nlastError leak — raw credentialed ffmpeg stderr is redacted at read time:");
+    const rawStderr =
+      `[rtsp @ 0x55] method DESCRIBE failed: 401 Unauthorized\n` +
+      `${FULL_STREAM_URL}: Connection refused\n` +
+      `Retrying via rtsp://${SECRET_USER}:${SECRET_PASS}@backup.example.com:554/alt failed too`;
+    await db
+      .update(watchCamerasTable)
+      .set({ status: "error", lastError: rawStderr })
+      .where(eq(watchCamerasTable.id, camera.id));
+
+    const memberList2 = await api(memberToken, "GET", "/v1/watch/cameras");
+    assert(memberList2.status === 200, `member list returns 200 (got ${memberList2.status})`);
+    const memberCam2 = memberList2.json?.data?.find((c: any) => c.id === camera.id);
+    assert(!!memberCam2?.lastError, "member response includes a lastError value");
+    assert(!memberList2.text.includes(SECRET_PASS), "password never appears in member response despite raw lastError in DB");
+    assert(!memberList2.text.includes(`${SECRET_USER}:`), "userinfo never appears in member response despite raw lastError in DB");
+    assert(
+      typeof memberCam2?.lastError === "string" && memberCam2.lastError.includes(`rtsp://${MASKED_CREDENTIALS}@${STREAM_HOST}`),
+      "member lastError keeps the host but shows rtsp://•••@host",
+    );
+    assert(
+      typeof memberCam2?.lastError === "string" && memberCam2.lastError.includes("401 Unauthorized"),
+      "member lastError keeps non-URL diagnostic text intact",
+    );
+
+    // Admin responses include the full streamUrl by design, so scope the
+    // leak check to the lastError field itself.
+    const adminList2 = await api(adminToken, "GET", "/v1/watch/cameras");
+    const adminCam2 = adminList2.json?.data?.find((c: any) => c.id === camera.id);
+    assert(
+      typeof adminCam2?.lastError === "string" && !adminCam2.lastError.includes(SECRET_PASS) && !adminCam2.lastError.includes(`${SECRET_USER}:`),
+      "password/userinfo never appears in ADMIN lastError either",
+    );
+    assert(
+      typeof adminCam2?.lastError === "string" && adminCam2.lastError.includes(`rtsp://${MASKED_CREDENTIALS}@backup.example.com:554`),
+      "admin lastError redacts the second (backup) URL too",
+    );
+
+    console.log("\nredactStreamCredentials — multi-URL free-form text (unit):");
+    const multi = redactStreamCredentials(
+      `first ${FULL_STREAM_URL} then http://u2:p2@web.example.com/x and plain rtsp://nocreds.example.com/s ` +
+        `and rtmps://a.b:c%40d@edge.example.com/live end`,
+    );
+    assert(!multi.includes(SECRET_PASS) && !multi.includes("p2") && !multi.includes("c%40d"), "all passwords removed from multi-URL text");
+    assert(!multi.includes(`${SECRET_USER}:`) && !multi.includes("u2:"), "all usernames removed from multi-URL text");
+    assert(multi.includes(`rtsp://${MASKED_CREDENTIALS}@${STREAM_HOST}/stream1`), "first URL masked, host/path preserved");
+    assert(multi.includes(`http://${MASKED_CREDENTIALS}@web.example.com/x`), "second (http) URL masked, host/path preserved");
+    assert(multi.includes("rtsp://nocreds.example.com/s"), "credential-free URL left untouched");
+    assert(multi.includes(`rtmps://${MASKED_CREDENTIALS}@edge.example.com/live`), "URL with encoded @ in password masked");
+    assert(multi.startsWith("first ") && multi.endsWith(" end"), "surrounding free-form text preserved");
+    assert(redactStreamCredentials("no urls here at all") === "no urls here at all", "text without URLs is unchanged");
   } finally {
     await cleanup(org.id, [hashToken(adminToken), hashToken(memberToken)]);
   }

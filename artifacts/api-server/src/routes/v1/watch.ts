@@ -153,9 +153,16 @@ router.get("/cameras", async (req, res) => {
     .from(watchCamerasTable)
     .where(eq(watchCamerasTable.orgId, req.thea!.org.id))
     .orderBy(desc(watchCamerasTable.createdAt));
+  // lastError persists ffmpeg stderr, which can embed rtsp://user:pass@host
+  // URLs; redact at read time as defense-in-depth even though the sampler
+  // redacts before writing.
+  const withSafeErrors = cameras.map((cam) => ({
+    ...cam,
+    lastError: cam.lastError ? redactStreamCredentials(cam.lastError) : cam.lastError,
+  }));
   const data = canSeeFullStreamUrl(req)
-    ? cameras
-    : cameras.map((cam) => ({ ...cam, streamUrl: maskStreamUrl(cam.streamUrl) }));
+    ? withSafeErrors
+    : withSafeErrors.map((cam) => ({ ...cam, streamUrl: maskStreamUrl(cam.streamUrl) }));
   res.json({ data, total: cameras.length });
 });
 
