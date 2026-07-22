@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { webhookRegistrationsTable, webhookDeliveryLogsTable } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
+import { redactStreamCredentials } from "./watch/mask";
 
 const VALID_EVENTS = ["alert.spike", "alert.ai_narrative", "analysis.complete", "campaign.milestone", "sighting.detected"] as const;
 export type WebhookEventType = (typeof VALID_EVENTS)[number];
@@ -101,7 +102,9 @@ export async function dispatchWebhookEvent(
   if (!registrations.length) return;
 
   const payload: WebhookPayload = { event, orgId, ts: new Date().toISOString(), data };
-  const body = JSON.stringify(payload);
+  // Defense-in-depth: never let embedded stream credentials (rtsp://user:pass@host)
+  // reach third-party webhook endpoints, regardless of what callers put in `data`.
+  const body = redactStreamCredentials(JSON.stringify(payload));
 
   await Promise.allSettled(
     registrations

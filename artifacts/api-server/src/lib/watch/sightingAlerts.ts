@@ -14,6 +14,7 @@ import { dispatchWebhookEvent } from "../webhookDispatcher";
 import { logger } from "../logger";
 import { getPlatformConfig } from "../platform-config";
 import { sendSightingPush, orgHasPushSubscribers } from "./pushSightings";
+import { redactStreamCredentials } from "./mask";
 
 /**
  * Alert fan-out for a live-camera sighting, gated by a per-(target, camera)
@@ -49,7 +50,12 @@ export async function maybeAlertSighting(args: {
     .where(eq(organizationsTable.id, target.orgId))
     .limit(1);
   const orgName = org?.name ?? "Your Organisation";
-  const source = camera ? `Camera: ${camera.name}${camera.location ? ` (${camera.location})` : ""}` : "Uploaded video";
+  // Camera name/location are free-form user input; redact any embedded
+  // scheme://user:pass@ credentials so they never reach outbound channels.
+  const source = redactStreamCredentials(
+    camera ? `Camera: ${camera.name}${camera.location ? ` (${camera.location})` : ""}` : "Uploaded video",
+  );
+  const detail = sighting.detail ? redactStreamCredentials(sighting.detail) : sighting.detail;
   const confidencePct = sighting.confidence != null ? `${Math.round(sighting.confidence * 100)}%` : "—";
   const seenAt = (sighting.createdAt ?? new Date()).toISOString();
   const baseUrl = (await getPlatformConfig("portal_base_url")) ?? "https://thea.quest";
@@ -71,7 +77,7 @@ export async function maybeAlertSighting(args: {
             source,
             matchType: sighting.matchType,
             confidence: confidencePct,
-            detail: sighting.detail ?? "",
+            detail: detail ?? "",
             seenAt,
             dashboardUrl,
           },
@@ -94,7 +100,7 @@ export async function maybeAlertSighting(args: {
         cameraName: camera?.name ?? null,
         matchType: sighting.matchType,
         confidence: sighting.confidence,
-        detail: sighting.detail,
+        detail: detail,
         seenAt,
       });
     } catch (err) {
@@ -110,7 +116,7 @@ export async function maybeAlertSighting(args: {
       .where(eq(emailPreferencesTable.orgId, target.orgId))
       .limit(1);
 
-    const text = `👁 *THEA Security Watch* — *${target.name}* spotted\n${source}\nMatch: ${sighting.matchType}${sighting.detail ? ` (${sighting.detail})` : ""} · Confidence: ${confidencePct}\n${dashboardUrl}`;
+    const text = `👁 *THEA Security Watch* — *${target.name}* spotted\n${source}\nMatch: ${sighting.matchType}${detail ? ` (${detail})` : ""} · Confidence: ${confidencePct}\n${dashboardUrl}`;
 
     if (channels.slack && pref?.slackWebhookUrl) {
       try {
@@ -144,7 +150,7 @@ export async function maybeAlertSighting(args: {
                 activityTitle: `👁 Security Watch — ${target.name} spotted`,
                 activitySubtitle: source,
                 facts: [
-                  { name: "Match", value: `${sighting.matchType}${sighting.detail ? ` (${sighting.detail})` : ""}` },
+                  { name: "Match", value: `${sighting.matchType}${detail ? ` (${detail})` : ""}` },
                   { name: "Confidence", value: confidencePct },
                   { name: "Seen at", value: seenAt },
                 ],
@@ -165,7 +171,7 @@ export async function maybeAlertSighting(args: {
     try {
       const sent = await sendSightingPush(target.orgId, {
         title: `👁 ${target.name} spotted`,
-        body: `${source} · Match: ${sighting.matchType}${sighting.detail ? ` (${sighting.detail})` : ""} · Confidence: ${confidencePct}`,
+        body: `${source} · Match: ${sighting.matchType}${detail ? ` (${detail})` : ""} · Confidence: ${confidencePct}`,
         data: {
           type: "sighting",
           sightingId: sighting.id,
