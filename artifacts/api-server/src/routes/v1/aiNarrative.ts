@@ -157,7 +157,16 @@ router.post("/run", requireRole("owner", "admin"), async (req, res) => {
     return;
   }
 
-  await getQueues().aiNarrative.add("ai-narrative-run", { orgId, trigger: "manual" });
+  // Deterministic jobId closes the enqueue race: two rapid POSTs both pass the
+  // DB "running" check (the run row is only created when the worker starts),
+  // but BullMQ treats a second add with the same jobId as a no-op while the
+  // first job is still waiting/active. removeOnComplete/removeOnFail free the
+  // id as soon as the run finishes so the next manual run can be queued.
+  await getQueues().aiNarrative.add(
+    "ai-narrative-run",
+    { orgId, trigger: "manual" },
+    { jobId: `ai-narrative-run-${orgId}`, removeOnComplete: true, removeOnFail: true },
+  );
   logger.info({ orgId }, "Manual AI narrative run queued");
   res.status(202).json({ queued: true });
 });

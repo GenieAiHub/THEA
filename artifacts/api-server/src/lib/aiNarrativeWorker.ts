@@ -29,7 +29,14 @@ export function startAiNarrativeWorker(): void {
       logger.info({ orgs: due.length }, "AI narrative tick — scheduling due org runs");
       const queue = getQueues().aiNarrative;
       for (const { orgId } of due) {
-        await queue.add("ai-narrative-run", { orgId, trigger: "scheduled" });
+        // Same deterministic jobId as manual runs — a scheduled enqueue is a
+        // no-op if a run for this org is already waiting/active (and vice
+        // versa), so an org can never have two runs queued back-to-back.
+        await queue.add(
+          "ai-narrative-run",
+          { orgId, trigger: "scheduled" },
+          { jobId: `ai-narrative-run-${orgId}`, removeOnComplete: true, removeOnFail: true },
+        );
       }
       return;
     }
