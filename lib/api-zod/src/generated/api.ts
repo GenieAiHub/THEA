@@ -2824,7 +2824,9 @@ export const GetAiNarrativeOverviewResponse = zod.object({
   "answeredAt": zod.coerce.date()
 })),
   "avgSentiment": zod.number().nullish(),
-  "avgDelta": zod.number().nullish()
+  "avgDelta": zod.number().nullish(),
+  "sovPercent": zod.number().nullish().describe('Share of voice: this entity\'s % of all tracked-entity mentions across the latest run'),
+  "sovDelta": zod.number().nullish().describe('Change in SoV percentage points vs the previous run')
 })),
   "tier": zod.enum(['starter', 'pro', 'enterprise'])
 })
@@ -2850,6 +2852,15 @@ export const GetAiNarrativeTimelineResponse = zod.object({
   "provider": zod.string(),
   "sentiment": zod.number()
 })),
+  "sovSeries": zod.array(zod.object({
+  "runId": zod.string().uuid(),
+  "at": zod.coerce.date(),
+  "shares": zod.array(zod.object({
+  "entity": zod.string(),
+  "percent": zod.number().describe('Share of all counted mentions in the run (0–100)'),
+  "mentions": zod.number()
+}))
+})).describe('Per-run share-of-voice across all tracked entities (brand vs competitors)'),
   "entity": zod.string(),
   "days": zod.number()
 })

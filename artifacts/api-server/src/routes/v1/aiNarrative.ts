@@ -177,8 +177,8 @@ router.get("/timeline", async (req, res) => {
     return;
   }
   const days = Math.min(Math.max(Number(req.query.days ?? 30) || 30, 1), 365);
-  const points = await getNarrativeTimeline(req.thea!.org.id, entity, days);
-  res.json({ data: points, entity, days });
+  const { points, sovSeries } = await getNarrativeTimeline(req.thea!.org.id, entity, days);
+  res.json({ data: points, sovSeries, entity, days });
 });
 
 // ─── GET /api/v1/ai-narrative/runs ────────────────────────────────────────────

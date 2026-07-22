@@ -15,4 +15,14 @@ export interface NarrativeEntitySummary {
   avgSentiment?: number | null;
   /** @nullable */
   avgDelta?: number | null;
+  /**
+     * Share of voice: this entity's % of all tracked-entity mentions across the latest run
+     * @nullable
+     */
+  sovPercent?: number | null;
+  /**
+     * Change in SoV percentage points vs the previous run
+     * @nullable
+     */
+  sovDelta?: number | null;
 }

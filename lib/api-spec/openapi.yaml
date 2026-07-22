@@ -4102,6 +4102,14 @@ components:
             $ref: "#/components/schemas/NarrativeProviderReading"
         avgSentiment: { type: number, nullable: true }
         avgDelta:     { type: number, nullable: true }
+        sovPercent:
+          type: number
+          nullable: true
+          description: "Share of voice: this entity's % of all tracked-entity mentions across the latest run"
+        sovDelta:
+          type: number
+          nullable: true
+          description: "Change in SoV percentage points vs the previous run"
     NarrativeLastRun:
       type: object
       required: [id, status, startedAt, trigger]
@@ -4132,13 +4140,35 @@ components:
         at:        { type: string, format: date-time }
         provider:  { type: string }
         sentiment: { type: number }
+    NarrativeSovShare:
+      type: object
+      required: [entity, percent, mentions]
+      properties:
+        entity:   { type: string }
+        percent:  { type: number, description: "Share of all counted mentions in the run (0–100)" }
+        mentions: { type: integer }
+    NarrativeSovPoint:
+      type: object
+      required: [runId, at, shares]
+      properties:
+        runId: { type: string, format: uuid }
+        at:    { type: string, format: date-time }
+        shares:
+          type: array
+          items:
+            $ref: "#/components/schemas/NarrativeSovShare"
     NarrativeTimeline:
       type: object
-      required: [data, entity, days]
+      required: [data, sovSeries, entity, days]
       properties:
         data:
           type: array
           items:
             $ref: "#/components/schemas/NarrativeTimelinePoint"
+        sovSeries:
+          type: array
+          description: "Per-run share-of-voice across all tracked entities (brand vs competitors)"
+          items:
+            $ref: "#/components/schemas/NarrativeSovPoint"
         entity: { type: string }
         days:   { type: integer }

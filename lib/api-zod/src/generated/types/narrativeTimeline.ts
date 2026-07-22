@@ -5,10 +5,13 @@
  * THEA - Total Human Engagement Analytics API
  * OpenAPI spec version: 0.1.0
  */
+import type { NarrativeSovPoint } from './narrativeSovPoint';
 import type { NarrativeTimelinePoint } from './narrativeTimelinePoint';
 
 export interface NarrativeTimeline {
   data: NarrativeTimelinePoint[];
+  /** Per-run share-of-voice across all tracked entities (brand vs competitors) */
+  sovSeries: NarrativeSovPoint[];
   entity: string;
   days: number;
 }

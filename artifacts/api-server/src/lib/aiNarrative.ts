@@ -510,6 +510,27 @@ export interface EntityNarrative {
   }[];
   avgSentiment: number | null;
   avgDelta: number | null;
+  /** Share of voice: this entity's % of all tracked-entity mentions across the latest run's answers (null when no mentions were counted). */
+  sovPercent: number | null;
+  /** Change in SoV percentage points vs the previous run (null when no previous run data). */
+  sovDelta: number | null;
+}
+
+/** Sum mention counts per entity name across a set of responses. */
+function sumMentions(rows: { shareOfVoice: unknown }[]): { totals: Map<string, number>; grand: number } {
+  const totals = new Map<string, number>();
+  let grand = 0;
+  for (const r of rows) {
+    const m = (r.shareOfVoice as { mentions?: Record<string, number> } | null)?.mentions;
+    if (!m || typeof m !== "object") continue;
+    for (const [name, raw] of Object.entries(m)) {
+      const c = Number(raw);
+      if (!Number.isFinite(c) || c <= 0) continue;
+      totals.set(name, (totals.get(name) ?? 0) + c);
+      grand += c;
+    }
+  }
+  return { totals, grand };
 }
 
 export async function getNarrativeOverview(orgId: string): Promise<{
@@ -538,10 +559,15 @@ export async function getNarrativeOverview(orgId: string): Promise<{
           entity: aiNarrativeResponsesTable.entity,
           provider: aiNarrativeResponsesTable.provider,
           sentiment: aiNarrativeResponsesTable.sentimentScore,
+          shareOfVoice: aiNarrativeResponsesTable.shareOfVoice,
         })
         .from(aiNarrativeResponsesTable)
         .where(and(eq(aiNarrativeResponsesTable.orgId, orgId), eq(aiNarrativeResponsesTable.runId, prev.id)))
     : [];
+
+  // Share of voice: each entity's % of all tracked-entity mentions across the run.
+  const curSov = sumMentions(latestResponses);
+  const prevSov = sumMentions(prevResponses);
 
   const prevSentiment = new Map<string, { sum: number; n: number }>();
   for (const r of prevResponses) {
@@ -563,7 +589,15 @@ export async function getNarrativeOverview(orgId: string): Promise<{
   for (const r of latestResponses) {
     let e = byEntity.get(r.entity);
     if (!e) {
-      e = { entity: r.entity, entityType: typeByEntity.get(r.entity) ?? "brand", providers: [], avgSentiment: null, avgDelta: null };
+      e = {
+        entity: r.entity,
+        entityType: typeByEntity.get(r.entity) ?? "brand",
+        providers: [],
+        avgSentiment: null,
+        avgDelta: null,
+        sovPercent: null,
+        sovDelta: null,
+      };
       byEntity.set(r.entity, e);
     }
     // Keep only the first (latest) response per provider per entity for the overview
@@ -595,6 +629,15 @@ export async function getNarrativeOverview(orgId: string): Promise<{
     e.avgDelta = deltas.length
       ? Math.round((deltas.reduce((a, b) => a + b, 0) / deltas.length) * 100) / 100
       : null;
+
+    if (curSov.grand > 0) {
+      const cur = ((curSov.totals.get(e.entity) ?? 0) / curSov.grand) * 100;
+      e.sovPercent = Math.round(cur * 10) / 10;
+      if (prevSov.grand > 0) {
+        const prevPct = ((prevSov.totals.get(e.entity) ?? 0) / prevSov.grand) * 100;
+        e.sovDelta = Math.round((cur - prevPct) * 10) / 10;
+      }
+    }
   }
 
   return {
@@ -618,11 +661,18 @@ export interface TimelinePoint {
   sentiment: number;
 }
 
+export interface SovTimelinePoint {
+  runId: string;
+  at: string;
+  /** Per-entity share of all tracked-entity mentions in that run (percent), sorted desc. */
+  shares: { entity: string; percent: number; mentions: number }[];
+}
+
 export async function getNarrativeTimeline(
   orgId: string,
   entity: string,
   days = 30,
-): Promise<TimelinePoint[]> {
+): Promise<{ points: TimelinePoint[]; sovSeries: SovTimelinePoint[] }> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const rows = await db
     .select({
@@ -652,7 +702,7 @@ export async function getNarrativeTimeline(
     byKey.set(key, e);
   }
 
-  return [...byKey.values()]
+  const points = [...byKey.values()]
     .sort((a, b) => a.at.getTime() - b.at.getTime())
     .map((e) => ({
       runId: e.runId,
@@ -660,6 +710,51 @@ export async function getNarrativeTimeline(
       provider: e.provider,
       sentiment: Math.round((e.sum / e.n) * 100) / 100,
     }));
+
+  // Share-of-voice series: per run, each tracked entity's % of all counted
+  // mentions across every response in the run (not just the requested entity's
+  // rows) — enables the brand-vs-competitor comparison chart.
+  const allRows = await db
+    .select({
+      runId: aiNarrativeResponsesTable.runId,
+      createdAt: aiNarrativeResponsesTable.createdAt,
+      shareOfVoice: aiNarrativeResponsesTable.shareOfVoice,
+    })
+    .from(aiNarrativeResponsesTable)
+    .where(
+      and(
+        eq(aiNarrativeResponsesTable.orgId, orgId),
+        gte(aiNarrativeResponsesTable.createdAt, since),
+      ),
+    );
+
+  const byRun = new Map<string, { at: Date; rows: { shareOfVoice: unknown }[] }>();
+  for (const r of allRows) {
+    const e = byRun.get(r.runId) ?? { at: r.createdAt, rows: [] };
+    if (r.createdAt.getTime() < e.at.getTime()) e.at = r.createdAt;
+    e.rows.push(r);
+    byRun.set(r.runId, e);
+  }
+
+  const sovSeries: SovTimelinePoint[] = [];
+  for (const [runId, e] of byRun) {
+    const { totals, grand } = sumMentions(e.rows);
+    if (grand <= 0) continue;
+    sovSeries.push({
+      runId,
+      at: e.at.toISOString(),
+      shares: [...totals.entries()]
+        .map(([name, mentions]) => ({
+          entity: name,
+          percent: Math.round((mentions / grand) * 1000) / 10,
+          mentions,
+        }))
+        .sort((a, b) => b.percent - a.percent),
+    });
+  }
+  sovSeries.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  return { points, sovSeries };
 }
 
 // ─── Scheduling helpers (used by the worker) ──────────────────────────────────

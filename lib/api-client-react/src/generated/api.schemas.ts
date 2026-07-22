@@ -1907,6 +1907,16 @@ export interface NarrativeEntitySummary {
   avgSentiment?: number | null;
   /** @nullable */
   avgDelta?: number | null;
+  /**
+     * Share of voice: this entity's % of all tracked-entity mentions across the latest run
+     * @nullable
+     */
+  sovPercent?: number | null;
+  /**
+     * Change in SoV percentage points vs the previous run
+     * @nullable
+     */
+  sovDelta?: number | null;
 }
 
 export interface NarrativeLastRun {
@@ -1940,8 +1950,23 @@ export interface NarrativeTimelinePoint {
   sentiment: number;
 }
 
+export interface NarrativeSovShare {
+  entity: string;
+  /** Share of all counted mentions in the run (0–100) */
+  percent: number;
+  mentions: number;
+}
+
+export interface NarrativeSovPoint {
+  runId: string;
+  at: string;
+  shares: NarrativeSovShare[];
+}
+
 export interface NarrativeTimeline {
   data: NarrativeTimelinePoint[];
+  /** Per-run share-of-voice across all tracked entities (brand vs competitors) */
+  sovSeries: NarrativeSovPoint[];
   entity: string;
   days: number;
 }

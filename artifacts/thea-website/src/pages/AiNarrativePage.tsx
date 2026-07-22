@@ -38,6 +38,7 @@ import {
 
 const PROVIDER_LABELS: Record<string, string> = { openai: "ChatGPT (OpenAI)", gemini: "Gemini (grounded)" };
 const PROVIDER_COLORS: Record<string, string> = { openai: "#34d399", gemini: "#818cf8" };
+const SOV_PALETTE = ["#38bdf8", "#f472b6", "#fbbf24", "#a78bfa", "#4ade80", "#fb923c", "#22d3ee", "#e879f9"];
 
 function fmtSentiment(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
@@ -130,6 +131,33 @@ export default function AiNarrativePage() {
           " " + new Date(r.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
       }));
   }, [timelineData]);
+
+  const sovEntities = useMemo(() => {
+    const names = new Set<string>();
+    for (const p of timelineData?.sovSeries ?? []) {
+      for (const s of p.shares) names.add(s.entity);
+    }
+    // Brand entities first so they get the first palette colors
+    return [...names].sort((a, b) => {
+      const ta = entities.find((e) => e.entity === a)?.entityType ?? "keyword";
+      const tb = entities.find((e) => e.entity === b)?.entityType ?? "keyword";
+      if (ta !== tb) return ta === "brand" ? -1 : tb === "brand" ? 1 : ta.localeCompare(tb);
+      return a.localeCompare(b);
+    });
+  }, [timelineData, entities]);
+
+  const sovChartData = useMemo(() => {
+    return (timelineData?.sovSeries ?? []).map((p) => {
+      const row: Record<string, unknown> = {
+        at: p.at,
+        label: new Date(p.at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+          " " + new Date(p.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+      };
+      for (const name of sovEntities) row[name] = 0;
+      for (const s of p.shares) row[s.entity] = s.percent;
+      return row;
+    });
+  }, [timelineData, sovEntities]);
 
   const handleRunNow = async () => {
     try {
@@ -252,6 +280,20 @@ export default function AiNarrativePage() {
                       </span>
                     </div>
                   </div>
+                  {entity.sovPercent != null && (
+                    <div className="flex items-center justify-between mt-1" data-testid={`sov-${entity.entity.toLowerCase().replace(/\s+/g, "-")}`}>
+                      <span className="text-xs text-slate-500">Share of voice</span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-sky-400">{entity.sovPercent.toFixed(1)}%</span>
+                        {entity.sovDelta != null && (
+                          <span className={`inline-flex items-center gap-0.5 text-xs ${entity.sovDelta > 0.05 ? "text-emerald-400" : entity.sovDelta < -0.05 ? "text-rose-400" : "text-slate-500"}`}>
+                            {entity.sovDelta > 0.05 ? <TrendingUp className="w-3 h-3" /> : entity.sovDelta < -0.05 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                            {entity.sovDelta > 0 ? "+" : ""}{entity.sovDelta.toFixed(1)} pts
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {entity.providers.map((p: NarrativeProviderReading) => (
@@ -319,6 +361,46 @@ export default function AiNarrativePage() {
                   </ResponsiveContainer>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {sovChartData.length > 0 && (
+          <Card data-testid="card-sov-chart">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-slate-100">Share of voice — you vs competitors</CardTitle>
+              <CardDescription>
+                How often each tracked entity is mentioned across all AI answers, as a % of total mentions per run
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={sovChartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 11 }} unit="%" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: 8 }}
+                      labelStyle={{ color: "#cbd5e1" }}
+                      formatter={(value: number) => `${Number(value).toFixed(1)}%`}
+                    />
+                    <Legend />
+                    {sovEntities.map((name, i) => (
+                      <Line
+                        key={name}
+                        type="monotone"
+                        dataKey={name}
+                        name={name}
+                        stroke={SOV_PALETTE[i % SOV_PALETTE.length]}
+                        strokeWidth={entities.find((e) => e.entity === name)?.entityType === "brand" ? 3 : 2}
+                        dot={{ r: 3 }}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
         )}
