@@ -276,7 +276,13 @@ export async function startCameraSampler(): Promise<void> {
     logger.info("Security Watch disabled by platform config (security_watch_enabled=false)");
     return;
   }
-  const hasFfmpeg = await probeFfmpeg();
+  // Retry a few times: at boot the machine can be busy enough that the first
+  // probe times out even though ffmpeg is installed.
+  let hasFfmpeg = false;
+  for (let attempt = 1; attempt <= 3 && !hasFfmpeg; attempt++) {
+    hasFfmpeg = await probeFfmpeg();
+    if (!hasFfmpeg && attempt < 3) await new Promise((r) => setTimeout(r, 5_000));
+  }
   if (!hasFfmpeg) return; // probeFfmpeg already logged
 
   if (!existsSync(FRAME_TMP_DIR)) mkdirSync(FRAME_TMP_DIR, { recursive: true });

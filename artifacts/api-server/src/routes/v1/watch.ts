@@ -22,7 +22,7 @@ import { analyzeFrame } from "../../lib/watch/frameProcessor";
 import { detectObjects, computeObjectEmbedding, VEHICLE_CLASSES } from "../../lib/watch/objectRecognition";
 import { decodeJpegToRgb, cropRgb } from "../../lib/watch/imageOps";
 import { normalizePlate } from "../../lib/watch/plateOcr";
-import { validateStreamUrl, isFfmpegAvailable, captureFrame } from "../../lib/watch/ffmpeg";
+import { validateStreamUrl, probeFfmpeg, captureFrame } from "../../lib/watch/ffmpeg";
 import { maskStreamUrl, redactStreamCredentials, MASKED_CREDENTIALS } from "../../lib/watch/mask";
 import { isSamplerRunning } from "../../lib/watch/cameraSampler";
 import { buildDvrChannelUrl, isDvrBrand, type DvrStreamQuality } from "../../lib/watch/dvr";
@@ -59,10 +59,10 @@ function sanitizeAlertChannels(input: unknown): WatchAlertChannels {
 }
 
 // ─── GET /api/v1/watch/status ────────────────────────────────────────────────
-router.get("/status", (_req, res) => {
+router.get("/status", async (_req, res) => {
   res.json({
     liveSamplingEnabled: isSamplerRunning(),
-    ffmpegAvailable: isFfmpegAvailable(),
+    ffmpegAvailable: await probeFfmpeg(),
   });
 });
 
@@ -238,7 +238,7 @@ interface DvrRequestBody {
 router.post("/dvr/test", requireRole("owner", "admin"), async (req, res) => {
   const { brand, host, port, username, password, quality, urlPattern, channel } = req.body as DvrRequestBody & { channel?: number };
   if (!isDvrBrand(brand)) { res.status(400).json({ error: "brand must be one of hikvision, dahua, amcrest, uniview, reolink, generic" }); return; }
-  if (!isFfmpegAvailable()) { res.status(503).json({ error: "ffmpeg is not available on the server" }); return; }
+  if (!(await probeFfmpeg())) { res.status(503).json({ error: "ffmpeg is not available on the server" }); return; }
   const q: DvrStreamQuality = quality === "main" ? "main" : "sub";
   let url: string;
   try {
@@ -312,7 +312,7 @@ router.post("/cameras/:id/stream/start", async (req, res) => {
     .where(and(eq(watchCamerasTable.id, req.params.id as string), eq(watchCamerasTable.orgId, req.thea!.org.id)))
     .limit(1);
   if (!camera) { res.status(404).json({ error: "Camera not found" }); return; }
-  if (!isFfmpegAvailable()) { res.status(503).json({ error: "ffmpeg is not available on the server" }); return; }
+  if (!(await probeFfmpeg())) { res.status(503).json({ error: "ffmpeg is not available on the server" }); return; }
   try {
     const result = await startLiveStream({ id: camera.id, orgId: camera.orgId, streamUrl: camera.streamUrl });
     if (result.status === "error") {
@@ -720,8 +720,8 @@ router.get("/videos/:id", async (req, res) => {
   res.json(rest);
 });
 
-router.post("/videos", requireRole("owner", "admin"), (req, res) => {
-  if (!isFfmpegAvailable()) {
+router.post("/videos", requireRole("owner", "admin"), async (req, res) => {
+  if (!(await probeFfmpeg())) {
     res.status(503).json({ error: "Video scanning is unavailable — ffmpeg is not installed on this server" });
     return;
   }

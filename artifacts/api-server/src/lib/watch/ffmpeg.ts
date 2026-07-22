@@ -8,11 +8,18 @@ import { logger } from "../logger";
 import { redactStreamCredentials } from "./mask";
 
 let ffmpegAvailable: boolean | null = null;
+let probeInFlight: Promise<boolean> | null = null;
 
-/** Probe once whether ffmpeg is on PATH. */
+/**
+ * Probe whether ffmpeg is on PATH. Success is cached forever; a failure is
+ * re-probed on the next call, so a transient failure at boot (e.g. the 5s
+ * timeout firing while the machine is busy restarting) can't permanently
+ * disable live streaming and video scanning until the next restart.
+ */
 export async function probeFfmpeg(): Promise<boolean> {
-  if (ffmpegAvailable !== null) return ffmpegAvailable;
-  ffmpegAvailable = await new Promise<boolean>((resolveP) => {
+  if (ffmpegAvailable === true) return true;
+  if (probeInFlight) return probeInFlight;
+  probeInFlight = new Promise<boolean>((resolveP) => {
     try {
       const p = spawn("ffmpeg", ["-version"], { stdio: ["ignore", "ignore", "ignore"] });
       const t = setTimeout(() => {
@@ -30,9 +37,13 @@ export async function probeFfmpeg(): Promise<boolean> {
     } catch {
       resolveP(false);
     }
+  }).then((ok) => {
+    ffmpegAvailable = ok;
+    probeInFlight = null;
+    if (!ok) logger.warn("ffmpeg probe failed — Security Watch live sampling and video scanning disabled until a later probe succeeds");
+    return ok;
   });
-  if (!ffmpegAvailable) logger.warn("ffmpeg not found on PATH — Security Watch live sampling and video scanning disabled");
-  return ffmpegAvailable;
+  return probeInFlight;
 }
 
 export function isFfmpegAvailable(): boolean {
