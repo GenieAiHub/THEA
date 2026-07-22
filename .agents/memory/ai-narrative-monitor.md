@@ -12,6 +12,12 @@ history, and raise "ai_narrative" alerts on cross-provider sentiment drops
 (avg delta ≤ −0.3; −0.5 high, −0.7 critical) through the normal alert-dispatch
 pipeline.
 
+Also raises "ai_sov" alerts (share-of-voice): brand SoV drop ≥10pp vs previous
+run, or a competitor overtaking the brand (was ≤ brand, now > brand). Severity:
+both=critical, overtake or ≥20pp=high, else medium. Same 24h dedupe rule
+(type+keyword, ignore status) but on its OWN type so it never collides with
+sentiment alerts. Payload carries previousSov/currentSov/sovDelta/overtakenBy.
+
 ## Durable rules
 - **Dedicated BullMQ queue** ("ai-narrative", concurrency 1, attempts 1 — LLM
   calls are billable, never retry; same rationale as other billable collectors).

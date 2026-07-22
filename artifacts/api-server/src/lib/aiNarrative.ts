@@ -53,6 +53,8 @@ export const AI_NARRATIVE_CADENCE_MS: Record<string, number> = {
 const SENTIMENT_SHIFT_THRESHOLD = 0.3;
 /** Don't re-alert for the same entity while an open ai_narrative alert is younger than this. */
 const ALERT_DEDUPE_HOURS = 24;
+/** Brand share of voice must drop by at least this many percentage points vs the previous run to alert. */
+const SOV_DROP_THRESHOLD_PP = 10;
 /** A run stuck in "running" longer than this is considered crashed (process restart mid-run). */
 export const STALE_RUN_MS = 45 * 60 * 1000;
 
@@ -371,6 +373,7 @@ export async function detectNarrativeShifts(orgId: string, runId: string): Promi
       entity: aiNarrativeResponsesTable.entity,
       provider: aiNarrativeResponsesTable.provider,
       sentiment: aiNarrativeResponsesTable.sentimentScore,
+      shareOfVoice: aiNarrativeResponsesTable.shareOfVoice,
     })
     .from(aiNarrativeResponsesTable)
     .where(and(eq(aiNarrativeResponsesTable.orgId, orgId), eq(aiNarrativeResponsesTable.runId, runId)));
@@ -395,6 +398,7 @@ export async function detectNarrativeShifts(orgId: string, runId: string): Promi
       entity: aiNarrativeResponsesTable.entity,
       provider: aiNarrativeResponsesTable.provider,
       sentiment: aiNarrativeResponsesTable.sentimentScore,
+      shareOfVoice: aiNarrativeResponsesTable.shareOfVoice,
     })
     .from(aiNarrativeResponsesTable)
     .where(and(eq(aiNarrativeResponsesTable.orgId, orgId), eq(aiNarrativeResponsesTable.runId, prevRun.id)));
@@ -487,6 +491,130 @@ export async function detectNarrativeShifts(orgId: string, runId: string): Promi
     );
 
     logger.info({ orgId, entity, delta: delta.toFixed(2), severity }, "AI narrative shift alert created");
+    raised++;
+  }
+
+  raised += await detectSovShifts(orgId, runId, current, previous).catch((err) => {
+    logger.warn({ err, orgId, runId }, "SoV shift detection failed");
+    return 0;
+  });
+
+  return raised;
+}
+
+/**
+ * Compare each brand entity's share of voice (its % of all tracked-entity
+ * mentions) in this run against the previous run. Raises a THEA alert
+ * (type "ai_sov") through the normal dispatch pipeline when:
+ *   - the brand's SoV drops by ≥ SOV_DROP_THRESHOLD_PP percentage points, or
+ *   - a competitor entity overtakes the brand (competitor was at or below the
+ *     brand last run, and is strictly above it now).
+ * Deduped like ai_narrative alerts: 24h window on type+keyword, ignoring
+ * status (dispatch flips open→dispatched within seconds).
+ */
+async function detectSovShifts(
+  orgId: string,
+  runId: string,
+  current: { entity: string; shareOfVoice: unknown }[],
+  previous: { entity: string; shareOfVoice: unknown }[],
+): Promise<number> {
+  const cur = sumMentions(current);
+  const prev = sumMentions(previous);
+  if (cur.grand <= 0 || prev.grand <= 0) return 0; // no mention data to compare
+
+  const pct = (totals: Map<string, number>, grand: number, entity: string) =>
+    Math.round(((totals.get(entity) ?? 0) / grand) * 1000) / 10;
+
+  const promptTypes = await db
+    .select({ entity: aiNarrativePromptsTable.entity, entityType: aiNarrativePromptsTable.entityType })
+    .from(aiNarrativePromptsTable)
+    .where(eq(aiNarrativePromptsTable.orgId, orgId));
+  const brands = [...new Set(promptTypes.filter((p) => p.entityType === "brand").map((p) => p.entity))];
+  const competitors = [...new Set(promptTypes.filter((p) => p.entityType === "competitor").map((p) => p.entity))];
+  if (!brands.length) return 0;
+
+  let raised = 0;
+
+  for (const brand of brands) {
+    // Only compare when the brand had mention data in both runs.
+    if (!cur.totals.has(brand) && !prev.totals.has(brand)) continue;
+    const currentSov = pct(cur.totals, cur.grand, brand);
+    const previousSov = pct(prev.totals, prev.grand, brand);
+    const sovDelta = Math.round((currentSov - previousSov) * 10) / 10;
+
+    const bigDrop = sovDelta <= -SOV_DROP_THRESHOLD_PP;
+
+    // Competitor overtake: was at or below the brand last run, strictly above it now.
+    let overtakenBy: { entity: string; previousSov: number; currentSov: number } | null = null;
+    for (const comp of competitors) {
+      const compCur = pct(cur.totals, cur.grand, comp);
+      const compPrev = pct(prev.totals, prev.grand, comp);
+      if (compPrev <= previousSov && compCur > currentSov) {
+        if (!overtakenBy || compCur > overtakenBy.currentSov) {
+          overtakenBy = { entity: comp, previousSov: compPrev, currentSov: compCur };
+        }
+      }
+    }
+
+    if (!bigDrop && !overtakenBy) continue;
+
+    // Dedupe: skip while any ai_sov alert for this brand is < 24h old (any status).
+    const dedupeSince = new Date(Date.now() - ALERT_DEDUPE_HOURS * 60 * 60 * 1000);
+    const [recentAlert] = await db
+      .select({ id: alertsTable.id })
+      .from(alertsTable)
+      .where(
+        and(
+          eq(alertsTable.orgId, orgId),
+          eq(alertsTable.type, "ai_sov"),
+          eq(alertsTable.keyword, brand),
+          gte(alertsTable.createdAt, dedupeSince),
+        ),
+      )
+      .limit(1);
+    if (recentAlert) continue;
+
+    const severity =
+      bigDrop && overtakenBy ? "critical" : overtakenBy || sovDelta <= -2 * SOV_DROP_THRESHOLD_PP ? "high" : "medium";
+
+    const [alert] = await db
+      .insert(alertsTable)
+      .values({
+        orgId,
+        keyword: brand,
+        type: "ai_sov",
+        severity,
+        status: "open",
+        payload: {
+          runId,
+          kind: overtakenBy ? (bigDrop ? "sov_drop_and_overtake" : "sov_overtake") : "sov_drop",
+          previousSov,
+          currentSov,
+          sovDelta,
+          overtakenBy,
+        },
+      })
+      .returning();
+
+    await getQueues().alertDispatch.add(
+      "alert-dispatch",
+      {
+        alertId: alert.id,
+        orgId,
+        keyword: brand,
+        severity,
+        alertType: "ai_sov",
+        sovPrevious: previousSov,
+        sovCurrent: currentSov,
+        overtakenBy: overtakenBy?.entity ?? null,
+      },
+      { priority: severity === "critical" ? 1 : severity === "high" ? 2 : 5 },
+    );
+
+    logger.info(
+      { orgId, brand, previousSov, currentSov, overtakenBy: overtakenBy?.entity, severity },
+      "AI share-of-voice alert created",
+    );
     raised++;
   }
 

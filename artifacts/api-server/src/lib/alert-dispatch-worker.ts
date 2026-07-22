@@ -16,10 +16,16 @@ interface AlertDispatchJobData {
   severity?: string;
   spikeRatio?: number;
   crisisProbability?: number;
-  /** "spike" (default) or "ai_narrative" — controls message wording only. */
+  /** "spike" (default), "ai_narrative", or "ai_sov" — controls message wording only. */
   alertType?: string;
   /** For ai_narrative alerts: cross-provider average sentiment delta (e.g. −0.45). */
   sentimentShift?: number;
+  /** For ai_sov alerts: brand share of voice (%) in the previous run. */
+  sovPrevious?: number;
+  /** For ai_sov alerts: brand share of voice (%) in the current run. */
+  sovCurrent?: number;
+  /** For ai_sov alerts: name of the competitor that overtook the brand (null when the alert is drop-only). */
+  overtakenBy?: string | null;
 }
 
 interface SpikeAnalysisJobData {
@@ -47,13 +53,19 @@ export function startAlertDispatchWorker(): void {
       return;
     }
 
-    const { alertId, orgId, keyword, severity, spikeRatio, crisisProbability, alertType, sentimentShift } = job.data as AlertDispatchJobData;
+    const { alertId, orgId, keyword, severity, spikeRatio, crisisProbability, alertType, sentimentShift, sovPrevious, sovCurrent, overtakenBy } = job.data as AlertDispatchJobData;
     if (!alertId) {
       logger.warn({ jobId: job.id }, "alert-dispatch job missing alertId — skipping");
       return;
     }
     const isNarrative = alertType === "ai_narrative";
+    const isSov = alertType === "ai_sov";
     const shiftLabel = sentimentShift != null ? sentimentShift.toFixed(2) : "N/A";
+    const sovLabel =
+      sovPrevious != null && sovCurrent != null ? `${sovPrevious.toFixed(1)}% → ${sovCurrent.toFixed(1)}%` : "N/A";
+    const sovHeadline = overtakenBy
+      ? `"${overtakenBy}" overtook "${keyword}" in AI share of voice`
+      : `AI share of voice dropped for "${keyword}"`;
 
     await db
       .update(alertsTable)
@@ -88,11 +100,22 @@ export function startAlertDispatchWorker(): void {
           "alert-email",
           {
             to: orgMembers.map((r) => ({ email: r.email, name: r.name ?? r.email })),
-            subject: isNarrative
+            subject: isSov
+              ? `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: ${sovHeadline}`
+              : isNarrative
               ? `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: AI narrative shift on "${keyword}"`
               : `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]: Spike on "${keyword}"`,
-            template: isNarrative ? "narrative-alert" : "spike-alert",
-            data: isNarrative
+            template: isSov ? "sov-alert" : isNarrative ? "narrative-alert" : "spike-alert",
+            data: isSov
+              ? {
+                  orgName: org?.name ?? "Your Organisation",
+                  entity: keyword,
+                  severity,
+                  sovShift: sovLabel,
+                  overtakenBy: overtakenBy ?? "",
+                  dashboardUrl: alertUrl,
+                }
+              : isNarrative
               ? {
                   orgName: org?.name ?? "Your Organisation",
                   entity: keyword,
@@ -130,13 +153,21 @@ export function startAlertDispatchWorker(): void {
         } else {
           try {
             const body = JSON.stringify({
-              text: isNarrative
+              text: isSov
+                ? `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — ${sovHeadline}`
+                : isNarrative
                 ? `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — AI narrative shift on *${keyword}*`
                 : `${severityEmoji} *THEA Alert [${(severity ?? "medium").toUpperCase()}]* — spike on *${keyword}*`,
               attachments: [
                 {
                   color: severity === "critical" ? "#e53e3e" : severity === "high" ? "#dd6b20" : "#3182ce",
-                  fields: isNarrative
+                  fields: isSov
+                    ? [
+                        { title: "Share of voice", value: sovLabel, short: true },
+                        ...(overtakenBy ? [{ title: "Overtaken by", value: overtakenBy, short: true }] : []),
+                        { title: "Organisation", value: org?.name ?? orgId, short: true },
+                      ]
+                    : isNarrative
                     ? [
                         { title: "Sentiment shift", value: shiftLabel, short: true },
                         { title: "Organisation", value: org?.name ?? orgId, short: true },
@@ -175,14 +206,23 @@ export function startAlertDispatchWorker(): void {
               "@type": "MessageCard",
               "@context": "http://schema.org/extensions",
               themeColor: severity === "critical" ? "e53e3e" : severity === "high" ? "dd6b20" : "3182ce",
-              summary: isNarrative
+              summary: isSov
+                ? `THEA Alert: ${sovHeadline}`
+                : isNarrative
                 ? `THEA Alert: AI narrative shift on "${keyword}"`
                 : `THEA Alert: spike on "${keyword}"`,
               sections: [
                 {
                   activityTitle: `${severityEmoji} THEA Alert [${(severity ?? "medium").toUpperCase()}]`,
                   activitySubtitle: org?.name ?? orgId,
-                  facts: isNarrative
+                  facts: isSov
+                    ? [
+                        { name: "Brand", value: keyword ?? "N/A" },
+                        { name: "Share of voice", value: sovLabel },
+                        ...(overtakenBy ? [{ name: "Overtaken by", value: overtakenBy }] : []),
+                        { name: "Severity", value: (severity ?? "medium").toUpperCase() },
+                      ]
+                    : isNarrative
                     ? [
                         { name: "Entity", value: keyword ?? "N/A" },
                         { name: "Sentiment shift", value: shiftLabel },
@@ -209,7 +249,16 @@ export function startAlertDispatchWorker(): void {
       // ── Telegram delivery ───────────────────────────────────────────────────
       const telegramChatId = emailPref?.telegramChatId;
       if (telegramChatId) {
-        const message = isNarrative
+        const message = isSov
+          ? [
+              `${severityEmoji} *THEA AI Share of Voice Alert* \\[${(severity ?? "medium").toUpperCase()}\\]`,
+              `Brand: *${keyword ?? "N/A"}*`,
+              overtakenBy
+                ? `*${overtakenBy}* overtook your brand in AI share of voice — ${sovLabel}`
+                : `AI share of voice dropped — ${sovLabel}`,
+              `[View in Dashboard](${alertUrl})`,
+            ].join("\n")
+          : isNarrative
           ? [
               `${severityEmoji} *THEA AI Narrative Alert* \\[${(severity ?? "medium").toUpperCase()}\\]`,
               `Entity: *${keyword ?? "N/A"}*`,
@@ -247,7 +296,7 @@ export function startAlertDispatchWorker(): void {
                   parameters: [
                     { type: "text", text: keyword ?? "N/A" },
                     { type: "text", text: (severity ?? "medium").toUpperCase() },
-                    { type: "text", text: isNarrative ? `sentiment ${shiftLabel}` : spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
+                    { type: "text", text: isSov ? `SoV ${sovLabel}` : isNarrative ? `sentiment ${shiftLabel}` : spikeRatio ? `${spikeRatio.toFixed(1)}×` : "N/A" },
                   ],
                 },
               ],
@@ -281,8 +330,10 @@ export function startAlertDispatchWorker(): void {
       // ── Registered webhooks (HMAC-signed) ──────────────────────────────────
       dispatchWebhookEvent(
         orgId,
-        isNarrative ? "alert.ai_narrative" : "alert.spike",
-        isNarrative
+        isNarrative || isSov ? "alert.ai_narrative" : "alert.spike",
+        isSov
+          ? { alertId, entity: keyword, severity, kind: "share_of_voice", sovPrevious, sovCurrent, overtakenBy }
+          : isNarrative
           ? { alertId, entity: keyword, severity, sentimentShift }
           : { alertId, keyword, severity, spikeRatio, crisisProbability },
       ).catch((err) => logger.warn({ err, alertId, orgId }, "Webhook dispatch failed (non-blocking)"));
