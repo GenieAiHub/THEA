@@ -17,6 +17,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { logger } from "../logger";
 import { getPlatformConfigNumber } from "../platform-config";
+import { redactStreamCredentials } from "./mask";
 
 export const LIVE_TMP_DIR = "/tmp/thea-watch-live";
 
@@ -223,12 +224,13 @@ async function doStartLiveStream(camera: { id: string; orgId: string; streamUrl:
     stderrTail = (stderrTail + c.toString()).slice(-2000);
   });
   proc.on("error", (err) => {
-    session.lastError = err.message;
+    session.lastError = redactStreamCredentials(err.message);
     teardown(session);
   });
   proc.on("exit", (code) => {
     // Mark dead so the next /start respawns instead of serving a stale playlist.
-    session.lastError = stderrTail.trim().split("\n").pop() || `ffmpeg exited with code ${code}`;
+    // Redact credentials — ffmpeg stderr often echoes the full input URL.
+    session.lastError = redactStreamCredentials(stderrTail.trim().split("\n").pop() || `ffmpeg exited with code ${code}`);
     if (sessions.get(camera.id) === session) {
       logger.warn({ cameraId: camera.id, code, err: session.lastError }, "Live stream ffmpeg exited");
       teardown(session);

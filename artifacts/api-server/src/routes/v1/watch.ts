@@ -23,6 +23,7 @@ import { detectObjects, computeObjectEmbedding, VEHICLE_CLASSES } from "../../li
 import { decodeJpegToRgb, cropRgb } from "../../lib/watch/imageOps";
 import { normalizePlate } from "../../lib/watch/plateOcr";
 import { validateStreamUrl, isFfmpegAvailable, captureFrame } from "../../lib/watch/ffmpeg";
+import { maskStreamUrl, redactStreamCredentials, MASKED_CREDENTIALS } from "../../lib/watch/mask";
 import { isSamplerRunning } from "../../lib/watch/cameraSampler";
 import { buildDvrChannelUrl, isDvrBrand, type DvrStreamQuality } from "../../lib/watch/dvr";
 import { startLiveStream, touchLiveStream, stopLiveStream, LiveStreamCapacityError } from "../../lib/watch/liveStream";
@@ -138,15 +139,8 @@ router.post("/recognize", async (req, res) => {
 
 // ═══ Cameras ═════════════════════════════════════════════════════════════════
 
-const MASKED_CREDENTIALS = "•••";
-
-/**
- * Masks embedded credentials in a stream URL (e.g. rtsp://user:pass@host/x →
- * rtsp://•••@host/x) so non-admin org members never see camera passwords.
- */
-function maskStreamUrl(url: string): string {
-  return url.replace(/^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)[^@/]+@/, `$1${MASKED_CREDENTIALS}@`);
-}
+// maskStreamUrl / MASKED_CREDENTIALS now live in lib/watch/mask.ts (shared
+// with the sampler/live-stream pipeline so persisted errors are redacted too).
 
 function canSeeFullStreamUrl(req: { thea?: { user: { role: string } } }): boolean {
   const role = req.thea?.user.role;
@@ -257,7 +251,7 @@ router.post("/dvr/test", requireRole("owner", "admin"), async (req, res) => {
     await captureFrame(url, 15000);
     res.json({ ok: true, url: maskStreamUrl(url) });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = redactStreamCredentials(err instanceof Error ? err.message : String(err));
     res.json({ ok: false, error: message.slice(0, 300), url: maskStreamUrl(url) });
   }
 });

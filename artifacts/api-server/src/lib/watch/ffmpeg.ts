@@ -5,6 +5,7 @@
  */
 import { spawn } from "node:child_process";
 import { logger } from "../logger";
+import { redactStreamCredentials } from "./mask";
 
 let ffmpegAvailable: boolean | null = null;
 
@@ -93,7 +94,8 @@ export async function captureFrame(streamUrl: string, timeoutMs = 12000): Promis
   args.push("-i", streamUrl, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "4", "pipe:1");
   const { code, stdout, stderr } = await runFfmpeg(args, timeoutMs, true);
   if (code !== 0 || stdout.length === 0) {
-    throw new Error(stderr.trim().split("\n").pop() || `ffmpeg exited with code ${code}`);
+    // Redact credentials — ffmpeg stderr often echoes the full input URL.
+    throw new Error(redactStreamCredentials(stderr.trim().split("\n").pop() || `ffmpeg exited with code ${code}`));
   }
   return stdout;
 }
@@ -143,6 +145,6 @@ export async function extractFrames(videoPath: string, outDir: string, everySeco
   ];
   const { code, stderr } = await runFfmpeg(args, timeoutMs, false);
   if (code !== 0) {
-    throw new Error(stderr.trim().split("\n").pop() || `ffmpeg frame extraction failed (code ${code})`);
+    throw new Error(redactStreamCredentials(stderr.trim().split("\n").pop() || `ffmpeg frame extraction failed (code ${code})`));
   }
 }

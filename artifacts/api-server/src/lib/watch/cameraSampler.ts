@@ -16,6 +16,7 @@ import { getPlatformConfigBool, getPlatformConfigNumber } from "../platform-conf
 import { addJob, getQueues } from "../queues";
 import { getRedis } from "../redis";
 import { probeFfmpeg, captureFrame } from "./ffmpeg";
+import { redactStreamCredentials } from "./mask";
 
 export const FRAME_TMP_DIR = "/tmp/thea-watch-frames";
 
@@ -182,7 +183,9 @@ async function sampleTick(runner: CameraRunner): Promise<void> {
     });
   } catch (err) {
     runner.consecutiveFailures += 1;
-    const message = err instanceof Error ? err.message : String(err);
+    // Belt-and-braces redaction: captureFrame already redacts ffmpeg stderr,
+    // but other errors (URL parse, spawn failures) may still embed the URL.
+    const message = redactStreamCredentials(err instanceof Error ? err.message : String(err));
     // Only write health on the transition to avoid a DB write per failed tick.
     if (runner.consecutiveFailures === 1 || runner.camera.status === "online") {
       runner.camera = { ...runner.camera, status: "error" };
