@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useListTrends, useGetLatestAnalysis, useListAlerts, useListWatchlistKeywords, useListCategories } from "@workspace/api-client-react";
+import { alertTitle, sovShiftText } from "@/lib/alertPresentation";
 import { ShieldAlert, TrendingUp, Eye, Activity, RefreshCw, Flame, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +138,10 @@ export default function DashboardPage() {
                             : "bg-orange-500/20 text-orange-400 border-orange-500/30"}>
                             {a.severity?.toUpperCase()}
                           </Badge>
-                          <span className="text-sm text-slate-200 truncate">{a.title}</span>
+                          <span className="text-sm text-slate-200 truncate">
+                            {alertTitle(a)}
+                            {sovShiftText(a) && <span className="text-purple-400 ml-2">{sovShiftText(a)}</span>}
+                          </span>
                         </div>
                       </Link>
                     ))}

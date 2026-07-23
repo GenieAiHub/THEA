@@ -25,6 +25,7 @@ import {
   FileText,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { alertTypeInfo, alertTitle, alertDescription, isSovAlert, sovShiftText, sovOvertakenText } from "@/lib/alertPresentation";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -87,7 +88,7 @@ export default function AlertDetailPage() {
         data: {
           messages: [{
             role: "user",
-            content: `You are a crisis communications expert. Generate a concise counter-narrative for the following alert:\n\nTitle: ${alert.title}\nSeverity: ${alert.severity}\nDescription: ${alert.message || alert.description || "N/A"}\n\nProvide:\n1. The key counter-narrative message (2-3 sentences)\n2. Three supporting proof points\n3. Recommended communication channel (press release, social, internal)\n4. Urgency level (immediate / within 4h / within 24h)`,
+            content: `You are a crisis communications expert. Generate a concise counter-narrative for the following alert:\n\nTitle: ${alertTitle(alert)}\nSeverity: ${alert.severity}\nDescription: ${alertDescription(alert)}\n\nProvide:\n1. The key counter-narrative message (2-3 sentences)\n2. Three supporting proof points\n3. Recommended communication channel (press release, social, internal)\n4. Urgency level (immediate / within 4h / within 24h)`,
           }],
         },
       });
@@ -146,7 +147,7 @@ export default function AlertDetailPage() {
   }
 
   return (
-    <DashboardLayout title={`Alert: ${alert?.title?.slice(0, 40) || id}`}>
+    <DashboardLayout title={`Alert: ${alert ? alertTitle(alert).slice(0, 40) : id}`}>
       <div className="flex flex-col gap-6 max-w-5xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
@@ -161,11 +162,17 @@ export default function AlertDetailPage() {
                 <Badge className={`shrink-0 ${severityColors[alert?.severity || "low"]}`}>
                   {alert?.severity?.toUpperCase()}
                 </Badge>
+                {alert && (
+                  <Badge variant="outline" className={`shrink-0 inline-flex items-center gap-1 ${alertTypeInfo(alert).badgeClass}`}>
+                    {alertTypeInfo(alert).icon}
+                    {alertTypeInfo(alert).label}
+                  </Badge>
+                )}
                 {alert?.status === "resolved" && (
                   <Badge variant="outline" className="bg-slate-800 text-slate-400 border-slate-700">Resolved</Badge>
                 )}
               </div>
-              <h1 className="text-xl font-display font-bold text-slate-100 mt-2">{alert?.title}</h1>
+              <h1 className="text-xl font-display font-bold text-slate-100 mt-2">{alert ? alertTitle(alert) : ""}</h1>
               <p className="text-sm text-slate-500 mt-1">
                 {alert?.createdAt ? new Date(alert.createdAt).toLocaleString() : ""}
                 {alert?.category && ` · ${alert.category}`}
@@ -184,12 +191,32 @@ export default function AlertDetailPage() {
           )}
         </div>
 
+        {/* SoV shift summary (ai_sov alerts only) */}
+        {alert && isSovAlert(alert) && (sovShiftText(alert) || sovOvertakenText(alert)) && (
+          <Card className="bg-slate-900 border-purple-900/40">
+            <CardContent className="p-5 flex flex-wrap items-center gap-x-8 gap-y-3">
+              {sovShiftText(alert) && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Share of Voice Shift</p>
+                  <p className="text-2xl font-display font-bold text-purple-400">{sovShiftText(alert)}</p>
+                </div>
+              )}
+              {sovOvertakenText(alert) && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Competitor Overtake</p>
+                  <p className="text-2xl font-display font-bold text-red-400">{sovOvertakenText(alert)}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Description */}
-        {(alert?.message || alert?.description) && (
+        {alert && (
           <Card className="bg-slate-900 border-slate-800">
             <CardContent className="p-5">
               <p className="text-slate-300 text-sm leading-relaxed">
-                {alert.message || alert.description}
+                {alertDescription(alert)}
               </p>
               {alert.context && (
                 <details className="mt-4">

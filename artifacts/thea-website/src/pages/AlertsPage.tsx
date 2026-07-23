@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Filter, ExternalLink, X } from "lucide-react";
+import { alertTypeInfo, alertTitle, alertDescription, sovShiftText, sovOvertakenText } from "@/lib/alertPresentation";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -155,11 +156,23 @@ export default function AlertsPage() {
                       <Badge className={`shrink-0 ${severityColors[alert.severity] || severityColors.low}`}>
                         {alert.severity?.toUpperCase()}
                       </Badge>
+                      <Badge variant="outline" className={`shrink-0 hidden sm:inline-flex items-center gap-1 ${alertTypeInfo(alert).badgeClass}`}>
+                        {alertTypeInfo(alert).icon}
+                        {alertTypeInfo(alert).label}
+                      </Badge>
                       <div className="flex flex-col min-w-0">
                         <span className={`font-medium truncate ${alert.status === "resolved" ? "text-slate-400" : "text-slate-200"}`}>
-                          {alert.title}
+                          {alertTitle(alert)}
                         </span>
-                        <span className="text-xs text-slate-500">{new Date(alert.createdAt).toLocaleString()}</span>
+                        <span className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
+                          {new Date(alert.createdAt).toLocaleString()}
+                          {sovShiftText(alert) && (
+                            <span className="text-purple-400 font-medium">{sovShiftText(alert)}</span>
+                          )}
+                          {sovOvertakenText(alert) && (
+                            <span className="text-red-400 font-medium">{sovOvertakenText(alert)}</span>
+                          )}
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -210,7 +223,7 @@ export default function AlertsPage() {
                   {isExpanded && (
                     <div className="p-4 border-t border-slate-800 bg-slate-950 text-slate-300 text-sm">
                       <p className="leading-relaxed mb-4">
-                        {alert.message || alert.description || "No detailed description provided."}
+                        {alertDescription(alert)}
                       </p>
                       {alert.category && (
                         <div className="flex items-center gap-2 mb-3">

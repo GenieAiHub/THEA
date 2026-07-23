@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { Link, useLocation, Redirect } from "wouter";
 import { useAuth } from "@/context/AuthContext";
+import { alertTitle } from "@/lib/alertPresentation";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -93,7 +94,7 @@ function GlobalAlertWatcher() {
           if (alert.severity === "critical" || alert.severity === "high") {
             toast({
               title: `⚠ ${alert.severity === "critical" ? "Critical" : "High"} Alert`,
-              description: alert.title || "New alert triggered",
+              description: alertTitle(alert),
               variant: "destructive",
             });
           }

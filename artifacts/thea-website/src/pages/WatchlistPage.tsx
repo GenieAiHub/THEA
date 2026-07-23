@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { alertTitle, alertDescription } from "@/lib/alertPresentation";
 import {
   useListWatchlistKeywords,
   useCreateWatchlistKeyword,
@@ -473,14 +474,14 @@ export default function WatchlistPage() {
                         {matchingAlerts.map((alert: any, i: number) => (
                           <div key={alert.id || i} className="p-3 rounded-lg bg-slate-900 border border-slate-800">
                             <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm font-medium text-slate-200">{alert.title}</p>
+                              <p className="text-sm font-medium text-slate-200">{alertTitle(alert)}</p>
                               <Badge className={
                                 alert.severity === "critical" ? "bg-red-500/10 text-red-400 border-red-500/20 shrink-0" :
                                 alert.severity === "high" ? "bg-orange-500/10 text-orange-400 border-orange-500/20 shrink-0" :
                                 "bg-slate-700/50 text-slate-400 border-slate-700 shrink-0"
                               }>{alert.severity || "medium"}</Badge>
                             </div>
-                            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{alert.message}</p>
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{alertDescription(alert)}</p>
                             <p className="text-xs text-slate-600 mt-1.5">{alert.triggeredAt ? new Date(alert.triggeredAt).toLocaleString() : ""}</p>
                           </div>
                         ))}
