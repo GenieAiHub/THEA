@@ -12,6 +12,7 @@ import Members from "@/pages/Members";
 import MemberDetail from "@/pages/MemberDetail";
 import AccessPoints from "@/pages/AccessPoints";
 import Events from "@/pages/Events";
+import Alerts from "@/pages/Alerts";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
@@ -97,6 +98,7 @@ export function AnimatedRoutes() {
           <Route path="/members/:id" component={MemberDetail} />
           <Route path="/access-points" component={AccessPoints} />
           <Route path="/events" component={Events} />
+          <Route path="/alerts" component={Alerts} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

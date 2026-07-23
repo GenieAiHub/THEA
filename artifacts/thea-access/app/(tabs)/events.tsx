@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import { reasonLabel, type AccessEvent } from "@/lib/types";
 
 export default function EventsScreen() {
   const colors = useColors();
+  const router = useRouter();
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["events"],
     queryFn: () => api.listEvents(),
@@ -30,7 +32,15 @@ export default function EventsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScreenHeader title="Activity" subtitle="Recent access decisions" />
+      <ScreenHeader
+        title="Activity"
+        subtitle="Recent access decisions"
+        rightAction={{
+          icon: "bell",
+          onPress: () => router.push("/alerts" as never),
+          testID: "button-alerts",
+        }}
+      />
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />

@@ -69,6 +69,7 @@ function RootLayoutNav() {
       <Stack.Screen name="login" />
       <Stack.Screen name="member/[id]" />
       <Stack.Screen name="sighting/[id]" />
+      <Stack.Screen name="alerts" />
     </Stack>
   );
 }

@@ -7,6 +7,7 @@ import type {
   IdentifyResult,
   Member,
   MemberDetail,
+  OrgAlert,
 } from "./types";
 
 // Dev builds inject EXPO_PUBLIC_DOMAIN (Replit preview); production APK/IPA
@@ -246,6 +247,12 @@ export const api = {
     const res = await request<{ data: AccessEvent[]; total: number }>(
       `/v1/access/events?limit=${limit}`,
     );
+    return res.data;
+  },
+
+  // ── Intelligence alerts ─────────────────────────────────────────────────
+  async listAlerts(limit = 100): Promise<OrgAlert[]> {
+    const res = await request<{ data: OrgAlert[] }>(`/v1/alerts?limit=${limit}`);
     return res.data;
   },
 

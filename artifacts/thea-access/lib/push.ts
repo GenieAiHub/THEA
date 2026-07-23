@@ -26,6 +26,12 @@ export async function registerForSightingPush(): Promise<string | null> {
         vibrationPattern: [0, 250, 250, 250],
         sound: "default",
       });
+      await Notifications.setNotificationChannelAsync("intel-alerts", {
+        name: "Intelligence alerts",
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        sound: "default",
+      });
     }
 
     let { status } = await Notifications.getPermissionsAsync();

@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Bell,
   CalendarClock,
   DoorOpen,
   Home,
@@ -67,6 +68,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               </p>
             </div>
           </PressableLink>
+          <div className="flex items-center gap-2">
+          <PressableLink
+            href="/alerts"
+            hapticPattern="tap"
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground hover-elevate active-elevate-2",
+              isActive(location, "/alerts") && "bg-secondary text-foreground",
+            )}
+            data-testid="link-alerts"
+          >
+            <Bell className="h-[18px] w-[18px]" />
+          </PressableLink>
           <PressableLink
             href="/settings"
             hapticPattern="tap"
@@ -78,6 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <SettingsIcon className="h-[18px] w-[18px]" />
           </PressableLink>
+          </div>
         </div>
         <AnimatePresence initial={false}>
           {!online && (

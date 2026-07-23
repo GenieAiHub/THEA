@@ -8,6 +8,7 @@ import { dispatchWebhookEvent } from "./webhookDispatcher";
 import { sendTelegramMessage } from "./telegramBot";
 import { logger } from "./logger";
 import { getPlatformConfig } from "./platform-config";
+import { sendSightingPush } from "./watch/pushSightings";
 
 interface AlertDispatchJobData {
   alertId?: string;
@@ -41,6 +42,7 @@ interface SpikeAnalysisJobData {
  *    - Slack incoming webhook
  *    - Microsoft Teams incoming webhook
  *    - Telegram bot
+ *    - Expo push (THEA Access mobile app, opted-in devices)
  *    - Registered THEA webhooks (HMAC-signed)
  */
 export function startAlertDispatchWorker(): void {
@@ -325,6 +327,36 @@ export function startAlertDispatchWorker(): void {
         }
       } else if (whatsappTo && (!whatsappPhoneNumberId || !whatsappAccessToken)) {
         logger.warn({ alertId, orgId }, "WhatsApp recipient configured but WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_ACCESS_TOKEN missing — skipping");
+      }
+
+      // ── Expo push (THEA Access mobile app) ─────────────────────────────────
+      // SoV alerts get a meaningful headline + shift copy, not a generic alert.
+      try {
+        const pushTitle = isSov
+          ? `${severityEmoji} ${sovHeadline}`
+          : isNarrative
+          ? `${severityEmoji} AI narrative shift on "${keyword}"`
+          : `${severityEmoji} Mention spike on "${keyword}"`;
+        const pushBody = isSov
+          ? [
+              sovLabel !== "N/A" ? `SoV ${sovLabel}` : null,
+              overtakenBy ? `Overtaken by ${overtakenBy}` : null,
+              `Severity: ${(severity ?? "medium").toUpperCase()}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : isNarrative
+          ? `AI assistants shifted negative (sentiment ${shiftLabel}) · Severity: ${(severity ?? "medium").toUpperCase()}`
+          : `Spike ratio ${spikeRatio ? spikeRatio.toFixed(1) + "×" : "N/A"}${crisisProbability ? ` · Crisis ${crisisProbability}%` : ""} · Severity: ${(severity ?? "medium").toUpperCase()}`;
+        const sent = await sendSightingPush(orgId, {
+          title: pushTitle,
+          body: pushBody,
+          data: { type: "alert", alertType: alertType ?? "spike", alertId, url: "/alerts" },
+          channelId: "intel-alerts",
+        });
+        if (sent > 0) logger.info({ alertId, orgId, sent }, "Alert push delivered");
+      } catch (err) {
+        logger.warn({ err, alertId, orgId }, "Alert push delivery failed");
       }
 
       // ── Registered webhooks (HMAC-signed) ──────────────────────────────────

@@ -10,6 +10,8 @@ export interface SightingPushPayload {
   title: string;
   body: string;
   data: Record<string, unknown>;
+  /** Android notification channel; defaults to "sighting-alerts". */
+  channelId?: string;
 }
 
 /** True for both classic and bare Expo push token formats. */
@@ -49,7 +51,7 @@ export async function sendSightingPush(orgId: string, payload: SightingPushPaylo
       data: payload.data,
       sound: "default" as const,
       priority: "high" as const,
-      channelId: "sighting-alerts",
+      channelId: payload.channelId ?? "sighting-alerts",
     }));
     try {
       const res = await fetch(EXPO_PUSH_URL, {

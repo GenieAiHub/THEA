@@ -75,6 +75,20 @@ export interface AccessEvent {
   accessPointName: string | null;
 }
 
+/** Org intelligence alert row from GET /v1/alerts (spike / ai_narrative / ai_sov). */
+export interface OrgAlert {
+  id: string;
+  keyword: string;
+  type: string;
+  severity: string;
+  status: string;
+  spikeRatio: number | null;
+  crisisProbability: number | null;
+  sentimentShift: number | null;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface IdentifyResult {
   decision: Decision;
   reason: string;
