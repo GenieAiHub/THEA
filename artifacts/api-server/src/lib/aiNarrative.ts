@@ -141,6 +141,59 @@ export async function seedPromptsForOrg(orgId: string): Promise<number> {
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
+/** Corporate suffixes stripped when matching entity-name variants ("Acme Corp" → "acme"). */
+const CORP_SUFFIXES = new Set([
+  "inc", "incorporated", "corp", "corporation", "ltd", "limited", "llc", "llp",
+  "plc", "co", "company", "group", "holdings", "gmbh", "ag", "sa", "srl",
+  "pvt", "pte", "nv", "bv", "oy", "ab",
+]);
+
+/** Lowercase, strip punctuation, collapse whitespace. */
+function normalizeEntityName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[.,'"’`´&()\[\]!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Normalized form with trailing corporate suffixes removed ("acme corp inc" → "acme"). */
+function coreEntityName(name: string): string {
+  const words = normalizeEntityName(name).split(" ");
+  while (words.length > 1 && CORP_SUFFIXES.has(words[words.length - 1])) words.pop();
+  return words.join(" ");
+}
+
+/**
+ * Fold mention keys returned by the scorer onto canonical tracked-entity names.
+ * Matching is case-insensitive, punctuation-insensitive, and tolerant of
+ * corporate suffix variants ("Acme", "Acme Corp", "ACME Inc." → tracked "Acme Corp").
+ * Names that don't resolve to a tracked entity are dropped so SoV percentages
+ * always sum over tracked entities only.
+ */
+export function canonicalizeMentions(
+  mentions: Record<string, number>,
+  trackedEntities: string[],
+): Record<string, number> {
+  const lookup = new Map<string, string>();
+  for (const t of trackedEntities) {
+    const norm = normalizeEntityName(t);
+    if (norm && !lookup.has(norm)) lookup.set(norm, t);
+    const core = coreEntityName(t);
+    if (core && !lookup.has(core)) lookup.set(core, t);
+  }
+
+  const out: Record<string, number> = {};
+  for (const [name, raw] of Object.entries(mentions)) {
+    const count = Number(raw);
+    if (!Number.isFinite(count) || count <= 0) continue;
+    const canonical = lookup.get(normalizeEntityName(name)) ?? lookup.get(coreEntityName(name));
+    if (!canonical) continue;
+    out[canonical] = (out[canonical] ?? 0) + count;
+  }
+  return out;
+}
+
 interface NarrativeScores {
   sentiment: number | null;
   mentions: Record<string, number>;
@@ -159,7 +212,7 @@ async function scoreResponse(
 Return ONLY a JSON object with exactly these keys:
 {
   "sentiment": number,        // −1.0 (very negative portrayal of "${entity}") to +1.0 (very positive), 0 = neutral
-  "mentions": object,         // map of entity name -> mention count, counting ONLY these entities: ${JSON.stringify(knownEntities)}
+  "mentions": object,         // map of entity name -> mention count, counting ONLY these entities: ${JSON.stringify(knownEntities)}. Count name variants, abbreviations, and different casings/suffixes (e.g. "Acme", "ACME Inc.", "Acme Corp" all count toward the same entity) and report each count under the exact entity name from the list above.
   "notableClaims": string[],  // up to 5 short factual claims the answer makes about "${entity}"
   "quoteSnippets": string[]   // up to 3 verbatim snippets (max ~200 chars each) from the answer that best show how "${entity}" is portrayed
 }`;
@@ -181,7 +234,7 @@ Return ONLY a JSON object with exactly these keys:
       sentiment,
       mentions:
         parsed.mentions && typeof parsed.mentions === "object" && !Array.isArray(parsed.mentions)
-          ? (parsed.mentions as Record<string, number>)
+          ? canonicalizeMentions(parsed.mentions as Record<string, number>, knownEntities)
           : {},
       notableClaims: Array.isArray(parsed.notableClaims) ? parsed.notableClaims.slice(0, 5).map(String) : [],
       quoteSnippets: Array.isArray(parsed.quoteSnippets) ? parsed.quoteSnippets.slice(0, 3).map(String) : [],
@@ -518,17 +571,19 @@ async function detectSovShifts(
   current: { entity: string; shareOfVoice: unknown }[],
   previous: { entity: string; shareOfVoice: unknown }[],
 ): Promise<number> {
-  const cur = sumMentions(current);
-  const prev = sumMentions(previous);
+  const promptTypes = await db
+    .select({ entity: aiNarrativePromptsTable.entity, entityType: aiNarrativePromptsTable.entityType })
+    .from(aiNarrativePromptsTable)
+    .where(eq(aiNarrativePromptsTable.orgId, orgId));
+  const trackedEntities = [...new Set(promptTypes.map((p) => p.entity))];
+
+  const cur = sumMentions(current, trackedEntities);
+  const prev = sumMentions(previous, trackedEntities);
   if (cur.grand <= 0 || prev.grand <= 0) return 0; // no mention data to compare
 
   const pct = (totals: Map<string, number>, grand: number, entity: string) =>
     Math.round(((totals.get(entity) ?? 0) / grand) * 1000) / 10;
 
-  const promptTypes = await db
-    .select({ entity: aiNarrativePromptsTable.entity, entityType: aiNarrativePromptsTable.entityType })
-    .from(aiNarrativePromptsTable)
-    .where(eq(aiNarrativePromptsTable.orgId, orgId));
   const brands = [...new Set(promptTypes.filter((p) => p.entityType === "brand").map((p) => p.entity))];
   const competitors = [...new Set(promptTypes.filter((p) => p.entityType === "competitor").map((p) => p.entity))];
   if (!brands.length) return 0;
@@ -644,16 +699,23 @@ export interface EntityNarrative {
   sovDelta: number | null;
 }
 
-/** Sum mention counts per entity name across a set of responses. */
-function sumMentions(rows: { shareOfVoice: unknown }[]): { totals: Map<string, number>; grand: number } {
+/**
+ * Sum mention counts per canonical tracked-entity name across a set of
+ * responses. Mention keys are folded onto tracked names (case-insensitive,
+ * suffix-tolerant) and untracked names are dropped, so older stored responses
+ * with variant keys still aggregate correctly.
+ */
+function sumMentions(
+  rows: { shareOfVoice: unknown }[],
+  trackedEntities: string[],
+): { totals: Map<string, number>; grand: number } {
   const totals = new Map<string, number>();
   let grand = 0;
   for (const r of rows) {
     const m = (r.shareOfVoice as { mentions?: Record<string, number> } | null)?.mentions;
     if (!m || typeof m !== "object") continue;
-    for (const [name, raw] of Object.entries(m)) {
-      const c = Number(raw);
-      if (!Number.isFinite(c) || c <= 0) continue;
+    const folded = canonicalizeMentions(m, trackedEntities);
+    for (const [name, c] of Object.entries(folded)) {
       totals.set(name, (totals.get(name) ?? 0) + c);
       grand += c;
     }
@@ -693,9 +755,16 @@ export async function getNarrativeOverview(orgId: string): Promise<{
         .where(and(eq(aiNarrativeResponsesTable.orgId, orgId), eq(aiNarrativeResponsesTable.runId, prev.id)))
     : [];
 
+  const promptTypes = await db
+    .select({ entity: aiNarrativePromptsTable.entity, entityType: aiNarrativePromptsTable.entityType })
+    .from(aiNarrativePromptsTable)
+    .where(eq(aiNarrativePromptsTable.orgId, orgId));
+  const typeByEntity = new Map(promptTypes.map((p) => [p.entity, p.entityType]));
+  const trackedEntities = [...new Set(promptTypes.map((p) => p.entity))];
+
   // Share of voice: each entity's % of all tracked-entity mentions across the run.
-  const curSov = sumMentions(latestResponses);
-  const prevSov = sumMentions(prevResponses);
+  const curSov = sumMentions(latestResponses, trackedEntities);
+  const prevSov = sumMentions(prevResponses, trackedEntities);
 
   const prevSentiment = new Map<string, { sum: number; n: number }>();
   for (const r of prevResponses) {
@@ -706,12 +775,6 @@ export async function getNarrativeOverview(orgId: string): Promise<{
     e.n++;
     prevSentiment.set(key, e);
   }
-
-  const promptTypes = await db
-    .select({ entity: aiNarrativePromptsTable.entity, entityType: aiNarrativePromptsTable.entityType })
-    .from(aiNarrativePromptsTable)
-    .where(eq(aiNarrativePromptsTable.orgId, orgId));
-  const typeByEntity = new Map(promptTypes.map((p) => [p.entity, p.entityType]));
 
   const byEntity = new Map<string, EntityNarrative>();
   for (const r of latestResponses) {
@@ -864,9 +927,15 @@ export async function getNarrativeTimeline(
     byRun.set(r.runId, e);
   }
 
+  const trackedRows = await db
+    .select({ entity: aiNarrativePromptsTable.entity })
+    .from(aiNarrativePromptsTable)
+    .where(eq(aiNarrativePromptsTable.orgId, orgId));
+  const trackedEntities = [...new Set(trackedRows.map((p) => p.entity))];
+
   const sovSeries: SovTimelinePoint[] = [];
   for (const [runId, e] of byRun) {
-    const { totals, grand } = sumMentions(e.rows);
+    const { totals, grand } = sumMentions(e.rows, trackedEntities);
     if (grand <= 0) continue;
     sovSeries.push({
       runId,
